@@ -2,6 +2,7 @@
 // Result: etzba.apk in the project folder. Copy it to the phone and open it, or: adb install etzba.apk
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -17,6 +18,12 @@ if (!existsSync(android)) { console.error('No android/ folder yet. Run first:  n
 run(process.execPath, [join(root, 'scripts/build-www.mjs')]);
 run(process.execPath, [join(root, 'scripts/native-setup.mjs')]);
 run(npx, ['cap', 'sync', 'android']);
+// Gradle needs Java 21; Android Studio ships one, so use it if JAVA_HOME isn't set
+if (!process.env.JAVA_HOME) {
+  const jbr = ['/opt/android-studio/jbr', '/usr/local/android-studio/jbr', join(homedir(), 'android-studio/jbr'),
+    '/Applications/Android Studio.app/Contents/jbr/Contents/Home', 'C:/Program Files/Android/Android Studio/jbr'].find(existsSync);
+  if (jbr) { process.env.JAVA_HOME = jbr; console.log('Using Java from Android Studio: ' + jbr); }
+}
 const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
 run(gradlew, ['assembleDebug'], android);
 

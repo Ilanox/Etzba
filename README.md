@@ -27,7 +27,7 @@ Then open **http://localhost:5173**. To try it on your phone, open the "Phone" a
 ```bash
 npm install
 npm run android:init     # builds www/, creates android/, adds share-to-app, icons and splash
-npx cap open android     # opens Android Studio → press ▶ with your phone connected
+npm run apk              # → etzba.apk (copy to the phone, or: npm run install-apk)
 ```
 
 ## After changing code
@@ -68,7 +68,7 @@ This rebuilds and opens Android Studio.
 | `service-worker.js` | offline cache for the website version |
 | `native/android/` | receives files shared to the app |
 | `scripts/` | build, native setup, translation check |
-| `resources/` | source icon and splash (`npm run assets` makes every size) |
+| `resources/` | source icon and splash artwork; ready-made Android sizes are in `native/android/res/` |
 | `privacy.html` | privacy policy for the store |
 
 ## Translations

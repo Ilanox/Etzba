@@ -1,6 +1,7 @@
 // Adds אצבע's native pieces to the generated android/ and ios/ projects. Safe to run any number of times.
 //   node scripts/native-setup.mjs   (iOS support is kept for later: it only runs if an ios/ folder exists)
-import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, cpSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -40,7 +41,17 @@ ${data}
     x = x.replace(/(<action android:name="android.intent.action.MAIN" \/>[\s\S]*?<\/intent-filter>)/, `$1\n${filters}`);
     writeFileSync(mf, x);
   }
-  // 3. version from package.json
+  // 3. app icon and splash screens (pre-made, so no image tools are needed)
+  cpSync(join(root, 'native/android/res'), join(app, 'src/main/res'), { recursive: true });
+  // 4. tell Gradle where the Android SDK is, if it isn't set yet
+  const lp = join(root, 'android/local.properties');
+  if (!existsSync(lp)) {
+    const sdk = [process.env.ANDROID_HOME, process.env.ANDROID_SDK_ROOT, join(homedir(), 'Android/Sdk'), join(homedir(), 'Library/Android/sdk'),
+      join(homedir(), 'AppData/Local/Android/Sdk'), '/opt/android-sdk'].find(d => d && existsSync(d));
+    if (sdk) writeFileSync(lp, `sdk.dir=${sdk.replace(/\\/g, '/')}\n`);
+    else console.log('! Android SDK not found. Install Android Studio and open it once (it downloads the SDK), then run this again.');
+  }
+  // 5. version from package.json
   const bg = join(app, 'build.gradle');
   if (existsSync(bg)) {
     let g = readFileSync(bg, 'utf8');
@@ -52,7 +63,7 @@ ${data}
 
 function ios() {
   const plist = join(root, 'ios/App/App/Info.plist');
-  if (!existsSync(plist)) return console.log('ios/ not found, run: npx cap add ios (on a Mac)');
+  if (!existsSync(plist)) return only === 'ios' && console.log('ios/ not found, run: npx cap add ios (on a Mac)');
   let x = readFileSync(plist, 'utf8');
   const add = (key, xml) => { if (!x.includes(`<key>${key}</key>`)) x = x.replace(/<\/dict>\s*<\/plist>\s*$/, `\t<key>${key}</key>\n${xml}\n</dict>\n</plist>\n`); };
   // "Open in / Copy to אצבע" for CSV and Excel files

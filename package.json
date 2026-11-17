@@ -10,7 +10,6 @@
     "start:www": "npm run build && node scripts/serve.mjs www",
     "build": "node scripts/build-www.mjs",
     "android:init": "npm run build && npx cap add android && node scripts/native-setup.mjs && npx cap sync android",
-    "icons": "npx @capacitor/assets generate --android --iconBackgroundColor \"#1b1916\" --iconBackgroundColorDark \"#1b1916\" --splashBackgroundColor \"#f5f2ec\" --splashBackgroundColorDark \"#141518\"",
     "android": "npm run build && node scripts/native-setup.mjs && npx cap sync android && npx cap open android",
     "android:run": "npm run build && node scripts/native-setup.mjs && npx cap run android",
     "apk": "node scripts/build-apk.mjs",
@@ -28,7 +27,6 @@
     "@fontsource/heebo": "^5.0.0"
   },
   "devDependencies": {
-    "@capacitor/assets": "^3.0.0",
     "@capacitor/cli": "^8.5.0"
   }
 }
