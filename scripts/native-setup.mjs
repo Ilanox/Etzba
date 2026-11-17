@@ -18,11 +18,21 @@ function android() {
   if (!existsSync(app)) return console.log('android/ not found, run: npx cap add android');
   // 1. the share plugin + activity that registers it
   const pkgDir = join(app, 'src/main/java/com/edvinstudios/etzba'); mkdirSync(pkgDir, { recursive: true });
-  for (const f of ['ShareInPlugin.java', 'MainActivity.java']) copyFileSync(join(root, 'native/android', f), join(pkgDir, f));
+  for (const f of ['ShareInPlugin.java', 'GeoPlugin.java', 'GeoReceiver.java', 'MainActivity.java']) copyFileSync(join(root, 'native/android', f), join(pkgDir, f));
   // 2. appear in the Share menu and in "Open with" for spreadsheets and CSV
   const mf = join(app, 'src/main/AndroidManifest.xml'); let x = readFileSync(mf, 'utf8');
-  // notifications on Android 13+
-  if (!x.includes('POST_NOTIFICATIONS')) { x = x.replace(/<application/, '<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <application'); writeFileSync(mf, x); }
+  // permissions: notifications (Android 13+), workplace arrival (location, all the time), re-arming after a reboot
+  const perms = ['POST_NOTIFICATIONS', 'ACCESS_COARSE_LOCATION', 'ACCESS_FINE_LOCATION', 'ACCESS_BACKGROUND_LOCATION', 'RECEIVE_BOOT_COMPLETED'];
+  for (const p of perms) if (!x.includes(`android.permission.${p}"`)) x = x.replace(/<application/, `<uses-permission android:name="android.permission.${p}" />\n    <application`);
+  // the receiver the OS wakes for geofence events, reboots and app updates
+  if (!x.includes('.GeoReceiver')) x = x.replace(/<\/application>/, `    <receiver android:name=".GeoReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+    </application>`);
+  writeFileSync(mf, x);
   if (!x.includes('etzba-share-in')) {
     const data = MIMES.map(m => `                <data android:mimeType="${m}" />`).join('\n');
     const filters = `
@@ -53,10 +63,11 @@ ${data}
     if (sdk) writeFileSync(lp, `sdk.dir=${sdk.replace(/\\/g, '/')}\n`);
     else console.log('! Android SDK not found. Install Android Studio and open it once (it downloads the SDK), then run this again.');
   }
-  // 5. version from package.json
+  // 5. version from package.json, and Google's location library (geofencing)
   const bg = join(app, 'build.gradle');
   if (existsSync(bg)) {
     let g = readFileSync(bg, 'utf8');
+    if (!g.includes('play-services-location')) g = g.replace(/dependencies\s*\{/, m => `${m}\n    implementation 'com.google.android.gms:play-services-location:21.3.0'`);
     g = g.replace(/versionCode \d+/, `versionCode ${versionCode}`).replace(/versionName "[^"]*"/, `versionName "${pkg.version}"`);
     writeFileSync(bg, g);
   }

@@ -10,7 +10,7 @@ import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
 
-const VERSION = '1.28';
+const VERSION = '1.29';
 dbg.log('boot', 'v' + VERSION);
 
 /* ================= state ================= */
@@ -70,7 +70,7 @@ function applyTheme() {
 }
 applyTheme(); darkMQ.addEventListener?.('change', applyTheme);
 let PAY = new Map();
-const persist = () => { invalidate(); S.updatedAt = Date.now(); planNotifications(); try { localStorage.setItem(KEY, JSON.stringify(S)); localOk = true; } catch {
+const persist = () => { invalidate(); S.updatedAt = Date.now(); planNotifications(); syncGeo(); try { localStorage.setItem(KEY, JSON.stringify(S)); localOk = true; } catch {
   // no phone storage (blocked in some frames, or full): keep working; the account copy or a backup keeps the data
   localOk = false;
   if (!warnedLocal) { warnedLocal = true; toast('לא הצלחתי לשמור בטלפון. כדאי לגבות', 'err', { label: 'גיבוי עכשיו', fn: () => backupNow() }); }
@@ -189,6 +189,7 @@ function livePay() {
 const sheet = $('#sheet'), scrim = $('#scrim');
 function openSheet(html, mount) {
   dbg.log('tap', 'sheet: ' + (/<h2[^>]*>([^<]*)/.exec(html)?.[1] || '?'));
+  $('#toast').classList.remove('on');   // a message would cover the sheet's buttons
   sheet.innerHTML = '<div class="grab"></div>' + html;
   sheet.scrollTop = 0; sheet.style.transform = '';
   scrim.classList.add('on'); sheet.classList.add('on');
@@ -1168,6 +1169,9 @@ function openJobSheet(job, isNew) {
       <label class="field"><span>החזר נסיעות למשמרת (₪)</span><input class="input num" type="number" step="0.5" inputmode="decimal" data-k="travel" value="${j.travel}"></label>
       ${R('reg', 'אחוז שעה רגילה')}
     </div>
+    ${native.geo.available() ? `<h3>מיקום העבודה</h3>
+    <div class="card pad" id="j-place"></div>
+    <p class="hint">כשמגיעים לעבודה (אחרי כ־3 דקות במקום) תגיע התראה שמציעה להתחיל משמרת, וכשיוצאים באמצע משמרת, הצעה לסיים אותה. הטלפון עצמו עוקב אחרי האזור, כך שזה כמעט לא צורך סוללה.</p>` : ''}
     <div class="btnrow">
       <button class="btn primary" id="j-save">${I.check}שמירה</button>
       ${(job.versions || []).length ? `<div class="card" style="margin-top:6px"><div class="ln"><span class="l" style="font-weight:700;color:var(--ink)">כללים קודמים</span><span class="v"></span></div>${[...job.versions].sort((x, y) => +new Date(x.until) - +new Date(y.until)).map((v, i, arr) => `<div class="ln"><span class="l num">${i ? dFull(arr[i - 1].until) + ' – ' : 'עד '}${dFull(new Date(+new Date(v.until) - 1))}</span><span class="v num">₪${v.rules.rate} לשעה${rulesDiffer(v.rules, job) ? ' · כללים אחרים' : ''}</span></div>`).join('')}<div class="ln"><span class="l num">מ־${dFull(job.versions.reduce((mx, v) => +new Date(v.until) > mx ? +new Date(v.until) : mx, 0))}</span><span class="v num">₪${job.rate} לשעה (עכשיו)</span></div></div>` : ''}
@@ -1202,6 +1206,7 @@ function openJobSheet(job, isNew) {
     });
     $$('input,select', root).forEach(i => i.addEventListener('input', ui));
     ui();
+    if ($('#j-place', root)) drawPlace(root, j);
     $('#j-save', root).onclick = () => {
       j.name = v('name').value.trim() || 'עבודה';
       for (const k of ['rate', 'travel', 'regHours', 'shortHours', 'shortDay', 'ot1Hours', 'weeklyLimit', 'nightRegHours', 'holidayPayHours']) j[k] = +v(k).value || 0;
@@ -1421,6 +1426,78 @@ function planNotifications(ask = false) {
   }, 400);
 }
 
+/* ================= workplace location (arrive → "start a shift?", leave → "end it?") ================= */
+function drawPlace(root, j) {
+  const el = $('#j-place', root), p = j.place;
+  el.innerHTML = `
+    ${p ? `<div class="ln flat"><span class="l">${I.pin}${esc(p.label || 'המיקום שנשמר')}</span><button class="btn soft" style="width:auto;height:40px;padding:0 14px" id="pl-del" type="button">הסרה</button></div>
+      <label class="cell flat"><span class="grow">לשאול כשמגיעים ויוצאים</span><span class="switch"><input type="checkbox" id="pl-on"${p.on !== false ? ' checked' : ''}><i></i></span></label>
+      <div class="field"><span>רדיוס</span><div class="seg" id="pl-r">${[150, 300, 500].map(r => `<button type="button" data-r="${r}" class="${(p.radius || 300) === r ? 'on' : ''}">${r} מ׳</button>`).join('')}</div></div>
+      <div id="pl-perm"></div>`
+    : `<button class="btn soft" type="button" id="pl-here">${I.pin}אני בעבודה עכשיו</button>
+      <div class="field"><span>או כתובת</span><div style="display:flex;gap:8px"><input class="input" id="pl-addr" type="text" placeholder="למשל: יפו 97, ירושלים" autocomplete="street-address"><button class="btn soft" type="button" style="width:auto;padding:0 16px" id="pl-find">חיפוש</button></div></div>
+      <div id="pl-res"></div>`}`;
+  const set = place => { j.place = place; drawPlace(root, j); };
+  // "Allow all the time" is what lets the phone notice arriving at work while the app is closed. Asked here,
+  // inside the job sheet, so nothing typed in the sheet is lost.
+  if (p && p.on !== false) native.geo.status().then(st => {
+    const box = $('#pl-perm', el); if (!box || st.background) return;
+    box.innerHTML = `<div class="note" style="margin-top:12px">${I.info}<span>${st.location ? 'עוד אישור אחד: כדי לדעת שהגעת לעבודה גם כשאצבע סגורה, צריך לבחור במסך הבא <b>"לאפשר כל הזמן"</b>. אצבע לא שומרת ולא שולחת את המיקום לשום מקום.' : 'צריך אישור מיקום כדי שההתראות על הגעה יעבדו.'}</span></div>
+      <button class="btn soft" type="button" id="pl-allow" style="margin-top:8px">${st.location ? 'לאפשר כל הזמן' : 'לאשר מיקום'}</button>`;
+    $('#pl-allow', box).onclick = async () => {
+      let r = await native.geo.status();
+      if (!r.location) r = await native.geo.requestLocation();
+      if (r.location && !r.background) r = await native.geo.requestBackground();
+      if (!r.background) toast('בלי "כל הזמן" ההתראה תגיע רק כשהאפליקציה פתוחה', 'err');
+      drawPlace(root, j); syncGeo(true);
+    };
+  });
+  $('#pl-del', el) && ($('#pl-del', el).onclick = () => set(null));
+  $('#pl-on', el) && ($('#pl-on', el).onchange = e => { j.place.on = e.target.checked; drawPlace(root, j); });
+  $$('#pl-r button', el).forEach(b => b.onclick = () => { j.place.radius = +b.dataset.r; drawPlace(root, j); });
+  $('#pl-here', el) && ($('#pl-here', el).onclick = async () => {
+    let st = await native.geo.status();
+    if (!st.location) st = await native.geo.requestLocation();
+    if (!st.location) return toast('צריך אישור מיקום כדי לשמור את המקום', 'err');
+    toast('מאתר מיקום…');
+    try { const c = await native.geo.current(); set({ lat: c.lat, lng: c.lng, label: `המיקום שלך (±${Math.round(c.accuracy)} מ׳)`, radius: 300, on: true }); }
+    catch { toast('לא הצלחתי לקבל מיקום. כדאי לנסות ליד חלון או בחוץ', 'err'); }
+  });
+  $('#pl-find', el) && ($('#pl-find', el).onclick = async () => {
+    const q = $('#pl-addr', el).value.trim(); if (!q) return;
+    $('#pl-res', el).innerHTML = '<p class="hint">מחפש…</p>';
+    let res = []; try { res = await native.geo.geocode(q); } catch {}
+    $('#pl-res', el).innerHTML = res.length ? `<div class="card" style="margin-top:8px">${res.map((r, i) => `<button class="cell" type="button" data-i="${i}"><span class="cell-ic">${I.pin}</span><span class="grow">${esc(r.label)}</span></button>`).join('')}</div>`
+      : '<p class="hint bad">לא נמצאה כתובת כזו (חיפוש כתובת צריך אינטרנט). אפשר גם "אני בעבודה עכשיו".</p>';
+    $$('#pl-res [data-i]', el).forEach(b => b.onclick = () => { const r = res[+b.dataset.i]; set({ lat: r.lat, lng: r.lng, label: r.label, radius: 300, on: true }); });
+  });
+}
+var geoSent = '';
+function syncGeo(force = false) {
+  if (!native.geo.available()) return;
+  const fences = S.jobs.filter(j => j.place && j.place.on !== false).map(j => ({ id: j.id, name: j.name, lat: j.place.lat, lng: j.place.lng, radius: j.place.radius || 300 }));
+  const texts = { inTitle: tr('הגעת לעבודה?'), inBody: tr('{job} · להתחיל משמרת עכשיו?'), inAction: tr('להתחיל משמרת'),
+    outTitle: tr('יצאת מהעבודה?'), outBody: tr('{job} · המשמרת עדיין רצה. לסיים אותה?'), outAction: tr('לסיים משמרת'), channel: tr('הגעה ויציאה מהעבודה') };
+  const key = JSON.stringify([fences, texts, !!S.active, S.active?.jobId]);
+  if (key === geoSent && !force) return;
+  geoSent = key;
+  native.geo.setFences(fences, texts).then(r => dbg.log('info', `geofences: ${fences.length}${r.registered ? '' : ' (not allowed)'}`));
+  native.geo.setActive(!!S.active, S.active?.jobId);
+}
+/** A tapped arrival/departure notification. */
+function geoAction({ action, jobId }) {
+  dbg.log('info', 'geo action ' + action);
+  const job = S.jobs.find(j => j.id === jobId); if (!job) return;
+  go('home');
+  if (action === 'start' && !S.active) { S.settings.lastJob = job.id; onPunch(); return; }
+  if ((action === 'end' || action === 'ask_end') && S.active) { onPunch(); return; }
+  if (action === 'ask_start' && !S.active) openSheet(`<h2>הגעת לעבודה?</h2><p class="shsub">${esc(job.name)}</p>
+    <div class="btnrow"><button class="btn primary" id="ga-yes">${I.check}להתחיל משמרת</button><button class="btn soft" id="ga-no">לא עכשיו</button></div>`, root => {
+    $('#ga-yes', root).onclick = () => { closeSheet(); S.settings.lastJob = job.id; onPunch(); };
+    $('#ga-no', root).onclick = closeSheet;
+  });
+}
+
 /* translations: skip-start (developer tools stay in Hebrew) */
 /* ================= developer tools (Settings → tap the version 7 times) ================= */
 function openDevTools() {
@@ -1437,6 +1514,8 @@ function openDevTools() {
       <button class="cell" id="dv-one"><span class="grow">התראה אחת לבדיקה<div class="sub">מגיעה בעוד 3 שניות</div></span></button>
       <button class="cell" id="dv-soon"><span class="grow">משמרת שמגיעה לשעות נוספות בעוד 2 דקות<div class="sub">מתחילה משמרת אמיתית שהתחילה מוקדם, וההתראה תגיע כרגיל</div></span></button>
       <button class="cell" id="dv-pend"><span class="grow">ההתראות שמתוזמנות עכשיו</span></button>
+      <button class="cell" id="dv-geo-in"><span class="grow">התראת "הגעת לעבודה?" לבדיקה</span></button>
+      <button class="cell" id="dv-geo-out"><span class="grow">התראת "יצאת מהעבודה?" לבדיקה</span></button>
     </div>
     <div class="sec"><span>כל ההתראות של משמרת</span></div>
     <div class="seg" id="dv-scen">${Object.entries(scen).filter(([k]) => k !== 'current' || S.active).map(([k, [l]]) => `<button data-s="${k}">${l}</button>`).join('')}</div>
@@ -1472,6 +1551,9 @@ function openDevTools() {
       const p = await native.pendingNotifications();
       $('#dv-list', root).innerHTML = p.length ? p.map(x => `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>${esc(x.title)}</b> <span class="num" style="color:var(--ink3)">${x.at ? tm(x.at) : ''}</span><div style="color:var(--ink2);font-size:.9rem">${esc(x.body)}</div></div>`).join('') : `<div class="hint">${native.NATIVE ? 'אין התראות מתוזמנות' : 'רק באפליקציה לאנדרואיד'}</div>`;
     };
+    const geoTest = kind => { if (!native.geo.available()) return toast('רק באפליקציה לאנדרואיד', 'err'); const j = jobById(jobId); syncGeo(true); setTimeout(() => native.geo.test(kind, j.id, j.name), 300); toast('נשלחה התראה', 'ok'); };
+    $('#dv-geo-in', root).onclick = () => geoTest('in');
+    $('#dv-geo-out', root).onclick = () => geoTest('out');
     $('#dv-onb', root).onclick = () => { closeSheet(); openOnboarding(); };
     $('#dv-demo', root).onclick = () => {
       const days = 90, out = []; const now = new Date();
@@ -1658,6 +1740,7 @@ async function setLang(l, save = true) {
   stopTranslating(); usePack(pack);
   if (pack) startTranslating();
   render(); updateBackupDot();
+  syncGeo(true); planNotifications();   // texts the phone shows on its own follow the language
 }
 
 /* ================= router ================= */
@@ -1748,6 +1831,7 @@ step('back', () => native.onBack(() => {
 }));
 step('splash', native.ready);
 step('notifications', () => planNotifications());
+step('geo', () => { syncGeo(true); native.geo.onAction(geoAction); });
 step('meter', () => { try { if (localStorage.getItem('etzba.meter') === '1') dbg.setMeter(true); } catch {} });
 step('backupDot', updateBackupDot);
 setInterval(() => { tickHome(false); if (new Date().getSeconds() === 0) { renderRestCard(); $('#brandMark').innerHTML = mark({ t: new Date(), sw: 5.4 }); } }, 1000);

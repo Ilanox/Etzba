@@ -17,6 +17,42 @@ export default {
   months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
 
   phrases: {
+    'הגעת לעבודה?': 'At work?',
+    'יצאת מהעבודה?': 'Left work?',
+
+    'עוד אישור אחד: כדי לדעת שהגעת לעבודה גם כשאצבע סגורה, צריך לבחור במסך הבא': 'One more permission: so Etzba knows you’ve arrived even when it’s closed, choose',
+    '"לאפשר כל הזמן"': '"Allow all the time"',
+    '. אצבע לא שומרת ולא שולחת את המיקום לשום מקום.': ' on the next screen. Etzba doesn’t store or send your location anywhere.',
+    'צריך אישור מיקום כדי שההתראות על הגעה יעבדו.': 'Location permission is needed for arrival notifications.',
+    'לאפשר כל הזמן': 'Allow all the time',
+    'לאשר מיקום': 'Allow location',
+
+    'מיקום העבודה': 'Workplace location',
+    'כשמגיעים לעבודה (אחרי כ־3 דקות במקום) תגיע התראה שמציעה להתחיל משמרת, וכשיוצאים באמצע משמרת, הצעה לסיים אותה. הטלפון עצמו עוקב אחרי האזור, כך שזה כמעט לא צורך סוללה.': 'When you get to work (after about 3 minutes there) you get a notification offering to start a shift, and when you leave mid-shift, one offering to end it. The phone itself watches the area, so it uses almost no battery.',
+    'המיקום שנשמר': 'Saved location',
+    'הסרה': 'Remove',
+    'לשאול כשמגיעים ויוצאים': 'Ask when I arrive and leave',
+    'רדיוס': 'Radius',
+    'אני בעבודה עכשיו': 'I’m at work now',
+    'או כתובת': 'Or an address',
+    'למשל: יפו 97, ירושלים': 'e.g. Jaffa 97, Jerusalem',
+    'חיפוש': 'Search',
+    'מחפש…': 'Searching…',
+    'מאתר מיקום…': 'Finding your location…',
+    'צריך אישור מיקום כדי לשמור את המקום': 'Location permission is needed to save the place',
+    'לא הצלחתי לקבל מיקום. כדאי לנסות ליד חלון או בחוץ': 'Couldn’t get a location. Try near a window or outside',
+    'לא נמצאה כתובת כזו (חיפוש כתובת צריך אינטרנט). אפשר גם "אני בעבודה עכשיו".': 'No such address found (address search needs internet). You can also use "I’m at work now".',
+    'בלי אישור מיקום ההתראות על הגעה לא יעבדו': 'Without location permission, arrival notifications won’t work',
+    'עוד אישור אחד': 'One more permission',
+    'להמשיך': 'Continue',
+    'לא עכשיו': 'Not now',
+    'בלי "כל הזמן" ההתראה תגיע רק כשהאפליקציה פתוחה': 'Without "all the time", the notification only comes while the app is open',
+    'להתחיל משמרת עכשיו?': 'Start a shift now?',
+    'להתחיל משמרת': 'Start shift',
+    'המשמרת עדיין רצה. לסיים אותה?': 'Your shift is still running. End it?',
+    'לסיים משמרת': 'End shift',
+    'הגעה ויציאה מהעבודה': 'Arriving at and leaving work',
+
     'שבת שלום · התוספת התחילה': 'Shabbat Shalom · the premium has started',
     'יום הבחירות · התוספת התחילה': 'Election day · the premium has started',
     'חג שמח': 'Happy holiday',
@@ -131,6 +167,12 @@ export default {
   'מתוך 42 ש׳': 'of 42 h this week'
   },
   templates: [
+    ['{} · להתחיל משמרת עכשיו?', '{1} · start a shift now?'],
+    ['{} · המשמרת עדיין רצה. לסיים אותה?', '{1} · your shift is still running. End it?'],
+
+    ['המיקום שלך (±{} מ׳)', 'Your location (±{1} m)'],
+    ['{} מ׳', '{1} m'],
+
     ['חג שמח · {}', 'Happy holiday · {1}'],
     ['עברת {} שעות השבוע', 'You passed {1} hours this week'],
     ['שעות נוספות · {}%', 'Overtime · {1}%'],

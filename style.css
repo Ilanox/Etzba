@@ -668,7 +668,7 @@ details.adv summary{min-height:44px;padding-top:12px}
 .earn-cap{order:1;display:none;font-size:.75rem;font-weight:700;color:var(--ink3);margin-top:12px;letter-spacing:.02em}
 .punch.live .earn-cap{display:block}
 .punch.live .earn{margin-top:0}
-.toast.act{pointer-events:auto}
+.toast.act.on{pointer-events:auto}
 .t-act{margin-inline-start:6px;padding:6px 10px;min-height:36px;border-radius:4px;background:color-mix(in srgb,var(--bg) 18%,transparent);color:var(--bg);font-weight:800;position:relative}
 .t-act::after{content:"";position:absolute;inset:-4px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
@@ -730,3 +730,4 @@ main{padding-bottom:calc(var(--tab-h) + 110px + var(--safe-area-inset-bottom,env
 /* running shift: the change-time button sits under the "on shift since" line, and the ring gets the same space above and below */
 .punch .punch-edit{order:3}
 .punch.live .earn-cap{margin-top:23px}
+.toast:not(.on){pointer-events:none}

@@ -123,3 +123,25 @@ export async function pendingNotifications() {
   return (await withP('LocalNotifications', async n => (await n.getPending()).notifications.map(x => ({ id: x.id, title: x.title, body: x.body, at: x.schedule?.at })))
     .catch(() => [])) || [];
 }
+
+/* ---- workplace arrival / departure (Android geofencing; see native/android/GeoPlugin.java) ---- */
+const callGeo = (m, arg) => withP('Geo', g => g[m](arg)).catch(e => { throw e; });
+export const geo = {
+  available: () => PLATFORM === 'android',
+  status: () => callGeo('status').catch(() => ({ location: false, background: false })),
+  requestLocation: () => callGeo('requestLocation').catch(() => ({ location: false, background: false })),
+  requestBackground: () => callGeo('requestBackground').catch(() => ({ location: false, background: false })),
+  current: () => callGeo('current'),
+  geocode: address => callGeo('geocode', { address }).then(r => (r && r.results) || []),
+  setFences: (fences, texts) => callGeo('setFences', { fences, texts }).catch(() => ({ registered: false })),
+  test: (kind, jobId, name) => callGeo('test', { kind, jobId, name }).catch(() => {}),
+  setActive: (active, jobId) => callGeo('setActive', { active, jobId: jobId || '' }).catch(() => {}),
+  /** Calls cb({ action: 'start' | 'end' | 'ask_start' | 'ask_end', jobId }) for a tapped arrival/departure notification. */
+  async onAction(cb) {
+    if (PLATFORM !== 'android') return;
+    await loaded;
+    const g = P('Geo'); if (!g) return;
+    const take = async () => { try { const r = await g.takeAction(); if (r && r.action) cb(r); } catch {} };
+    take(); g.addListener('action', take);
+  },
+};
