@@ -19,7 +19,6 @@ export default {
   phrases: {
     'ברוכים הבאים לאצבע': 'Welcome to Etzba',
     'שמים אצבע כשנכנסים למשמרת, ושמים אצבע כשיוצאים. אצבע מחשבת את השכר לפי החוק: שעות נוספות, שבת, חגים ונסיעות.': 'Tap the fingerprint when your shift starts, and again when it ends. Etzba works out your pay by Israeli law: overtime, Shabbat, holidays and travel.',
-    'הכל נשמר רק בטלפון שלך. אין חשבון ואין שרת.': 'Everything stays on your phone. No account, no server.',
     'איפה את/ה עובד/ת?': 'Where do you work?',
     'אפשר להוסיף עוד מקומות עבודה אחר כך בהגדרות.': 'You can add more workplaces later in Settings.',
     'שם מקום העבודה': 'Workplace name',
