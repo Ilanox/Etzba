@@ -1028,6 +1028,7 @@ async function takeSharedFile() {
     const name = decodeURIComponent(r.headers.get('x-name') || 'shared.xls'), buf = await r.arrayBuffer();
     await c.delete('shared-file');
     dbg.log('info', `share: ${name} ${buf.byteLength}B`);
+    $('#onboard')?.remove();
     go('set');
     openFileImport({ name, arrayBuffer: async () => buf });
   } catch (e) { report(e); }
@@ -1531,7 +1532,7 @@ step('debugHash', () => { if (location.hash === '#debug') openDebug(); addEventL
 step('welcome', () => { if (!S.settings.onboarded && !S.shifts.length && !S.active) openOnboarding(); });
 step('shared', () => {
   takeSharedFile();
-  native.onSharedFile(f => { dbg.log('info', 'native share: ' + f.name); go('set'); openFileImport(f); });
+  native.onSharedFile(f => { dbg.log('info', 'native share: ' + f.name); $('#onboard')?.remove(); go('set'); openFileImport(f); });
 });
 step('back', () => native.onBack(() => {
   if (sheet.classList.contains('on')) { closeSheet(); return true; }
