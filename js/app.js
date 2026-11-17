@@ -10,7 +10,7 @@ import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
 
-const VERSION = '1.21';
+const VERSION = '1.22';
 dbg.log('boot', 'v' + VERSION);
 
 /* ================= state ================= */

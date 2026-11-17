@@ -9,6 +9,12 @@ const WEB = ['index.html', 'style.css', 'manifest.webmanifest', 'js', 'languages
 rmSync(out, { recursive: true, force: true }); mkdirSync(join(out, 'fonts'), { recursive: true });
 for (const f of WEB) cpSync(join(root, f), join(out, f), { recursive: true });
 
+// Capacitor's JS core (registerPlugin etc.). The app has no bundler, so the ES module is copied in as-is
+// and loaded only inside the native app (see js/native-bridge.js).
+const coreSrc = join(root, 'node_modules/@capacitor/core/dist/index.js');
+if (existsSync(coreSrc)) { mkdirSync(join(out, 'js/vendor'), { recursive: true }); cpSync(coreSrc, join(out, 'js/vendor/capacitor-core.js')); }
+else console.warn('! @capacitor/core not installed: run npm install (the Android app needs it)');
+
 // fonts: Hebrew + Latin subsets of Heebo, weights the app uses
 const src = join(root, 'node_modules/@fontsource/heebo/files');
 const RANGES = {
@@ -29,7 +35,7 @@ writeFileSync(join(out, 'fonts/fonts.css'), css);
 // index.html: local font instead of Google Fonts
 let html = readFileSync(join(out, 'index.html'), 'utf8');
 html = html.replace(/<link rel="preconnect"[^>]*>\s*/g, '').replace(/<link href="https:\/\/fonts\.googleapis\.com[^>]*>/, '<link rel="stylesheet" href="fonts/fonts.css">');
-const mods = [...readdirSync(join(root, 'js')).map(f => 'js/' + f), ...readdirSync(join(root, 'languages')).filter(f => f.endsWith('.js')).map(f => 'languages/' + f)];
+const mods = [...readdirSync(join(root, 'js')).filter(f => f.endsWith('.js')).map(f => 'js/' + f), ...readdirSync(join(root, 'languages')).filter(f => f.endsWith('.js')).map(f => 'languages/' + f)];
 html = html.replace('<script type="module"', mods.map(m => `<link rel="modulepreload" href="${m}">`).join('') + '\n<script type="module"');
 writeFileSync(join(out, 'index.html'), html);
 console.log(`www ready: ${mods.length} modules, ${n} font files${n ? '' : ' (run npm install to bundle Heebo; system font used meanwhile)'}`);
