@@ -9,6 +9,8 @@ import android.location.Address;
 import android.location.Geocoder;
 import android.os.Build;
 
+import androidx.core.app.NotificationManagerCompat;
+
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.PermissionState;
@@ -63,6 +65,8 @@ public class GeoPlugin extends Plugin {
         a.put("jobId", intent.getStringExtra("etzba_job"));
         pendingAction = a;
         intent.removeExtra("etzba_action");
+        // a button on a notification doesn't close it by itself, so clear the arrival/departure notifications here
+        clearNotifications(getContext());
         return true;
     }
 
@@ -160,9 +164,15 @@ public class GeoPlugin extends Plugin {
     /** Whether a shift is running (and for which job), so arrival and departure ask the right question. */
     @PluginMethod
     public void setActive(PluginCall call) {
-        prefs(getContext()).edit().putBoolean("active", Boolean.TRUE.equals(call.getBoolean("active", false)))
-            .putString("activeJob", call.getString("jobId", "")).apply();
+        boolean active = Boolean.TRUE.equals(call.getBoolean("active", false));
+        prefs(getContext()).edit().putBoolean("active", active).putString("activeJob", call.getString("jobId", "")).apply();
+        // started a shift: "at work?" is answered; ended one: "left work?" is answered
+        try { NotificationManagerCompat.from(getContext()).cancel(active ? 1 : 2); } catch (Exception ignored) { }
         call.resolve();
+    }
+
+    static void clearNotifications(Context c) {
+        try { NotificationManagerCompat nm = NotificationManagerCompat.from(c); nm.cancel(1); nm.cancel(2); } catch (Exception ignored) { }
     }
 
     /** Developer tools: show the arrival or departure notification for a job right now. */
