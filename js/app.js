@@ -1304,7 +1304,7 @@ function openOnboarding() {
   const STEPS = [
     () => `<div class="ob-hero">${mark({ ink: 'var(--ink)', accent: 'var(--accent)' })}</div>
       <h1 id="ob-title">ברוכים הבאים לאצבע</h1>
-      <p class="ob-sub">לוחצים על האצבע כשנכנסים למשמרת, ושוב כשיוצאים. אצבע מחשבת את השכר לפי החוק: שעות נוספות, שבת, חגים ונסיעות.</p>
+      <p class="ob-sub">שמים אצבע כשנכנסים למשמרת, ושמים אצבע כשיוצאים. אצבע מחשבת את השכר לפי החוק: שעות נוספות, שבת, חגים ונסיעות.</p>
       <div class="field"><span>שפה</span><div class="seg" id="ob-lang">${LANGS.map(l => `<button type="button" data-l="${l.code}" class="${l.code === LANG ? 'on' : ''}" data-keep>${l.name}</button>`).join('')}</div></div>
       <p class="ob-note">${I.lock}<span>הכל נשמר רק בטלפון שלך. אין חשבון ואין שרת.</span></p>`,
     () => `<h1 id="ob-title">איפה את/ה עובד/ת?</h1>
@@ -1343,7 +1343,7 @@ function openOnboarding() {
     dbg.log('info', 'onboarding done');
     go('home');
     if (andImport) { go('set'); openFileImport(); }
-    else toast('מוכן. לוחצים על האצבע כדי להתחיל משמרת', 'ok');
+    else toast('מוכן. שמים אצבע כדי להתחיל משמרת', 'ok');
   };
   const draw = () => {
     el.innerHTML = `<div class="ob-top">${step ? `<button class="ob-link" id="ob-back">${I.chevR} חזרה</button>` : '<span></span>'}${dots()}<button class="ob-link" id="ob-skip">${step === 3 ? '' : 'דילוג'}</button></div>

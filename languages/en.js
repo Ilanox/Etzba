@@ -18,7 +18,7 @@ export default {
 
   phrases: {
     'ברוכים הבאים לאצבע': 'Welcome to Etzba',
-    'לוחצים על האצבע כשנכנסים למשמרת, ושוב כשיוצאים. אצבע מחשבת את השכר לפי החוק: שעות נוספות, שבת, חגים ונסיעות.': 'Tap the fingerprint when your shift starts, and again when it ends. Etzba works out your pay by Israeli law: overtime, Shabbat, holidays and travel.',
+    'שמים אצבע כשנכנסים למשמרת, ושמים אצבע כשיוצאים. אצבע מחשבת את השכר לפי החוק: שעות נוספות, שבת, חגים ונסיעות.': 'Tap the fingerprint when your shift starts, and again when it ends. Etzba works out your pay by Israeli law: overtime, Shabbat, holidays and travel.',
     'הכל נשמר רק בטלפון שלך. אין חשבון ואין שרת.': 'Everything stays on your phone. No account, no server.',
     'איפה את/ה עובד/ת?': 'Where do you work?',
     'אפשר להוסיף עוד מקומות עבודה אחר כך בהגדרות.': 'You can add more workplaces later in Settings.',
@@ -49,7 +49,7 @@ export default {
     'כן': 'Yes',
     'לא': 'No',
     'למשל: קפה רחביה': 'e.g. Rehavia Café',
-    'מוכן. לוחצים על האצבע כדי להתחיל משמרת': 'Ready. Tap the fingerprint to start a shift',
+    'מוכן. שמים אצבע כדי להתחיל משמרת': 'Ready. Tap the fingerprint to start a shift',
 
     'לא הצלחתי לשמור בטלפון. כדאי לגבות': 'Couldn\'t save on this phone. Back up to be safe',
     'הקובץ ששותף לא הגיע. אפשר לנסות שוב': 'The shared file didn\'t arrive. Try again',
