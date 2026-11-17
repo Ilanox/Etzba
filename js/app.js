@@ -78,6 +78,7 @@ function applyTheme() {
   const bg = { light: '#F1EEE6', dark: '#141518', blurple: '#1E1F22' }[r];
   document.querySelectorAll('meta[name=theme-color]').forEach(m => { m.removeAttribute('media'); m.content = bg; });
   native.setBars(r !== 'light');
+  try { syncWidget(); } catch {}
 }
 applyTheme(); darkMQ.addEventListener?.('change', applyTheme);
 let PAY = new Map();
@@ -1555,23 +1556,41 @@ function syncGeo(force = false) {
 /** The widget was tapped, or an arrival/departure notification. */
 /** The home-screen widget mirrors the running shift. */
 let lastWidget = '';
+/** A theme colour as #RRGGBB, whatever form the stylesheet wrote it in. */
+function cssHex(name) {
+  try {
+    const el = document.createElement('i'); el.style.color = `var(${name})`; el.style.display = 'none'; document.body.appendChild(el);
+    const m = getComputedStyle(el).color.match(/[\d.]+/g); el.remove();
+    if (!m || m.length < 3) return '';
+    return '#' + m.slice(0, 3).map(x => Math.round(+x).toString(16).padStart(2, '0')).join('').toUpperCase();
+  } catch { return ''; }
+}
 function syncWidget() {
+  if (!native.NATIVE) return;
   const a = S.active, job = a ? jobAt(jobById(a.jobId), a.start) : jobById(S.settings.lastJob);
-  // pay rate over the shift (regular → overtime → Shabbat…), so the widget can work out earnings on its own
-  let segs = [];
+  // pay rate over the shift (regular → overtime → Shabbat…), so the widget can work out pay and status on its own
+  let segs = [], thr = job?.regHours || 8.6;
   if (a) {
-    const k = a.start + '|' + a.jobId;
+    const k = a.start + '|' + a.jobId + '|' + LANG;
     if (syncWidget.k !== k) {
-      const wb = weekRegBefore(job, a.start), first = shiftPay({ start: a.start, end: new Date(+new Date(a.start) + 6e4).toISOString(), breakMin: 0 }, job, place(), wb).lastKey || 'reg';
-      const per = key => Math.round(job.rate * job.r[key]) / 100;
-      syncWidget.segs = [[+new Date(a.start), per(first)], ...rateChanges(a.start, job, place(), wb, 16).map(c => [+new Date(c.at), per(c.key)])];
-      syncWidget.k = k;
+      const wb = weekRegBefore(job, a.start), p1 = shiftPay({ start: a.start, end: new Date(+new Date(a.start) + 6e4).toISOString(), breakMin: 0 }, job, place(), wb);
+      const per = key => Math.round(job.rate * job.r[key]) / 100, lab = key => tr(tierLabel(key, job));
+      syncWidget.segs = [[+new Date(a.start), per(p1.lastKey || 'reg'), lab(p1.lastKey || 'reg')], ...rateChanges(a.start, job, place(), wb, 16).map(c => [+new Date(c.at), per(c.key), lab(c.key)])];
+      syncWidget.thr = p1.threshold; syncWidget.k = k;
     }
-    segs = syncWidget.segs;
+    segs = syncWidget.segs; thr = syncWidget.thr;
   }
+  const now = new Date(), M = monthCalc(now.getFullYear(), now.getMonth());
+  const theme = Object.fromEntries([['bg', '--bg'], ['surface', '--surface'], ['line', '--line'], ['ink', '--ink'], ['ink3', '--ink3'],
+    ['rega', '--g-money-a'], ['regb', '--g-money-b'], ['ot1a', '--g-ot-a'], ['ot1b', '--g-ot-b'], ['ot2a', '--g-hot-a'], ['ot2b', '--g-hot-b'], ['hub', '--g-acc-a']]
+    .map(([k, v]) => [k, cssHex(v)]));
   const state = { active: !!a, start: a ? +new Date(a.start) : 0, job: job?.name || '', rate: +job?.rate || 0, rtl: document.documentElement.dir === 'rtl', segs,
-    labels: { idle: tr('לא במשמרת'), idleHint: tr('שמים אצבע כדי להתחיל'), on: tr('במשמרת'), since: EN ? 'since ' : 'מ־', starts: tr('מתחילה ב־'),
-      start: EN ? 'Clock in' : 'כניסה', end: EN ? 'Clock out' : 'יציאה', open: tr('פתיחה'), perHour: tr('לשעה'), sofar: tr('עד עכשיו') } };
+    extra: { thr, ot1: job?.ot1Hours ?? 2, otOn: job?.otOn !== false, theme, month: { name: MONTHS[now.getMonth()], gross: money(M.gross), count: M.shifts.length } },
+    labels: EN
+      ? { idle: 'Not on shift', starts: 'Starts ', since: 'since ', perHour: 'per hour', toOt: 'Overtime in {t}', now: 'Now: ', shortReg: 'regular', shortOt: 'overtime',
+          tapStart: 'Tap the dial to clock in', tapShort: 'Tap to start', gross: 'gross', shifts: 'shifts' }
+      : { idle: 'לא במשמרת', starts: 'מתחילה ב־', since: 'מ־', perHour: 'לשעה', toOt: 'עוד {t} לשעות נוספות', now: 'עכשיו ', shortReg: 'רגילות', shortOt: 'נוספות',
+          tapStart: 'נגיעה בחוגה כדי להתחיל', tapShort: 'נגיעה להתחלה', gross: 'ברוטו', shifts: 'משמרות' } };
   const k = JSON.stringify(state); if (k === lastWidget) return; lastWidget = k;
   native.appActions.updateWidget(state);
 }
@@ -1841,7 +1860,7 @@ async function setLang(l, save = true) {
   stopTranslating(); usePack(pack);
   if (pack) startTranslating();
   render(); updateBackupDot();
-  syncGeo(true); planNotifications();   // texts the phone shows on its own follow the language
+  syncGeo(true); planNotifications(); syncWidget();   // texts the phone shows on its own follow the language
 }
 
 /* ================= router ================= */

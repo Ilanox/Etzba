@@ -70,6 +70,8 @@ public class AppActionsPlugin extends Plugin {
             e.putBoolean("rtl", Boolean.TRUE.equals(call.getBoolean("rtl", true)));
             com.getcapacitor.JSArray segs = call.getArray("segs", new com.getcapacitor.JSArray());
             e.putString("segs", segs != null ? segs.toString() : "[]");
+            JSObject x = call.getObject("extra", new JSObject());
+            e.putString("extra", x != null ? x.toString() : "{}");
             JSObject l = call.getObject("labels", new JSObject());
             e.putString("labels", l != null ? l.toString() : "{}");
             e.apply();
