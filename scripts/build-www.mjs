@@ -6,6 +6,10 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..'), out = join(root, 'www');
 const WEB = ['index.html', 'style.css', 'manifest.webmanifest', 'js', 'languages', 'icons'];
 
+// build switches → js/features.js (the app reads them from there)
+{ const f = JSON.parse(readFileSync(join(root, 'features.json'), 'utf8'));
+  writeFileSync(join(root, 'js/features.js'), `// Generated from features.json by scripts/build-www.mjs: edit features.json, not this.\nexport default ${JSON.stringify(Object.fromEntries(Object.entries(f).filter(([k]) => !k.startsWith('_'))))};\n`); }
+
 rmSync(out, { recursive: true, force: true }); mkdirSync(join(out, 'fonts'), { recursive: true });
 for (const f of WEB) cpSync(join(root, f), join(out, f), { recursive: true });
 

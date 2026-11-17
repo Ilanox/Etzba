@@ -74,6 +74,12 @@ This rebuilds and opens Android Studio.
 | `resources/` | source icon and splash artwork; ready-made Android sizes are in `native/android/res/` |
 | `privacy.html` | privacy policy for the store |
 
+## Release (Google Play)
+```
+npm run release
+```
+Makes `etzba-<version>.aab` (upload to Play) and a signed `etzba-<version>.apk` to try first. The first run creates your upload key (`etzba-upload.jks` + `keystore.properties`, never committed): back them up. Store texts, answers and screenshots: [`store/`](store/listing.md).
+
 ## Tests
 ```
 npm test                 # unit tests, no packages needed
@@ -85,7 +91,7 @@ npm run test:e2e         # the app in a phone-sized browser, with a pretend Andr
 Holidays and Shabbat times are calculated, so every year works with no internet. Minimum wage, election days and tax tables are built in (`js/rules.js`), and the app checks `data/rules.json` on GitHub Pages at most once a day when online. To update everyone: edit `data/rules.json`, raise `version`, push. Keep `BUILT_IN` in `js/rules.js` the same for new installs (`npm test` checks they match).
 
 ## Build switches
-`features.json` decides what goes into the Android app. `arrivalDetection` (workplace arrival notifications) needs "location all the time", which Google Play reviews separately, so it's off for now. Change it, then `npm run android` or `npm run apk`.
+`features.json` decides what goes into the app: `widget`, `arrivalDetection`, and `devTools` (diagnostics and developer tools in Settings). `arrivalDetection` (workplace arrival notifications) needs "location all the time", which Google Play reviews separately, so it's off for now. Change it, then `npm run android` or `npm run apk`.
 
 ## Translations
 See [`languages/README.md`](languages/README.md). In short: edit `languages/en.js`, and run `npm run check:translations` to list anything untranslated.

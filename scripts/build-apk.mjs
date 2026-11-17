@@ -1,7 +1,9 @@
-// Builds an installable APK without opening Android Studio:  npm run apk
-// Result: etzba.apk in the project folder. Copy it to the phone and open it, or: adb install etzba.apk
+// Builds the Android app without opening Android Studio.
+//   npm run apk       test build → etzba.apk (copy it to the phone, or: npm run install-apk)
+//   npm run release   Google Play build → etzba-<version>.aab (upload this) + a signed etzba-<version>.apk to try first
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, readFileSync, readdirSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { createInterface } from 'node:readline/promises';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,11 +15,9 @@ const run = (cmd, args, cwd = root) => {
   if (r.status !== 0) { console.error(`\n✗ ${cmd} ${args.join(' ')} failed`); process.exit(r.status || 1); }
 };
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+const RELEASE = process.argv[2] === 'release';
+const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
 
-if (!existsSync(android)) { console.error('No android/ folder yet. Run first:  npm run android:init'); process.exit(1); }
-run(process.execPath, [join(root, 'scripts/build-www.mjs')]);
-run(process.execPath, [join(root, 'scripts/native-setup.mjs')]);
-run(npx, ['cap', 'sync', 'android']);
 // Gradle 8 runs on Java 17–24 (not 25). Use JAVA_HOME if it's a version that works, otherwise find one:
 // a system JDK 21/17, or Android Studio's bundled Java if that is 24 or older.
 const javaMajor = home => {
@@ -41,7 +41,38 @@ if (!process.env.JAVA_HOME || !ok(process.env.JAVA_HOME)) {
     process.exit(1);
   }
 }
+if (!existsSync(android)) { console.error('No android/ folder yet. Run first:  npm run android:init'); process.exit(1); }
+run(process.execPath, [join(root, 'scripts/build-www.mjs')]);
+run(process.execPath, [join(root, 'scripts/native-setup.mjs')]);
+run(npx, ['cap', 'sync', 'android']);
+
+/* Release builds are signed with your own upload key. It's made once and must never be lost:
+   Google Play only accepts updates signed with the same key (or after a reset through Play support). */
+async function ensureKey() {
+  const props = join(root, 'keystore.properties');
+  if (existsSync(props)) return;
+  console.log('\nNo signing key yet. Making one now (once). It stays in this folder and is never committed to git.');
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const pass = (await rl.question('Choose a password for the key (at least 6 characters, write it down): ')).trim();
+  rl.close();
+  if (pass.length < 6) { console.error('✗ Too short.'); process.exit(1); }
+  const keytool = join(process.env.JAVA_HOME || '', 'bin', process.platform === 'win32' ? 'keytool.exe' : 'keytool');
+  run(existsSync(keytool) ? keytool : 'keytool', ['-genkeypair', '-keystore', join(root, 'etzba-upload.jks'), '-alias', 'etzba', '-keyalg', 'RSA', '-keysize', '2048',
+    '-validity', '10000', '-storepass', pass, '-keypass', pass, '-dname', 'CN=Ilan Levy, O=Edvin Studios, C=IL']);
+  writeFileSync(props, `storeFile=etzba-upload.jks\nstorePassword=${pass}\nkeyAlias=etzba\nkeyPassword=${pass}\n`);
+  console.log('\n✓ Key made: etzba-upload.jks + keystore.properties.\n  BACK THEM UP NOW (e.g. a password manager or a USB stick). Without them you cannot update the app.\n');
+  run(process.execPath, [join(root, 'scripts/native-setup.mjs')]);   // adds the signing settings to Gradle
+}
+
 const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+if (RELEASE) {
+  await ensureKey();
+  run(gradlew, ['bundleRelease', 'assembleRelease'], android);
+  copyFileSync(join(android, 'app/build/outputs/bundle/release/app-release.aab'), join(root, `etzba-${version}.aab`));
+  copyFileSync(join(android, 'app/build/outputs/apk/release/app-release.apk'), join(root, `etzba-${version}.apk`));
+  console.log(`\n✓ Ready for Google Play:\n  etzba-${version}.aab  → upload this in Play Console\n  etzba-${version}.apk  → the same build, to try on your phone first (uninstall the test build before: different key)\n`);
+  process.exit(0);
+}
 run(gradlew, ['assembleDebug'], android);
 
 const apk = join(android, 'app/build/outputs/apk/debug/app-debug.apk');

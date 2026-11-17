@@ -12,7 +12,7 @@ const only = process.argv[2];
 const features = { arrivalDetection: false, widget: true, ...JSON.parse(readFileSync(join(root, 'features.json'), 'utf8')) };
 const GEO = features.arrivalDetection, WIDGET = features.widget;
 const [maj, min, pat] = pkg.version.split('.').map(Number);
-const versionCode = maj * 10000 + min * 100 + pat;           // 1.17.0 → 11700, always increasing
+const versionCode = maj * 1000000 + min * 1000 + pat;        // 1.0.0 → 1000000 (above every 1.x test build), always increasing
 const MIMES = ['text/csv', 'text/comma-separated-values', 'application/csv', 'text/tab-separated-values', 'text/plain',
   'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/octet-stream'];
 
@@ -110,6 +110,26 @@ ${data}
     const loc = "    implementation 'com.google.android.gms:play-services-location:21.3.0'";
     if (GEO && !g.includes('play-services-location')) g = g.replace(/dependencies\s*\{/, m => `${m}\n${loc}`);
     if (!GEO) g = g.replace(/\n\s*implementation 'com\.google\.android\.gms:play-services-location:[^']*'/, '');
+    // release signing, from keystore.properties in the project folder (made by npm run release)
+    if (!g.includes('// etzba-signing')) g += `
+// etzba-signing: release builds are signed with the key in keystore.properties (project folder, never committed)
+def etzbaKeysFile = rootProject.file('../keystore.properties')
+if (etzbaKeysFile.exists()) {
+    def etzbaKeys = new Properties()
+    etzbaKeysFile.withInputStream { etzbaKeys.load(it) }
+    android {
+        signingConfigs {
+            release {
+                storeFile rootProject.file('../' + etzbaKeys['storeFile'])
+                storePassword etzbaKeys['storePassword']
+                keyAlias etzbaKeys['keyAlias']
+                keyPassword etzbaKeys['keyPassword']
+            }
+        }
+        buildTypes { release { signingConfig signingConfigs.release } }
+    }
+}
+`;
     g = g.replace(/versionCode \d+/, `versionCode ${versionCode}`).replace(/versionName "[^"]*"/, `versionName "${pkg.version}"`);
     writeFileSync(bg, g);
   }

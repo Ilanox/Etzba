@@ -17,6 +17,9 @@ export default {
   months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
 
   phrases: {
+    'התראות במשמרת': 'Shift notifications',
+    'כשמתחילות שעות נוספות, בכניסת שבת וחג, ואם שכחת לצאת': 'When overtime starts, when Shabbat or a holiday begins, and if you forgot to clock out',
+
     'לא במשמרת': 'Not on shift',
     'נגיעה כדי להתחיל משמרת': 'Tap to start a shift',
     'המשמרת מתחילה ב־': 'Shift starts at ',
@@ -219,8 +222,9 @@ export default {
     ['נמוך משכר המינימום (₪{} לשעה)', 'Below minimum wage (₪{1} an hour)'],
 
     ['+{} נוספות', '+{1} overtime'],
-    ['(יום {} הוא היום המקוצר)', '({1} is the short day)'],
+    ['(יום {} הוא היום המקוצר)', ' ({1} is the short day)'],
     ['{} ש׳ בתוך {}, ולכן בתוספת.', '{1} h fell inside {2}, so they get the premium.'],
+    ['מעבר ל־{} ש׳ ביום משלמים שעות נוספות.', 'Past {1} h a day, overtime is paid.'],
     ['מעבר ל־{} ש׳ ביום{} משלמים שעות נוספות.', 'Past {1} h a day{2}, overtime is paid.'],
     ['עברת {} שעות רגילות השבוע, אז {} ש׳ מהמשמרת נספרו כשעות נוספות.', 'You passed {1} regular hours this week, so {2} h of this shift count as overtime.'],
     ['הפסקה של {} דק׳ לא נספרת בשעות.', 'A {1}-minute break isn’t counted in the hours.'],

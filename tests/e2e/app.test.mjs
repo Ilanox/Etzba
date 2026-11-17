@@ -173,3 +173,18 @@ test('back button: closes a sheet, then asks before leaving', async () => {
   assert.equal(await page.locator('#x-exit').count(), 1, 'asks');
   assert.deepEqual(errors, []); await ctx.close();
 });
+
+test('release: no developer screens, one notifications switch', async () => {
+  const { page, ctx, errors, state } = await open({ native: true });
+  await page.click('[data-v=set]'); await wait(page);
+  assert.equal(await page.locator('#s-debug, #s-dev').count(), 0, 'no diagnostics or developer tools');
+  for (let i = 0; i < 8; i++) await page.click('#s-ver');
+  await wait(page); assert.equal(await page.locator('#s-dev').count(), 0, 'tapping the version does nothing');
+  assert.equal(await page.locator('#s-notif').count(), 1);
+  await page.locator('label:has(#s-notif)').click(); await wait(page);
+  assert.deepEqual((await state()).settings.notif, { rates: false, rest: false, long: false });
+  await page.click('[data-v=home]'); await page.click('#punchBtn'); await wait(page, 800);
+  const sched = await page.evaluate(() => __calls.filter(c => c.n === 'LocalNotifications' && c.m === 'schedule').at(-1)?.a?.notifications || []);
+  assert.equal(sched.length, 0, 'nothing scheduled when off');
+  assert.deepEqual(errors, []); await ctx.close();
+});

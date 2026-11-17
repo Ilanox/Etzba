@@ -59,3 +59,9 @@ test('a broken download never replaces working rules', async () => {
   assert.equal(await checkForUpdates(null, { force: true }), false);
   assert.equal(rules().version, BUILT_IN.version);
 });
+
+test('js/features.js matches features.json (run npm run build after editing it)', async () => {
+  const f = JSON.parse(readFileSync(new URL('../../features.json', import.meta.url), 'utf8'));
+  const { default: js } = await import('../../js/features.js');
+  assert.deepEqual(js, Object.fromEntries(Object.entries(f).filter(([k]) => !k.startsWith('_'))));
+});

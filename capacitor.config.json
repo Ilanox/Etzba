@@ -5,8 +5,7 @@
   "backgroundColor": "#F1EEE6",
   "android": {
     "allowMixedContent": false,
-    "captureInput": true,
-    "webContentsDebuggingEnabled": true
+    "captureInput": true
   },
   "plugins": {
     "SystemBars": {

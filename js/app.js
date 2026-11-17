@@ -10,8 +10,9 @@ import { usePack, startTranslating, stopTranslating, tr } from './translate.js';
 import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
+import FEATURES from './features.js';
 
-const VERSION = '1.30';
+const VERSION = '1.0.0';
 dbg.log('boot', 'v' + VERSION);
 
 /* ================= state ================= */
@@ -945,15 +946,9 @@ function renderSet() {
       <button class="cell" id="s-export"><span class="cell-ic">${I.receipt}</span><span class="grow">ייצוא ל־CSV<div class="sub">לאקסל או לגוגל שיטס</div></span><span class="chev">${I.chevL}</span></button>
     </div>
     <div class="note info" style="margin-top:10px" id="storeNote">${storeNote()}</div>
-    ${native.NATIVE ? `<div class="sec"><span>התראות</span></div>
-    <div class="card" id="s-notif">
-      <label class="cell"><span class="grow">שינוי בתעריף<div class="sub">"השעות הנוספות התחילו · מעכשיו 125%"</div></span><span class="switch"><input type="checkbox" data-n="rates"${S.settings.notif?.rates !== false ? ' checked' : ''}><i></i></span></label>
-      <label class="cell"><span class="grow">כניסה ויציאה של שבת וחג<div class="sub">"שבת שלום · התוספת התחילה"</div></span><span class="switch"><input type="checkbox" data-n="rest"${S.settings.notif?.rest !== false ? ' checked' : ''}><i></i></span></label>
-      <label class="cell"><span class="grow">משמרת פתוחה 12 שעות<div class="sub">למקרה ששכחת לשים אצבע ביציאה</div></span><span class="switch"><input type="checkbox" data-n="long"${S.settings.notif?.long !== false ? ' checked' : ''}><i></i></span></label>
-    </div>
-    <p class="fine" style="margin-top:6px">רק בזמן משמרת. בלי תזכורות אחרות.</p>` : ''}
-    <div class="card" style="margin-top:12px"><button class="cell" id="s-debug"><span class="cell-ic">${I.info}</span><span class="grow">אבחון ותקלות<div class="sub">${dbg.lastCrash() ? 'האפליקציה נסגרה בפעם הקודמת · פרטים כאן' : 'מידע טכני לשליחה כשמשהו לא עובד'}</div></span><span class="chev">${I.chevL}</span></button></div>
-    ${S.settings.dev ? `<div class="card" style="margin-top:12px" data-keep><button class="cell" id="s-dev"><span class="cell-ic">${I.gear}</span><span class="grow">כלי פיתוח<div class="sub">בדיקת התראות, משמרות לדוגמה ועוד</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
+    ${native.NATIVE ? `<div class="card" style="margin-top:12px"><label class="cell"><span class="grow">התראות במשמרת<div class="sub">כשמתחילות שעות נוספות, בכניסת שבת וחג, ואם שכחת לצאת</div></span><span class="switch"><input type="checkbox" id="s-notif"${notifOn() ? ' checked' : ''}><i></i></span></label></div>` : ''}
+    ${FEATURES.devTools ? `<div class="card" style="margin-top:12px"><button class="cell" id="s-debug"><span class="cell-ic">${I.info}</span><span class="grow">אבחון ותקלות<div class="sub">${dbg.lastCrash() ? 'האפליקציה נסגרה בפעם הקודמת · פרטים כאן' : 'מידע טכני לשליחה כשמשהו לא עובד'}</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
+    ${FEATURES.devTools && S.settings.dev ? `<div class="card" style="margin-top:12px" data-keep><button class="cell" id="s-dev"><span class="cell-ic">${I.gear}</span><span class="grow">כלי פיתוח<div class="sub">בדיקת התראות, משמרות לדוגמה ועוד</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
     <p class="fine" id="s-ver"><b>אצבע</b> · גרסה ${VERSION}<br>An Edvin Studios Project</p>`;
   $$('[data-job]', el).forEach(b => b.onclick = () => openJobSheet(jobById(b.dataset.job), false));
   $('#addJob', el).onclick = () => { const j = defaultJob('עבודה ' + (S.jobs.length + 1)); j.color = COLORS[S.jobs.length % COLORS.length]; openJobSheet(j, true); };
@@ -966,13 +961,13 @@ function renderSet() {
   $$('#s-lang button', el).forEach(b => b.onclick = () => { if (b.dataset.l !== LANG) setLang(b.dataset.l); });
   $('#s-export', el).onclick = openExport;
   $('#s-import', el).onclick = openImport;
-  $('#s-debug', el).onclick = openDebug;
+  $('#s-debug', el) && ($('#s-debug', el).onclick = openDebug);
   $('#s-dev', el) && ($('#s-dev', el).onclick = openDevTools);
-  { let taps = 0, t; $('#s-ver', el).onclick = () => { clearTimeout(t); t = setTimeout(() => taps = 0, 1500);
+  if (FEATURES.devTools) { let taps = 0, t; $('#s-ver', el).onclick = () => { clearTimeout(t); t = setTimeout(() => taps = 0, 1500);
       if (++taps >= 7 && !S.settings.dev) { S.settings.dev = true; persist(); buzz(30); toast('מצב מפתח פעיל', 'ok'); renderSet(); } }; }
-  $$('#s-notif input', el).forEach(i => i.onchange = () => {
-    S.settings.notif = { rates: true, rest: true, long: true, ...(S.settings.notif || {}), [i.dataset.n]: i.checked };
-    persist(); if (i.checked) planNotifications(true);
+  $('#s-notif', el) && ($('#s-notif', el).onchange = e => {
+    const on = e.target.checked; S.settings.notif = { rates: on, rest: on, long: on };
+    persist(); if (on) planNotifications(true);
   });
   $('#s-backup', el).onclick = () => backupNow();
   $('#s-fimport', el).onclick = openFileImport;
@@ -1392,6 +1387,8 @@ function openImport() {
    Only about the shift that's running: the rate changing (overtime, weekly limit), Shabbat or a holiday
    starting or ending, and a shift left open for 12 hours. Scheduled on the phone when the shift starts. */
 /** The notifications a shift will get: [{ at, title, body }] (Hebrew; translated when sent). */
+/** One switch for all shift notifications (older saves kept three). */
+const notifOn = () => { const n = S.settings.notif || {}; return n.rates !== false || n.rest !== false || n.long !== false; };
 function buildNotifications(a, N = { rates: true, rest: true, long: true, ...(S.settings.notif || {}) }) {
   const job = jobAt(jobById(a.jobId), a.start), start = +new Date(a.start), items = [], wb = weekRegBefore(job, a.start);
   const special = k => /^(rest|chag|elect)/.test(k);
@@ -1843,8 +1840,8 @@ step('render', render);
 if (LANG !== 'he') step('language', () => { setLang(LANG, false); });
 window.__etzbaReady = true;
 dbg.log('perf', 'ready', dbg.sinceStart());
-step('crashNote', () => { const c = dbg.lastCrash(); if (c) { dbg.log('warn', 'last session ended during: ' + c.step); toast(`בפעם הקודמת האפליקציה נסגרה (${c.step}). פרטים באבחון`, 'err', { label: 'פרטים', fn: openDebug }); } });
-step('debugHash', () => { if (location.hash === '#debug') openDebug(); addEventListener('hashchange', () => { if (location.hash === '#debug') openDebug(); }); });
+step('crashNote', () => { const c = dbg.lastCrash(); if (c) { dbg.log('warn', 'last session ended during: ' + c.step); if (FEATURES.devTools) toast(`בפעם הקודמת האפליקציה נסגרה (${c.step}). פרטים באבחון`, 'err', { label: 'פרטים', fn: openDebug }); } });
+step('debugHash', () => { if (!FEATURES.devTools) return; if (location.hash === '#debug') openDebug(); addEventListener('hashchange', () => { if (location.hash === '#debug') openDebug(); }); });
 step('welcome', () => { if (!S.settings.onboarded && !S.shifts.length && !S.active) openOnboarding(); });
 step('shared', () => {
   takeSharedFile();
