@@ -10,3 +10,4 @@ ios/App/build/
 keystore.properties
 .DS_Store
 etzba.apk
+languages/missing-*.txt

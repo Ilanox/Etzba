@@ -1,7 +1,9 @@
 // אצבע — shift pay engine. Each job (workplace) carries its own rules.
 import { restWindows, holidaysOfGregorianYear } from './hebrew-calendar.js';
 
-export const MIN_WAGE_HOURLY = 35.40; // from 1.4.2026
+/** Updated from js/rules.js (built-in figures, or newer ones fetched when online). */
+export let MIN_WAGE_HOURLY = 35.40; // from 1.4.2026
+export function setMinWage(v) { MIN_WAGE_HOURLY = v; }
 
 export function defaultJob(name = 'עבודה') {
   return {
@@ -44,7 +46,8 @@ export const TIER_NAME = {
 
 /* Knesset election days are a paid day off (שבתון). Working one is paid 200% by accepted practice
    (not written in law), with overtime at 250% / 300%. The whole calendar day counts. */
-export const ELECTION_DAYS = ['2026-10-27'];
+export let ELECTION_DAYS = ['2026-10-27'];
+export function setElectionDays(list) { ELECTION_DAYS = list.slice(); PAY_CACHE.clear(); }
 const ELECTION_NAME = 'יום הבחירות';
 function electionWindows(start, end) {
   const out = [];

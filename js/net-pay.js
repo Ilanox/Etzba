@@ -26,8 +26,17 @@ function split(g, lo, hi, T) {
   return Math.min(x, T.blLow) * lo + Math.max(0, x - T.blLow) * hi;
 }
 
+/* Tables by year, from js/rules.js. A year without its own table uses the latest earlier one. */
+let TABLES = { 2026: TAX_2026 };
+export function setTaxTables(t) { TABLES = { 2026: TAX_2026, ...t }; }
+export function taxFor(year = new Date().getFullYear()) {
+  const ys = Object.keys(TABLES).map(Number).sort((a, b) => a - b);
+  const y = ys.filter(x => x <= year).pop() ?? ys[0];
+  return TABLES[y];
+}
+
 /** s = settings: { points, pension, pEmp, pEr, sev, hish } */
-export function grossToNet(gross, s, T = TAX_2026) {
+export function grossToNet(gross, s, T = taxFor()) {
   const pEmp = s.pension ? gross * s.pEmp / 100 : 0;
   const hEmp = s.hish ? gross * .025 : 0;
   const ni = split(gross, T.niLow, T.niHigh, T);

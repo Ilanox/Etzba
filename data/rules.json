@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "updated": "2026-11-17",
+  "note": "Yearly figures for אצבע. The app ships with this file built in and works offline; when online it fetches the newest copy from GitHub Pages. Edit, bump version, push.",
+  "minWage": [
+    { "from": "2025-04-01", "hourly": 34.32 },
+    { "from": "2026-04-01", "hourly": 35.40 }
+  ],
+  "elections": [
+    { "date": "2026-10-27", "name": "בחירות לכנסת" }
+  ],
+  "tax": {
+    "2026": {
+      "brackets": [[7010, 0.10], [10060, 0.14], [19000, 0.20], [25100, 0.31], [46690, 0.35], [null, 0.47]],
+      "surtaxFrom": 60130, "surtaxRate": 0.03,
+      "pointValue": 242,
+      "blLow": 7703, "blMax": 51910,
+      "niLow": 0.0104, "niHigh": 0.07,
+      "hLow": 0.0323, "hHigh": 0.0517,
+      "erLow": 0.0451, "erHigh": 0.076,
+      "pensionCreditCap": 9700
+    }
+  }
+}

@@ -44,39 +44,6 @@ import java.util.Locale;
 )
 public class GeoPlugin extends Plugin {
     static final String PREFS = "etzba_geo";
-    private JSObject pendingAction;
-
-    @Override
-    public void load() {
-        readAction(getActivity().getIntent());
-    }
-
-    @Override
-    protected void handleOnNewIntent(Intent intent) {
-        super.handleOnNewIntent(intent);
-        if (readAction(intent)) notifyListeners("action", pendingAction, true);
-    }
-
-    /** A tap on an arrival/departure notification opens the app with what to do. */
-    private boolean readAction(Intent intent) {
-        if (intent == null || intent.getStringExtra("etzba_action") == null) return false;
-        JSObject a = new JSObject();
-        a.put("action", intent.getStringExtra("etzba_action"));
-        a.put("jobId", intent.getStringExtra("etzba_job"));
-        pendingAction = a;
-        intent.removeExtra("etzba_action");
-        // a button on a notification doesn't close it by itself, so clear the arrival/departure notifications here
-        clearNotifications(getContext());
-        return true;
-    }
-
-    @PluginMethod
-    public void takeAction(PluginCall call) {
-        JSObject r = pendingAction != null ? pendingAction : new JSObject();
-        pendingAction = null;
-        call.resolve(r);
-    }
-
     /* ---- permissions: "while using" first, then "all the time" (needed for geofences) ---- */
     @PluginMethod
     public void status(PluginCall call) {

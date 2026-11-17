@@ -17,6 +17,20 @@ export default {
   months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
 
   phrases: {
+    'לא במשמרת': 'Not on shift',
+    'נגיעה כדי להתחיל משמרת': 'Tap to start a shift',
+    'המשמרת מתחילה ב־': 'Shift starts at ',
+    'סיום': 'End',
+    'פתיחה': 'Open',
+    'לסיים את המשמרת?': 'End the shift?',
+    'עדיין לא': 'Not yet',
+    'בחירות לכנסת': 'Knesset election',
+    'מצב מפתח פעיל': 'Developer mode on',
+
+    'עודכנו נתוני השכר והחגים': 'Pay and holiday figures updated',
+    'שעות רגילות בשבוע לפני שעות נוספות. לפי החוק 42.': 'Regular hours a week before overtime. By law, 42.',
+    'יום מקוצר ולילה': 'Short day and night',
+
     'הגעת לעבודה?': 'At work?',
     'יצאת מהעבודה?': 'Left work?',
 
@@ -145,7 +159,6 @@ export default {
     'משמרות יחושבו מחדש ·': 'shifts will be recalculated ·',
 
   'יום הבחירות': 'Election day', 'יום בחירות': 'Election day', 'נוספות ביום בחירות': 'Election day overtime',
-  'עבודה ביום הבחירות לכנסת (27.10.2026)': 'Working on Knesset election day (27.10.2026)',
   'שעה ביום בחירות': 'Election day hour',
   'הנוהג המקובל: 200%, ובשעות נוספות 250% ו־300%. יש מקומות שמשלמים במקום זה שכר רגיל ויום חופש אחר.': 'Accepted practice: 200%, with overtime at 250% and 300%. Some workplaces pay a regular wage plus another day off instead.',
   'נסיעות (₪)': 'Travel (₪)', 'ריק בנסיעות = לפי הגדרות העבודה': 'Leave travel empty to use the job setting',
@@ -167,6 +180,7 @@ export default {
   'מתוך 42 ש׳': 'of 42 h this week'
   },
   templates: [
+    ['עבודה ביום הבחירות לכנסת ({})', 'Working on Knesset election day ({1})'],
     ['{} · להתחיל משמרת עכשיו?', '{1} · start a shift now?'],
     ['{} · המשמרת עדיין רצה. לסיים אותה?', '{1} · your shift is still running. End it?'],
 

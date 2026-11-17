@@ -1,0 +1,5 @@
+{
+  "arrivalDetection": false,
+  "widget": true,
+  "_note": "Build-time switches for the Android app. arrivalDetection needs 'location all the time', which Google Play reviews separately: keep it false for the first release, turn it on in a later update. Run `node scripts/native-setup.mjs` after changing."
+}

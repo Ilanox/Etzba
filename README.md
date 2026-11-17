@@ -58,6 +58,7 @@ This rebuilds and opens Android Studio.
 | `js/pay-engine.js` | pay rules: overtime, Shabbat, holidays, election day, weekly limit |
 | `js/hebrew-calendar.js` | Jewish holidays and Shabbat times per city (offline) |
 | `js/net-pay.js` | gross to net: income tax, National Insurance, pension |
+| `js/rules.js`, `data/rules.json` | yearly figures (minimum wage, election days, tax tables): built in, updated online |
 | `js/file-reader.js` | reads .xls / .xlsx / .csv files |
 | `js/shift-import.js` | turns spreadsheet rows into shifts |
 | `js/translate.js` | translation engine (see `languages/`) |
@@ -66,10 +67,25 @@ This rebuilds and opens Android Studio.
 | `js/svg-icons.js` | all icons and the fingerprint-clock mark |
 | `languages/` | translations: one file per language, plus how to edit them |
 | `service-worker.js` | offline cache for the website version |
-| `native/android/` | receives files shared to the app |
+| `native/android/` | Android extras: files shared in, home-screen widget, workplace arrival |
+| `features.json` | build switches: `widget`, `arrivalDetection` |
+| `tests/` | `unit/` (pay, holidays 2026–2035, tax, import, rules) and `e2e/` (the app in a browser) |
 | `scripts/` | build, native setup, translation check |
 | `resources/` | source icon and splash artwork; ready-made Android sizes are in `native/android/res/` |
 | `privacy.html` | privacy policy for the store |
+
+## Tests
+```
+npm test                 # unit tests, no packages needed
+npx playwright install chromium   # once
+npm run test:e2e         # the app in a phone-sized browser, with a pretend Android bridge
+```
+
+## Yearly figures (works offline)
+Holidays and Shabbat times are calculated, so every year works with no internet. Minimum wage, election days and tax tables are built in (`js/rules.js`), and the app checks `data/rules.json` on GitHub Pages at most once a day when online. To update everyone: edit `data/rules.json`, raise `version`, push. Keep `BUILT_IN` in `js/rules.js` the same for new installs (`npm test` checks they match).
+
+## Build switches
+`features.json` decides what goes into the Android app. `arrivalDetection` (workplace arrival notifications) needs "location all the time", which Google Play reviews separately, so it's off for now. Change it, then `npm run android` or `npm run apk`.
 
 ## Translations
 See [`languages/README.md`](languages/README.md). In short: edit `languages/en.js`, and run `npm run check:translations` to list anything untranslated.

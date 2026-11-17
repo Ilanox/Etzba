@@ -1,16 +1,17 @@
 // אצבע — app
-import { grossToNet } from './net-pay.js';
+import { grossToNet, taxFor } from './net-pay.js';
 import { rateChanges, computeAll, shiftPay, defaultJob, normalizeJob, holidayPayDays, shiftKind, KIND_NAME, TIERS, TIER_NAME, MIN_WAGE_HOURLY, weekStart, jobAt, applyRulesFrom, rulesChanged } from './pay-engine.js';
 import { readSheets } from './file-reader.js';
 import { rowsToShifts, guessYear } from './shift-import.js';
 import { CITIES, nextRest, restWindows, holidaysOfGregorianYear } from './hebrew-calendar.js';
 import { I, mark, ridges, handAngles } from './svg-icons.js';
+import { loadRules, checkForUpdates, rules } from './rules.js';
 import { usePack, startTranslating, stopTranslating, tr } from './translate.js';
 import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
 
-const VERSION = '1.29';
+const VERSION = '1.30';
 dbg.log('boot', 'v' + VERSION);
 
 /* ================= state ================= */
@@ -56,6 +57,14 @@ function normalizeState(d) {
   return d;
 }
 let S = load();
+loadRules();   // yearly figures: built in, or a newer saved copy
+/** The next election day (or the most recent), as d.m.yyyy. */
+function electionDate() {
+  const list = rules().elections.map(e => e.date).sort(), today = new Date().toISOString().slice(0, 10);
+  const d = list.find(x => x >= today) || list[list.length - 1];
+  if (!d) return '';
+  const [y, m, dd] = d.split('-').map(Number); return `${dd}.${m}.${y}`;
+}
 let LANG = langInfo(S.settings.lang || 'he').code;
 let EN = LANG !== 'he';          // any language other than Hebrew (built-in English texts are used where the app has them)
 let PACK = null;
@@ -70,7 +79,7 @@ function applyTheme() {
 }
 applyTheme(); darkMQ.addEventListener?.('change', applyTheme);
 let PAY = new Map();
-const persist = () => { invalidate(); S.updatedAt = Date.now(); planNotifications(); syncGeo(); try { localStorage.setItem(KEY, JSON.stringify(S)); localOk = true; } catch {
+const persist = () => { invalidate(); S.updatedAt = Date.now(); planNotifications(); syncGeo(); syncWidget(); try { localStorage.setItem(KEY, JSON.stringify(S)); localOk = true; } catch {
   // no phone storage (blocked in some frames, or full): keep working; the account copy or a backup keeps the data
   localOk = false;
   if (!warnedLocal) { warnedLocal = true; toast('לא הצלחתי לשמור בטלפון. כדאי לגבות', 'err', { label: 'גיבוי עכשיו', fn: () => backupNow() }); }
@@ -170,7 +179,7 @@ function monthCalcRaw(y, m) {
   }
   for (const J of per.values()) J.total = Object.values(J.money).reduce((a, b) => a + b, 0) + J.travel + J.bonus + J.holiday;
   const st = S.settings;
-  const net = grossToNet(gross, { points: +st.sex + +st.extraPts, pension: st.pension, pEmp: +st.pEmp, pEr: +st.pEr, sev: +st.sev, hish: st.hish });
+  const net = grossToNet(gross, { points: +st.sex + +st.extraPts, pension: st.pension, pEmp: +st.pEmp, pEr: +st.pEr, sev: +st.sev, hish: st.hish }, taxFor(y));
   return { y, m, shifts, perJob: [...per.values()], gross, hours, net };
 }
 function weekRegBefore(job, start) {
@@ -830,7 +839,7 @@ function renderRights() {
       <p style="margin-top:10px">עובד שעתי עם <b>3 חודשי ותק</b> מקבל בדרך כלל תשלום על חג שלא חל בשבת, גם בלי לעבוד, אם לא נעדר ביום שלפני החג וביום שאחריו בלי הסכמת המעסיק.</p>
       <p>ומי שעבד בחג מקבל את דמי החג <b>וגם</b> 150% על השעות שעבד.</p>`)}
     ${qa('check', 'עבדתי ביום הבחירות. כמה מגיע לי?', `
-      <p>יום הבחירות לכנסת (<b>27.10.2026</b>) הוא יום שבתון. מי שעובד אצל אותו מעסיק לפחות 14 ימים ברציפות מקבל עליו שכר מלא גם בלי לעבוד.</p>
+      <p>יום הבחירות לכנסת (<b>${electionDate()}</b>) הוא יום שבתון. מי שעובד אצל אותו מעסיק לפחות 14 ימים ברציפות מקבל עליו שכר מלא גם בלי לעבוד.</p>
       <p>מי שכן עבד מקבל לפי <b>נוהג מקובל</b>, שלא כתוב בחוק, <b>200%</b>, ובשעות נוספות 250% ו־300%. יש מעסיקים שמשלמים במקום זה שכר רגיל ונותנים יום חופש אחר.</p>
       <p>אצבע מחשבת 200% על כל שעה שעבדת באותו יום. אפשר לשנות או לכבות בהגדרות העבודה.</p>`)}
     ${qa('coffee', 'הפסקות: מתי משלמים עליהן?', `
@@ -873,7 +882,7 @@ function rightsEN(y, low, w, qa) {
       <p style="margin-top:10px">An hourly worker with <b>3 months</b> at the job usually gets paid for a holiday that isn’t on Shabbat, without working it, if they weren’t absent the day before and after without the employer’s consent.</p>
       <p>If you did work the holiday you get the holiday pay <b>and</b> 150% for the hours worked.</p>`)}
     ${qa('check', 'I worked on election day. What am I owed?', `
-      <p>Knesset election day (<b>27.10.2026</b>) is a day off by law. If you’ve worked for the same employer for at least 14 days in a row, you’re paid for it even without working.</p>
+      <p>Knesset election day (<b>${electionDate()}</b>) is a day off by law. If you’ve worked for the same employer for at least 14 days in a row, you’re paid for it even without working.</p>
       <p>If you did work, <b>accepted practice</b> (not written in the law) is <b>200%</b>, with overtime at 250% and 300%. Some employers pay a regular wage plus another day off instead.</p>
       <p>Etzba pays 200% for every hour you worked that day. You can change or turn this off in the job settings.</p>`)}
     ${qa('coffee', 'Breaks: when are they paid?', `
@@ -1141,8 +1150,9 @@ function openJobSheet(job, isNew) {
       <div class="grid2">${K('ot1Hours', 'למשך (שעות)', 0.5)}${R('ot2', 'ואחר כך')}</div>
       <p class="hint" id="j-othint"></p>
       <label class="cell flat"><span class="grow">גם לפי שבוע<div class="sub">מעבר למכסה השבועית נחשב שעות נוספות</div></span>${SW('weeklyRule', j.weeklyRule)}</label>
-      <details class="adv"><summary>${I.chevDown}יום מקוצר, מכסה שבועית ולילה</summary>
-        <div class="grid2">${K('weeklyLimit', 'מכסה שבועית (שעות)', 0.5)}${K('shortHours', 'שעות ביום המקוצר')}</div>
+      <div id="j-weekly">${K('weeklyLimit', 'מכסה שבועית (שעות)', 0.5)}<p class="hint">שעות רגילות בשבוע לפני שעות נוספות. לפי החוק 42.</p></div>
+      <details class="adv"><summary>${I.chevDown}יום מקוצר ולילה</summary>
+        ${K('shortHours', 'שעות ביום המקוצר')}
         <label class="field"><span>היום המקוצר</span><select class="input" data-k="shortDay">${days}</select></label>
         <label class="cell flat"><span class="grow">משמרת לילה<div class="sub">שעתיים או יותר בין 22:00 ל־06:00 מקצרות את היום</div></span>${SW('nightRule', j.nightRule)}</label>
         ${K('nightRegHours', 'שעות רגילות במשמרת לילה')}
@@ -1156,7 +1166,7 @@ function openJobSheet(job, isNew) {
       </div>`)}
     ${rule('chag', 'chag', 'chag', 'חגים', 'תוספת על שעות בתוך החג', 'chag', `
       <div class="grid3">${R('chag', 'שעה בחג')}<span class="otx">${R('chagOt1', 'נוספות א׳')}</span><span class="otx">${R('chagOt2', 'נוספות ב׳')}</span></div>`)}
-    ${rule('elect', 'chag', 'check', 'יום הבחירות', 'עבודה ביום הבחירות לכנסת (27.10.2026)', 'election', `
+    ${rule('elect', 'chag', 'check', 'יום הבחירות', `עבודה ביום הבחירות לכנסת (${electionDate()})`, 'election', `
       <div class="grid3">${R('elect', 'שעה ביום בחירות')}<span class="otx">${R('electOt1', 'נוספות א׳')}</span><span class="otx">${R('electOt2', 'נוספות ב׳')}</span></div>
       <p class="hint">הנוהג המקובל: 200%, ובשעות נוספות 250% ו־300%. יש מקומות שמשלמים במקום זה שכר רגיל ויום חופש אחר.</p>`)}
     <div class="rule"><label class="rule-h"><span class="kic k-evening">${I.receipt}</span><span class="grow"><b>דמי חגים</b><div class="sub">תשלום על חג שלא עבדת בו (אחרי 3 חודשים)</div></span>${SW('holidayPay', j.holidayPay)}</label>
@@ -1190,6 +1200,7 @@ function openJobSheet(job, isNew) {
       $('#rule-shab', root).classList.toggle('off', !v('shabbatOn').checked);
       $('#rule-chag', root).classList.toggle('off', !v('chag').checked);
       $('#rule-elect', root).classList.toggle('off', !v('election').checked);
+      $('#j-weekly', root).classList.toggle('hidden', !v('weeklyRule').checked);
       $('#hp-body', root).classList.toggle('hidden', !v('holidayPay').checked);
       $$('.otx', root).forEach(e => e.classList.toggle('dim', !ot));
       const r = +v('rate').value, mw = $('#j-minw', root);
@@ -1484,9 +1495,30 @@ function syncGeo(force = false) {
   native.geo.setFences(fences, texts).then(r => dbg.log('info', `geofences: ${fences.length}${r.registered ? '' : ' (not allowed)'}`));
   native.geo.setActive(!!S.active, S.active?.jobId);
 }
-/** A tapped arrival/departure notification. */
-function geoAction({ action, jobId }) {
-  dbg.log('info', 'geo action ' + action);
+/** The widget was tapped, or an arrival/departure notification. */
+/** The home-screen widget mirrors the running shift. */
+let lastWidget = '';
+function syncWidget() {
+  const a = S.active, job = a ? jobById(a.jobId) : jobById(S.settings.lastJob);
+  const state = { active: !!a, start: a ? +new Date(a.start) : 0, job: S.jobs.length > 1 || a ? (job?.name || '') : '',
+    labels: { idle: tr('לא במשמרת'), idleHint: tr('נגיעה כדי להתחיל משמרת'), since: tr('במשמרת מ־'), starts: tr('המשמרת מתחילה ב־'),
+      start: tr('כניסה'), end: tr('סיום'), open: tr('פתיחה') } };
+  const k = JSON.stringify(state); if (k === lastWidget) return; lastWidget = k;
+  native.appActions.updateWidget(state);
+}
+function appAction({ action, jobId }) {
+  dbg.log('info', 'app action ' + action);
+  if (action === 'toggle') {
+    go('home');
+    // a running shift: confirm before ending it. none: start on the last job.
+    if (S.active) openSheet(`<h2>לסיים את המשמרת?</h2><p class="shsub">${esc(jobById(S.active.jobId).name)} · ${hm((Date.now() - new Date(S.active.start)) / 36e5)}</p>
+      <div class="btnrow"><button class="btn primary" id="wa-end">${I.check}סיום משמרת</button><button class="btn soft" id="wa-no">עדיין לא</button></div>`, root => {
+      $('#wa-end', root).onclick = () => { closeSheet(); if (S.active) onPunch(); };
+      $('#wa-no', root).onclick = closeSheet;
+    });
+    else onPunch();
+    return;
+  }
   const job = S.jobs.find(j => j.id === jobId); if (!job) return;
   go('home');
   if (action === 'start' && !S.active) { S.settings.lastJob = job.id; onPunch(); return; }
@@ -1831,7 +1863,13 @@ step('back', () => native.onBack(() => {
 }));
 step('splash', native.ready);
 step('notifications', () => planNotifications());
-step('geo', () => { syncGeo(true); native.geo.onAction(geoAction); });
+step('rules', () => {
+  // newer yearly figures from the internet (once a day at most); everything works without them
+  const changed = () => { recompute(); render(); toast('עודכנו נתוני השכר והחגים', 'ok'); };
+  checkForUpdates(changed);
+  addEventListener('online', () => checkForUpdates(changed));
+});
+step('geo', () => { syncGeo(true); native.appActions.onAction(appAction); syncWidget(); });
 step('meter', () => { try { if (localStorage.getItem('etzba.meter') === '1') dbg.setMeter(true); } catch {} });
 step('backupDot', updateBackupDot);
 setInterval(() => { tickHome(false); if (new Date().getSeconds() === 0) { renderRestCard(); $('#brandMark').innerHTML = mark({ t: new Date(), sw: 5.4 }); } }, 1000);
