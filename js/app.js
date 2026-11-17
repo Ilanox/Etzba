@@ -10,7 +10,7 @@ import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
 
-const VERSION = '1.27';
+const VERSION = '1.28';
 dbg.log('boot', 'v' + VERSION);
 
 /* ================= state ================= */
@@ -937,13 +937,14 @@ function renderSet() {
     <div class="note info" style="margin-top:10px" id="storeNote">${storeNote()}</div>
     ${native.NATIVE ? `<div class="sec"><span>התראות</span></div>
     <div class="card" id="s-notif">
-      <label class="cell"><span class="grow">שינוי בתעריף<div class="sub">"אנחנו כבר אחרי 8:36 שעות · התחלנו 125%"</div></span><span class="switch"><input type="checkbox" data-n="rates"${S.settings.notif?.rates !== false ? ' checked' : ''}><i></i></span></label>
-      <label class="cell"><span class="grow">כניסה ויציאה של שבת וחג<div class="sub">"נכנסנו לשבת · התחלנו 150%"</div></span><span class="switch"><input type="checkbox" data-n="rest"${S.settings.notif?.rest !== false ? ' checked' : ''}><i></i></span></label>
+      <label class="cell"><span class="grow">שינוי בתעריף<div class="sub">"השעות הנוספות התחילו · מעכשיו 125%"</div></span><span class="switch"><input type="checkbox" data-n="rates"${S.settings.notif?.rates !== false ? ' checked' : ''}><i></i></span></label>
+      <label class="cell"><span class="grow">כניסה ויציאה של שבת וחג<div class="sub">"שבת שלום · התוספת התחילה"</div></span><span class="switch"><input type="checkbox" data-n="rest"${S.settings.notif?.rest !== false ? ' checked' : ''}><i></i></span></label>
       <label class="cell"><span class="grow">משמרת פתוחה 12 שעות<div class="sub">למקרה ששכחת לשים אצבע ביציאה</div></span><span class="switch"><input type="checkbox" data-n="long"${S.settings.notif?.long !== false ? ' checked' : ''}><i></i></span></label>
     </div>
     <p class="fine" style="margin-top:6px">רק בזמן משמרת. בלי תזכורות אחרות.</p>` : ''}
     <div class="card" style="margin-top:12px"><button class="cell" id="s-debug"><span class="cell-ic">${I.info}</span><span class="grow">אבחון ותקלות<div class="sub">${dbg.lastCrash() ? 'האפליקציה נסגרה בפעם הקודמת · פרטים כאן' : 'מידע טכני לשליחה כשמשהו לא עובד'}</div></span><span class="chev">${I.chevL}</span></button></div>
-    <p class="fine"><b>אצבע</b> · גרסה ${VERSION}<br>An Edvin Studios Project</p>`;
+    ${S.settings.dev ? `<div class="card" style="margin-top:12px" data-keep><button class="cell" id="s-dev"><span class="cell-ic">${I.gear}</span><span class="grow">כלי פיתוח<div class="sub">בדיקת התראות, משמרות לדוגמה ועוד</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
+    <p class="fine" id="s-ver"><b>אצבע</b> · גרסה ${VERSION}<br>An Edvin Studios Project</p>`;
   $$('[data-job]', el).forEach(b => b.onclick = () => openJobSheet(jobById(b.dataset.job), false));
   $('#addJob', el).onclick = () => { const j = defaultJob('עבודה ' + (S.jobs.length + 1)); j.color = COLORS[S.jobs.length % COLORS.length]; openJobSheet(j, true); };
   const set = (k, v) => { S.settings[k] = v; commit(); };
@@ -956,6 +957,9 @@ function renderSet() {
   $('#s-export', el).onclick = openExport;
   $('#s-import', el).onclick = openImport;
   $('#s-debug', el).onclick = openDebug;
+  $('#s-dev', el) && ($('#s-dev', el).onclick = openDevTools);
+  { let taps = 0, t; $('#s-ver', el).onclick = () => { clearTimeout(t); t = setTimeout(() => taps = 0, 1500);
+      if (++taps >= 7 && !S.settings.dev) { S.settings.dev = true; persist(); buzz(30); toast('מצב מפתח פעיל', 'ok'); renderSet(); } }; }
   $$('#s-notif input', el).forEach(i => i.onchange = () => {
     S.settings.notif = { rates: true, rest: true, long: true, ...(S.settings.notif || {}), [i.dataset.n]: i.checked };
     persist(); if (i.checked) planNotifications(true);
@@ -1371,6 +1375,36 @@ function openImport() {
 /* ================= notifications during a shift =================
    Only about the shift that's running: the rate changing (overtime, weekly limit), Shabbat or a holiday
    starting or ending, and a shift left open for 12 hours. Scheduled on the phone when the shift starts. */
+/** The notifications a shift will get: [{ at, title, body }] (Hebrew; translated when sent). */
+function buildNotifications(a, N = { rates: true, rest: true, long: true, ...(S.settings.notif || {}) }) {
+  const job = jobAt(jobById(a.jobId), a.start), start = +new Date(a.start), items = [], wb = weekRegBefore(job, a.start);
+  const special = k => /^(rest|chag|elect)/.test(k);
+  const perHour = k => money(job.rate * (job.r[k] ?? 100) / 100);
+  const earned = at => money(shiftPay({ start: a.start, end: new Date(at), breakMin: 0 }, job, place(), wb).base);
+  const changes = rateChanges(a.start, job, place(), wb, 14);
+  changes.forEach((c, i) => {
+    const pct = job.r[c.key] ?? 100;
+    if (special(c.key) && !special(c.from)) {
+      if (!N.rest) return;
+      const until = changes.slice(i + 1).find(x => !special(x.key));
+      const tail = until ? `, עד ${tm(until.at)}` : '';
+      if (c.key.startsWith('rest')) items.push({ at: c.at, title: 'שבת שלום · התוספת התחילה', body: `מעכשיו ${pct}% (${perHour(c.key)} לשעה)${tail}.` });
+      else if (c.key.startsWith('elect')) items.push({ at: c.at, title: 'יום הבחירות · התוספת התחילה', body: `מעכשיו ${pct}% (${perHour(c.key)} לשעה)${tail}.` });
+      else items.push({ at: c.at, title: `חג שמח${c.names[0] ? ' · ' + c.names[0] : ''}`, body: `התוספת התחילה: ${pct}% (${perHour(c.key)} לשעה)${tail}.` });
+    } else if (special(c.from) && !special(c.key)) {
+      if (!N.rest) return;
+      const title = c.from.startsWith('rest') ? 'שבוע טוב · השבת יצאה' : c.from.startsWith('elect') ? 'יום הבחירות נגמר' : 'החג יצא';
+      items.push({ at: c.at, title, body: `חוזרים ל־${pct}% (${perHour(c.key)} לשעה). עד עכשיו: ${earned(c.at)}.` });
+    } else if (N.rates && pct !== job.r[c.from]) {
+      const hrs = hm((+c.at - start) / 3.6e6);
+      if (c.weekly) items.push({ at: c.at, title: `עברת ${job.weeklyLimit} שעות השבוע`, body: `מעכשיו זה שעות נוספות: ${pct}% (${perHour(c.key)} לשעה). עד עכשיו: ${earned(c.at)}.` });
+      else if (/ot1$/i.test(c.key)) items.push({ at: c.at, title: 'השעות הנוספות התחילו', body: `${hrs} שעות במשמרת. מעכשיו ${pct}% (${perHour(c.key)} לשעה). עד עכשיו: ${earned(c.at)}.` });
+      else items.push({ at: c.at, title: `שעות נוספות · ${pct}%`, body: `${hrs} שעות במשמרת. מעכשיו ${perHour(c.key)} לשעה. עד עכשיו: ${earned(c.at)}.` });
+    }
+  });
+  if (N.long) items.push({ at: new Date(start + 12 * 3.6e6), title: 'עדיין במשמרת?', body: 'המשמרת פתוחה כבר 12 שעות. אם כבר יצאת, אפשר לסיים אותה ולתקן את שעת היציאה.' });
+  return items;
+}
 var planTimer = null;
 function planNotifications(ask = false) {
   if (!native.NATIVE) return;
@@ -1380,25 +1414,80 @@ function planNotifications(ask = false) {
       const a = S.active, N = { rates: true, rest: true, long: true, ...(S.settings.notif || {}) };
       if (!a || !(N.rates || N.rest || N.long)) return native.scheduleNotifications([]);
       if (!(await native.notifyAllowed(ask))) return;
-      const job = jobAt(jobById(a.jobId), a.start), start = +new Date(a.start), items = [];
-      const special = k => /^(rest|chag|elect)/.test(k);
-      const place_ = k => k.startsWith('rest') ? 'שבת' : k.startsWith('elect') ? 'יום הבחירות' : 'חג';
-      for (const c of rateChanges(a.start, job, place(), weekRegBefore(job, a.start), 14)) {
-        const pct = job.r[c.key] ?? 100;
-        if (special(c.key) && !special(c.from)) {
-          if (N.rest) items.push({ at: c.at, title: `נכנסנו ל${c.key.startsWith('chag') && c.names[0] ? c.names[0] : place_(c.key)}`, body: `התחלנו ${pct}%` });
-        } else if (special(c.from) && !special(c.key)) {
-          if (N.rest) items.push({ at: c.at, title: c.from.startsWith('rest') ? 'השבת יצאה' : `${place_(c.from) === 'חג' ? 'החג' : place_(c.from)} נגמר`, body: `חזרנו ל־${pct}%` });
-        } else if (N.rates && pct !== job.r[c.from]) {
-          items.push({ at: c.at, title: c.weekly ? `עברנו ${job.weeklyLimit} שעות השבוע` : `אנחנו כבר אחרי ${hm((+c.at - start) / 3.6e6)} שעות`, body: `התחלנו ${pct}%` });
-        }
-      }
-      if (N.long) items.push({ at: new Date(start + 12 * 3.6e6), title: 'המשמרת פתוחה כבר 12 שעות', body: 'שכחת לשים אצבע ביציאה?' });
+      const items = buildNotifications(a, N);
       await native.scheduleNotifications(items.map(x => ({ ...x, title: tr(x.title), body: tr(x.body) })));
       dbg.log('info', `notifications: ${items.length} scheduled`);
     } catch (e) { dbg.log('error', 'notifications: ' + (e?.message || e)); }
   }, 400);
 }
+
+/* translations: skip-start (developer tools stay in Hebrew) */
+/* ================= developer tools (Settings → tap the version 7 times) ================= */
+function openDevTools() {
+  const scen = {
+    weekday: ['יום חול ארוך מ־08:00', () => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; }],
+    friday: ['שישי מ־10:00, לתוך השבת', () => { const d = new Date(); d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7)); d.setHours(10, 0, 0, 0); return d; }],
+    current: ['המשמרת שרצה עכשיו', () => S.active ? new Date(S.active.start) : null],
+  };
+  let pick = S.active ? 'current' : 'friday', items = [];
+  const jobId = S.active?.jobId || S.settings.lastJob;
+  openSheet(`<div data-keep><h2>כלי פיתוח</h2><p class="shsub">לבדיקות בלבד. לא משנה את החישובים.</p>
+    <div class="sec"><span>התראות</span></div>
+    <div class="card">
+      <button class="cell" id="dv-one"><span class="grow">התראה אחת לבדיקה<div class="sub">מגיעה בעוד 3 שניות</div></span></button>
+      <button class="cell" id="dv-soon"><span class="grow">משמרת שמגיעה לשעות נוספות בעוד 2 דקות<div class="sub">מתחילה משמרת אמיתית שהתחילה מוקדם, וההתראה תגיע כרגיל</div></span></button>
+      <button class="cell" id="dv-pend"><span class="grow">ההתראות שמתוזמנות עכשיו</span></button>
+    </div>
+    <div class="sec"><span>כל ההתראות של משמרת</span></div>
+    <div class="seg" id="dv-scen">${Object.entries(scen).filter(([k]) => k !== 'current' || S.active).map(([k, [l]]) => `<button data-s="${k}">${l}</button>`).join('')}</div>
+    <div class="card pad" id="dv-list" style="margin-top:10px"></div>
+    <button class="btn soft" id="dv-send" style="margin-top:10px">לשלוח את כולן עכשיו, כל 6 שניות</button>
+    <div class="sec"><span>עוד</span></div>
+    <div class="card">
+      <button class="cell" id="dv-onb"><span class="grow">להציג שוב את מסך הפתיחה</span></button>
+      <button class="cell" id="dv-demo"><span class="grow">להוסיף משמרות לדוגמה (3 חודשים)</span></button>
+      <button class="cell" id="dv-undemo"><span class="grow">למחוק את משמרות הדוגמה</span></button>
+      <button class="cell" id="dv-err"><span class="grow">שגיאה לבדיקה<div class="sub">מציג את פס התקלה</div></span></button>
+      <button class="cell" id="dv-reload"><span class="grow">טעינה מחדש של האפליקציה</span></button>
+      <button class="cell" id="dv-off"><span class="grow">כיבוי מצב מפתח</span></button>
+    </div></div>`, root => {
+    const draw = () => {
+      $$('#dv-scen button', root).forEach(b => b.classList.toggle('on', b.dataset.s === pick));
+      const start = scen[pick][1]();
+      items = start ? buildNotifications({ jobId, start: start.toISOString() }) : [];
+      $('#dv-list', root).innerHTML = items.length ? items.map(x => `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(tr(x.title))}</b><span class="num" style="color:var(--ink3)">${tm(x.at)}</span></div><div style="color:var(--ink2);font-size:.9rem">${esc(tr(x.body))}</div></div>`).join('') : '<div class="hint">אין התראות למשמרת הזאת</div>';
+    };
+    $$('#dv-scen button', root).forEach(b => b.onclick = () => { pick = b.dataset.s; draw(); });
+    const send = async list => { if (!native.NATIVE) return toast('התראות עובדות רק באפליקציה לאנדרואיד', 'err');
+      const ok = await native.testNotifications(list.map(x => ({ title: tr(x.title), body: tr(x.body) })));
+      toast(ok ? `נשלחו ${list.length} התראות` : 'אין הרשאה להתראות. אפשר לאשר בהגדרות הטלפון', ok ? 'ok' : 'err'); };
+    $('#dv-one', root).onclick = () => send([{ title: 'אצבע · בדיקה', body: 'ככה נראית התראה. אם רואים את זה, הכל עובד.' }]);
+    $('#dv-send', root).onclick = () => send(items);
+    $('#dv-soon', root).onclick = () => {
+      const job = jobAt(jobById(jobId), new Date());
+      S.active = { jobId, start: new Date(Date.now() - (job.regHours * 60 - 2) * 6e4).toISOString() };
+      persist(); closeSheet(); go('home'); planNotifications(true); toast('משמרת בדיקה התחילה. ההתראה תגיע בעוד כ־2 דקות', 'ok');
+    };
+    $('#dv-pend', root).onclick = async () => {
+      const p = await native.pendingNotifications();
+      $('#dv-list', root).innerHTML = p.length ? p.map(x => `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>${esc(x.title)}</b> <span class="num" style="color:var(--ink3)">${x.at ? tm(x.at) : ''}</span><div style="color:var(--ink2);font-size:.9rem">${esc(x.body)}</div></div>`).join('') : `<div class="hint">${native.NATIVE ? 'אין התראות מתוזמנות' : 'רק באפליקציה לאנדרואיד'}</div>`;
+    };
+    $('#dv-onb', root).onclick = () => { closeSheet(); openOnboarding(); };
+    $('#dv-demo', root).onclick = () => {
+      const days = 90, out = []; const now = new Date();
+      for (let i = days; i > 0; i--) { const d = new Date(now); d.setDate(d.getDate() - i); if (d.getDay() === 6 || Math.random() < .3) continue;
+        const h = [8, 10, 14, 16][i % 4], st = new Date(d); st.setHours(h, [0, 15, 30][i % 3], 0, 0); const en = new Date(+st + (6 + (i % 5)) * 3.6e6);
+        out.push({ id: uid(), jobId, start: st.toISOString(), end: en.toISOString(), breakMin: i % 3 ? 0 : 30, bonus: 0, note: '', rest: 'auto', src: 'demo' }); }
+      S.shifts.push(...out); commit(); toast(`נוספו ${out.length} משמרות לדוגמה`, 'ok');
+    };
+    $('#dv-undemo', root).onclick = () => { const n = S.shifts.length; S.shifts = S.shifts.filter(x => x.src !== 'demo'); commit(); toast(`נמחקו ${n - S.shifts.length} משמרות לדוגמה`, 'ok'); };
+    $('#dv-err', root).onclick = () => { closeSheet(); report(new Error('שגיאה לבדיקה מכלי הפיתוח')); };
+    $('#dv-reload', root).onclick = () => location.reload();
+    $('#dv-off', root).onclick = () => { S.settings.dev = false; persist(); closeSheet(); renderSet(); toast('מצב מפתח כבוי'); };
+    draw();
+  });
+}
+/* translations: skip-end */
 
 /* ================= first open: welcome and job setup =================
    Four short steps, every one skippable. Nothing here is required: the defaults already work. */

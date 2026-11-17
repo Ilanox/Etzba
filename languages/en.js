@@ -17,6 +17,15 @@ export default {
   months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
 
   phrases: {
+    'שבת שלום · התוספת התחילה': 'Shabbat Shalom · the premium has started',
+    'יום הבחירות · התוספת התחילה': 'Election day · the premium has started',
+    'חג שמח': 'Happy holiday',
+    'שבוע טוב · השבת יצאה': 'Shavua tov · Shabbat is over',
+    'החג יצא': 'The holiday is over',
+    'השעות הנוספות התחילו': 'Overtime has started',
+    'עדיין במשמרת?': 'Still on shift?',
+    'המשמרת פתוחה כבר 12 שעות. אם כבר יצאת, אפשר לסיים אותה ולתקן את שעת היציאה.': 'Your shift has been open for 12 hours. If you already left, end it and fix the clock-out time.',
+
     'מחיקה: המשמרת לא נשמרת, כאילו לא נכנסת. אפשר לבטל מיד אחרי.': 'Delete: the shift isn’t saved, as if you never clocked in. You can undo right after.',
     'המשמרת נמחקה': 'Shift deleted',
     'המשמרת חזרה': 'Shift restored',
@@ -42,9 +51,9 @@ export default {
     'שכחת לשים אצבע ביציאה?': 'Forgot to clock out?',
     'התראות': 'Notifications',
     'שינוי בתעריף': 'Rate changes',
-    '"אנחנו כבר אחרי 8:36 שעות · התחלנו 125%"': '"Past 8:36 hours today · now on 125%"',
+    '"השעות הנוספות התחילו · מעכשיו 125%"': '"Overtime has started · now 125%"',
     'כניסה ויציאה של שבת וחג': 'Shabbat and holidays starting and ending',
-    '"נכנסנו לשבת · התחלנו 150%"': '"Shabbat has started · now on 150%"',
+    '"שבת שלום · התוספת התחילה"': '"Shabbat Shalom · the premium has started"',
     'משמרת פתוחה 12 שעות': 'Shift open for 12 hours',
     'למקרה ששכחת לשים אצבע ביציאה': 'In case you forgot to clock out',
     'רק בזמן משמרת. בלי תזכורות אחרות.': 'Only during a shift. No other reminders.',
@@ -122,6 +131,18 @@ export default {
   'מתוך 42 ש׳': 'of 42 h this week'
   },
   templates: [
+    ['חג שמח · {}', 'Happy holiday · {1}'],
+    ['עברת {} שעות השבוע', 'You passed {1} hours this week'],
+    ['שעות נוספות · {}%', 'Overtime · {1}%'],
+    ['מעכשיו {}% ({} לשעה), עד {}.', 'From now on {1}% ({2} an hour), until {3}.'],
+    ['מעכשיו {}% ({} לשעה).', 'From now on {1}% ({2} an hour).'],
+    ['התוספת התחילה: {}% ({} לשעה), עד {}.', 'The premium has started: {1}% ({2} an hour), until {3}.'],
+    ['התוספת התחילה: {}% ({} לשעה).', 'The premium has started: {1}% ({2} an hour).'],
+    ['חוזרים ל־{}% ({} לשעה). עד עכשיו: {}.', 'Back to {1}% ({2} an hour). Earned so far: {3}.'],
+    ['מעכשיו זה שעות נוספות: {}% ({} לשעה). עד עכשיו: {}.', 'From now on it’s overtime: {1}% ({2} an hour). Earned so far: {3}.'],
+    ['{} שעות במשמרת. מעכשיו {}% ({} לשעה). עד עכשיו: {}.', '{1} hours on shift. From now on {2}% ({3} an hour). Earned so far: {4}.'],
+    ['{} שעות במשמרת. מעכשיו {} לשעה. עד עכשיו: {}.', '{1} hours on shift. From now on {2} an hour. Earned so far: {3}.'],
+
     ['המשמרת תתחיל בעוד {} שעות', 'The shift starts in {1} h'],
     ['היום · במשמרת כבר {} שעות', 'Today · on shift for {1} h'],
     ['אתמול · במשמרת כבר {} שעות', 'Yesterday · on shift for {1} h'],

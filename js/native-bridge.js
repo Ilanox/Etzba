@@ -106,3 +106,20 @@ export async function scheduleNotifications(items) {
   }).catch(() => {});
 }
 export function exitApp() { withP('App', a => { a.exitApp().catch(() => a.minimizeApp()); }).catch(() => {}); }
+/** Developer tools: show these right away, `gap` seconds apart, without touching the shift's own schedule. */
+export async function testNotifications(items, gap = 6) {
+  if (!NATIVE) return false;
+  return (await withP('LocalNotifications', async n => {
+    let ok = (await n.checkPermissions()).display === 'granted';
+    if (!ok) ok = (await n.requestPermissions()).display === 'granted';
+    if (!ok) return false;
+    const t0 = Date.now() + 3000;
+    await n.schedule({ notifications: items.map((x, i) => ({ id: 900 + i, title: x.title, body: x.body, schedule: { at: new Date(t0 + i * gap * 1000), allowWhileIdle: true }, smallIcon: 'ic_stat_etzba', iconColor: '#FF6A3D' })) });
+    return true;
+  }).catch(() => false)) || false;
+}
+export async function pendingNotifications() {
+  if (!NATIVE) return [];
+  return (await withP('LocalNotifications', async n => (await n.getPending()).notifications.map(x => ({ id: x.id, title: x.title, body: x.body, at: x.schedule?.at })))
+    .catch(() => [])) || [];
+}
