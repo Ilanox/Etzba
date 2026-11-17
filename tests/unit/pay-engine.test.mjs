@@ -77,3 +77,41 @@ test('rate changes timeline: Friday 09:00 reaches Shabbat, then Shabbat overtime
   assert.ok(keys.some(k => /Ot1$/.test(k) || k === 'ot1'), 'overtime starts: ' + keys);
   for (let i = 1; i < ch.length; i++) assert.ok(+new Date(ch[i].at) > +new Date(ch[i - 1].at), 'in order');
 });
+
+const sumB = p => Object.values(p.b).reduce((a, x) => a + x, 0);
+const expectMoney = (p, job) => Object.entries(p.b).reduce((a, [k, h]) => a + h * job.rate * job.r[k] / 100, 0);
+
+test('a break is not work time: overtime starts after 8.6 worked hours', () => {
+  const p = shiftPay({ ...at('2026-11-17T08:00:00+02:00', 9.5), breakMin: 30 }, job(), place);
+  near(p.hours, 9, 'paid'); near(p.b.reg, 8.6, 'regular'); near(p.b.ot1, 0.4, 'overtime');
+});
+
+test('paid minutes are whole minutes, and money = hours × rate × percent', () => {
+  for (const [s, h, brk] of [['2026-11-17T08:07:00+02:00', 9.25, 25], ['2026-11-20T09:00:00+02:00', 8.5, 30], ['2026-11-21T19:00:00+02:00', 6.4, 0]]) {
+    const J = job(), p = shiftPay({ ...at(s, h), breakMin: brk }, J, place);
+    for (const v of Object.values(p.b)) near(Math.round(v * 60), v * 60, 'whole minutes');
+    near(sumB(p), p.hours, 'tiers add up to paid hours'); near(p.base, expectMoney(p, J), 'money');
+  }
+});
+
+test('a shift across midnight is counted once, on its real hours', () => {
+  const p = shiftPay(at('2026-11-17T20:00:00+02:00', 8), job(), place);   // Tue 20:00 → Wed 04:00
+  near(p.hours, 8, 'hours'); near(sumB(p), 8, 'tiers');
+});
+
+test('night shift: overtime after 7 hours', () => {
+  const p = shiftPay(at('2026-11-17T22:00:00+02:00', 8), job(), place);
+  assert.equal(p.isNight, true); near(p.b.reg, 7, 'regular'); near(p.b.ot1, 1, 'overtime');
+});
+
+test('Shabbat overtime is one combined rate, never stacked', () => {
+  const J = job(), p = shiftPay(at('2026-11-21T06:00:00+02:00', 11), J, place);   // Saturday 06:00–17:00, before Shabbat ends
+  near(p.b.rest, 8.6, 'Shabbat regular'); near(p.b.restOt1, 2, 'Shabbat 1st overtime'); near(p.b.restOt2, 0.4, 'Shabbat 2nd overtime');
+  near(p.base, J.rate * (8.6 * J.r.rest + 2 * J.r.restOt1 + 0.4 * J.r.restOt2) / 100, 'money');
+  assert.ok(J.r.restOt1 <= 175 && J.r.restOt2 <= 200, 'statutory combined rates');
+});
+
+test('holiday shift with overtime', () => {
+  const p = shiftPay(at('2026-09-21T07:00:00+03:00', 10), job(), place);   // Yom Kippur
+  near(p.b.chag, 8.6, 'holiday regular'); near(p.b.chagOt1, 1.4, 'holiday overtime');
+});

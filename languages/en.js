@@ -17,6 +17,36 @@ export default {
   months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
 
   phrases: {
+    'שמים אצבע כדי להתחיל': 'Tap to start',
+    'במשמרת': 'On shift',
+    'מתחילה ב־': 'starts ',
+    'עד עכשיו': 'so far',
+
+    'השפה הוחזרה לעברית בגלל תקלה. אפשר לנסות שוב בהגדרות': 'The language was set back to Hebrew after a problem. You can try again in Settings',
+    'פרטיות ומשפטי': 'Privacy & legal',
+    'מה נשמר, ומה החישוב כן ולא': "What's stored, and what the calculation is and isn't",
+    'הכל נשמר רק בטלפון שלך': 'Everything stays on your phone',
+    'משמרות, שכר והגדרות. אין חשבון, אין שרת, אין פרסומות ואין מעקב.': 'Shifts, pay and settings. No account, no server, no ads, no tracking.',
+    'גיבוי ומחיקה בידיים שלך': 'Backup and deletion are up to you',
+    'גיבוי וייצוא ב״נתונים וגיבוי״. מחיקת האפליקציה או ניקוי הנתונים שלה מוחקים הכל, אז כדאי לגבות לפני.': 'Backup and export are under "Data & backup". Uninstalling the app or clearing its data deletes everything, so back up first.',
+    'מה נשלח לאינטרנט': 'What goes online',
+    'רק בדיקה יומית של נתוני שכר מינימום ומס, בהורדה של קובץ ציבורי. שום מידע שלך.': 'Only a daily check for minimum wage and tax figures, by downloading a public file. Nothing about you.',
+    'החישובים הם הערכה.': 'Calculations are estimates.',
+    'לפי חוק שעות עבודה ומנוחה, הכללים המקובלים וההגדרות שהזנת. זה לא תלוש שכר רשמי ולא ייעוץ משפטי, מיסוי או פיננסי. הסכם קיבוצי או חוזה אישי יכולים לקבוע אחרת.': 'Based on the Hours of Work and Rest Law, common practice and your settings. Not an official payslip, and not legal, tax or financial advice. A collective agreement or personal contract may set other terms.',
+    'מדיניות הפרטיות המלאה': 'Full privacy policy',
+    'הערכה ⓘ': 'estimate ⓘ',
+    'הערכה: מה החישוב כן ולא': "Estimate: what the calculation is and isn't",
+
+    'ההתראות חסומות בטלפון · לפתוח הגדרות': 'Notifications are blocked on this phone · open settings',
+    'לא הצלחתי לקבוע התראות': "Couldn't schedule notifications",
+    'חסומות בהגדרות הטלפון, אז לא יגיעו.': "Blocked in the phone's settings, so they won't arrive.",
+    'לאפשר': 'Allow',
+    'הטלפון יבקש אישור בפעם הבאה שנכנסים למשמרת.': 'The phone will ask for permission next time you clock in.',
+    'מאושרות. הטלפון שולח אותן בערך בזמן, לפעמים באיחור של כמה דקות.': 'Allowed. The phone sends them about on time, sometimes a few minutes late.',
+    'בדיוק לדקה': 'To the minute',
+    'מאושרות, ויגיעו בזמן גם כשהאפליקציה סגורה.': 'Allowed, and they arrive on time even when the app is closed.',
+
+    ' + המשמרת הנוכחית': ' + the current shift',
     'התראות במשמרת': 'Shift notifications',
     'כשמתחילות שעות נוספות, בכניסת שבת וחג, ואם שכחת לצאת': 'When overtime starts, when Shabbat or a holiday begins, and if you forgot to clock out',
 
@@ -183,6 +213,11 @@ export default {
   'מתוך 42 ש׳': 'of 42 h this week'
   },
   templates: [
+    ['יצירת קשר · {}', 'Contact · {1}'],
+    ['שוחזרו {} משמרות מהעותק השמור בטלפון', 'Restored {1} shifts from the copy saved on the phone'],
+    ['התראה הבאה ב־{}', 'Next notification at {1}'],
+    ['התראה הבאה בסביבות {}', 'Next notification around {1}'],
+    ['{} משמרות + המשמרת הנוכחית · {} שעות · ברוטו {}', '{1} shifts + the current one · {2} hours · {3} gross'],
     ['עבודה ביום הבחירות לכנסת ({})', 'Working on Knesset election day ({1})'],
     ['{} · להתחיל משמרת עכשיו?', '{1} · start a shift now?'],
     ['{} · המשמרת עדיין רצה. לסיים אותה?', '{1} · your shift is still running. End it?'],

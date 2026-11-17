@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+: what Google backup and phone-to-phone transfer keep. Shifts, jobs and settings live in the
+     WebView's storage (app_webview) and in files/etzba-data.json; both are kept. Caches are not. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="root" path="app_webview/" />
+        <include domain="file" path="." />
+        <include domain="sharedpref" path="." />
+        <exclude domain="root" path="app_webview/Default/Service Worker/" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="root" path="app_webview/" />
+        <include domain="file" path="." />
+        <include domain="sharedpref" path="." />
+        <exclude domain="root" path="app_webview/Default/Service Worker/" />
+    </device-transfer>
+</data-extraction-rules>

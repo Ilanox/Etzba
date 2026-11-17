@@ -1,7 +1,11 @@
 // אצבע — native glue for the Android / iOS app (Capacitor). On the web every function here quietly does nothing,
 // so the same files run as a website, an installed PWA and a store app.
 
+import * as dbg from './diagnostics.js';
+
 const C = window.Capacitor;
+/** For calls that may fail without harm: never silent, always in the diagnostics log. */
+const warn = what => e => dbg.log('warn', `native ${what}: ${e?.message || e}`);
 export const NATIVE = !!(C && typeof C.isNativePlatform === 'function' && C.isNativePlatform());
 export const PLATFORM = NATIVE ? C.getPlatform() : 'web';     // 'android' | 'ios' | 'web'
 
@@ -10,7 +14,7 @@ export const PLATFORM = NATIVE ? C.getPlatform() : 'web';     // 'android' | 'io
    native app. Everything below waits for it, so nothing breaks while it loads. */
 let core = null;
 const loaded = NATIVE
-  ? (typeof C.registerPlugin === 'function' ? Promise.resolve() : import('./vendor/capacitor-core.js').then(m => { core = m; }).catch(() => {}))
+  ? (typeof C.registerPlugin === 'function' ? Promise.resolve() : import('./vendor/capacitor-core.js').then(m => { core = m; }).catch(warn('core')))
   : Promise.resolve();
 const plugins = {};
 function P(name) {
@@ -43,17 +47,17 @@ export async function onSharedFile(onFile) {
   const deliver = (name, b64) => onFile({ name, arrayBuffer: async () => b64ToBuf(b64) });
   if (PLATFORM === 'android') {
     const si = P('ShareIn'); if (!si) return;
-    const take = async () => { try { const r = await si.take(); if (r && r.data) deliver(r.name || 'shared.xls', r.data); } catch {} };
+    const take = async () => { try { const r = await si.take(); if (r && r.data) deliver(r.name || 'shared.xls', r.data); } catch (e) { warn('share-in')(e); } };
     take();
     si.addListener('shared', take);
   } else {
     // iOS: "Open in אצבע" / "Copy to אצבע" hands the app a file URL
     const fromUrl = async url => {
       if (!url || !url.startsWith('file:')) return;
-      try { const { data } = await P('Filesystem').readFile({ path: url }); deliver(decodeURIComponent(url.split('/').pop()), data); } catch {}
+      try { const { data } = await P('Filesystem').readFile({ path: url }); deliver(decodeURIComponent(url.split('/').pop()), data); } catch (e) { warn('open file')(e); }
     };
     P('App').addListener('appUrlOpen', e => fromUrl(e.url));
-    P('App').getLaunchUrl().then(r => fromUrl(r?.url)).catch(() => {});
+    P('App').getLaunchUrl().then(r => fromUrl(r?.url)).catch(warn('launch url'));
   }
 }
 
@@ -64,7 +68,7 @@ export function haptic(kind = 'light') {
     if (kind === 'success') h.notification({ type: 'SUCCESS' });
     else if (kind === 'warn') h.notification({ type: 'WARNING' });
     else h.impact({ style: kind === 'heavy' ? 'HEAVY' : kind === 'medium' ? 'MEDIUM' : 'LIGHT' });
-  }).catch(() => {});
+  }).catch(warn('listeners'));
   return true;
 }
 
@@ -77,35 +81,54 @@ export async function onBack(handler) {
 
 /* ---- system bars and splash ---- */
 export function setBars(dark) {
-  withP('SystemBars', sb => { sb.setStyle({ style: dark ? 'DARK' : 'LIGHT' }).catch(() => {}); }).catch(() => {});
+  withP('SystemBars', sb => { sb.setStyle({ style: dark ? 'DARK' : 'LIGHT' }).catch(warn('bars')); }).catch(warn('bars'));
 }
-export function ready() { withP('SplashScreen', s => { s.hide({ fadeOutDuration: 150 }).catch(() => {}); }).catch(() => {}); }
+export function ready() { withP('SplashScreen', s => { s.hide({ fadeOutDuration: 150 }).catch(warn('splash')); }).catch(warn('splash')); }
 
 /* ---- notifications (local, scheduled on the phone; nothing goes through a server) ---- */
+/** What the phone allows: display ('granted' | 'denied' | 'prompt'), and whether times can be exact
+   (Android 12+ may only allow "about then", usually within a few minutes; null when unknown). */
+export async function notifyStatus() {
+  if (!NATIVE) return { display: 'unsupported', exact: null };
+  return withP('LocalNotifications', async n => {
+    const { display } = await n.checkPermissions();
+    let exact = null;
+    try { exact = (await n.checkExactNotificationSetting()).exact_alarm === 'granted'; } catch { exact = null; }   // older Android: always exact
+    return { display, exact };
+  }).catch(e => { warn('notify status')(e); return { display: 'error', exact: null }; });
+}
 export async function notifyAllowed(ask = false) {
   if (!NATIVE) return false;
-  return (await withP('LocalNotifications', async n => {
+  return withP('LocalNotifications', async n => {
     let s = await n.checkPermissions();
     if (s.display !== 'granted' && ask) s = await n.requestPermissions();
     return s.display === 'granted';
-  }).catch(() => false)) || false;
+  }).catch(e => { warn('notify permission')(e); return false; });
 }
-/** Replaces every scheduled notification with `items` ([{ at: Date, title, body }]). */
+/** Opens the phone's setting for exact notification times. */
+export function openExactSettings() { return withP('LocalNotifications', n => n.changeExactNotificationSetting()).catch(warn('exact settings')); }
+/** Opens the app's notification settings (to turn them back on). */
+export function openNotificationSettings() { return withP('AppActions', a => a.openNotificationSettings()).catch(warn('notification settings')); }
+
+/** Replaces every scheduled notification with `items` ([{ at: Date, title, body }]). Returns how many were scheduled. */
 export async function scheduleNotifications(items) {
-  if (!NATIVE) return;
-  await withP('LocalNotifications', async n => {
+  if (!NATIVE) return 0;
+  return withP('LocalNotifications', async n => {
     const { notifications: pend } = await n.getPending();
-    if (pend.length) await n.cancel({ notifications: pend.map(x => ({ id: x.id })) });
+    const ours = pend.filter(x => x.id >= 100 && x.id < 900);
+    if (ours.length) await n.cancel({ notifications: ours.map(x => ({ id: x.id })) });
     const now = Date.now() + 5000;
     const list = items.filter(x => +x.at > now).slice(0, 30).map((x, i) => ({
       id: 100 + i, title: x.title, body: x.body,
+      // allowWhileIdle: delivered even in battery saving / Doze. Exact when the phone allows it, else within minutes.
       schedule: { at: x.at, allowWhileIdle: true },
       smallIcon: 'ic_stat_etzba', iconColor: '#FF6A3D',
     }));
     if (list.length) await n.schedule({ notifications: list });
-  }).catch(() => {});
+    return list.length;
+  });   // errors reach the caller, which shows them
 }
-export function exitApp() { withP('App', a => { a.exitApp().catch(() => a.minimizeApp()); }).catch(() => {}); }
+export function exitApp() { withP('App', a => { a.exitApp().catch(() => a.minimizeApp()); }).catch(warn('exit')); }
 /** Developer tools: show these right away, `gap` seconds apart, without touching the shift's own schedule. */
 export async function testNotifications(items, gap = 6) {
   if (!NATIVE) return false;
@@ -135,8 +158,8 @@ export const geo = {
   current: () => callGeo('current'),
   geocode: address => callGeo('geocode', { address }).then(r => (r && r.results) || []),
   setFences: (fences, texts) => callGeo('setFences', { fences, texts }).catch(() => ({ registered: false })),
-  test: (kind, jobId, name) => callGeo('test', { kind, jobId, name }).catch(() => {}),
-  setActive: (active, jobId) => callGeo('setActive', { active, jobId: jobId || '' }).catch(() => {}),
+  test: (kind, jobId, name) => callGeo('test', { kind, jobId, name }).catch(warn('geo test')),
+  setActive: (active, jobId) => callGeo('setActive', { active, jobId: jobId || '' }).catch(warn('geo active')),
 };
 
 /* ---- things that open the app with something to do, and the home-screen widget (native/android/AppActionsPlugin.java) ---- */
@@ -146,12 +169,29 @@ export const appActions = {
     if (PLATFORM !== 'android') return;
     await loaded;
     const a = P('AppActions'); if (!a) return;
-    const take = async () => { try { const r = await a.take(); if (r && r.action) cb(r); } catch {} };
+    const take = async () => { try { const r = await a.take(); if (r && r.action) cb(r); } catch (e) { warn('app action')(e); } };
     take(); a.addListener('action', take);
   },
   /** Keeps the widget showing the running shift. Android draws the ticking timer itself. */
   updateWidget(state) {
     if (PLATFORM !== 'android') return;
-    withP('AppActions', a => a.updateWidget(state)).catch(() => {});
+    withP('AppActions', a => a.updateWidget(state)).catch(warn('widget'));
+  },
+};
+
+/* ---- a second copy of the data in the app's private files. localStorage lives inside the WebView, which
+   Android can occasionally lose (WebView reset, storage trouble); this copy brings everything back. ---- */
+const SNAP = 'etzba-data.json';
+let snapTimer = null;
+export const snapshot = {
+  save(json) {
+    if (!NATIVE) return;
+    clearTimeout(snapTimer);
+    snapTimer = setTimeout(() => withP('Filesystem', f => f.writeFile({ path: SNAP, data: json, directory: 'DATA', encoding: 'utf8' })).catch(warn('snapshot save')), 1500);
+  },
+  async load() {
+    if (!NATIVE) return null;
+    try { const { data } = await withP('Filesystem', f => f.readFile({ path: SNAP, directory: 'DATA', encoding: 'utf8' })); return typeof data === 'string' ? data : null; }
+    catch { return null; }   // no copy yet: normal on first launch
   },
 };

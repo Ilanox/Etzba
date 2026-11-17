@@ -47,17 +47,36 @@ public class AppActionsPlugin extends Plugin {
         call.resolve(r);
     }
 
-    /** { active, start (ms), job, labels: { idle, idleHint, since, starts, end } } */
+    /** The app's notification settings, to turn notifications back on. */
+    @PluginMethod
+    public void openNotificationSettings(PluginCall call) {
+        Intent i = new Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, getContext().getPackageName())
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(i);
+        call.resolve();
+    }
+
+    /** { active, start (ms), job, rate, rtl, segs: [[fromMs, perHour], …], labels: {…} } */
     @PluginMethod
     public void updateWidget(PluginCall call) {
-        SharedPreferences.Editor e = getContext().getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit();
-        e.putBoolean("active", Boolean.TRUE.equals(call.getBoolean("active", false)));
-        e.putLong("start", call.getLong("start", 0L));
-        e.putString("job", call.getString("job", ""));
-        JSObject l = call.getObject("labels", new JSObject());
-        e.putString("labels", l.toString());
-        e.apply();
-        EtzbaWidget.refresh(getContext());
-        call.resolve();
+        try {
+            SharedPreferences.Editor e = getContext().getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit();
+            e.putBoolean("active", Boolean.TRUE.equals(call.getBoolean("active", false)));
+            e.putLong("start", call.getLong("start", 0L));
+            e.putString("job", call.getString("job", ""));
+            Double rate = call.getDouble("rate", 0.0);
+            e.putLong("rate", Double.doubleToLongBits(rate != null ? rate : 0.0));
+            e.putBoolean("rtl", Boolean.TRUE.equals(call.getBoolean("rtl", true)));
+            com.getcapacitor.JSArray segs = call.getArray("segs", new com.getcapacitor.JSArray());
+            e.putString("segs", segs != null ? segs.toString() : "[]");
+            JSObject l = call.getObject("labels", new JSObject());
+            e.putString("labels", l != null ? l.toString() : "{}");
+            e.apply();
+            EtzbaWidget.refresh(getContext());
+            call.resolve();
+        } catch (Exception ex) {
+            call.reject("widget: " + ex.getMessage());   // reported to the app's log, never a crash
+        }
     }
 }

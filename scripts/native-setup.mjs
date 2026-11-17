@@ -52,6 +52,10 @@ ${plugins.map(p => `        registerPlugin(${p}.class);`).join('\n')}
     if (!on && has) x = x.replace(new RegExp(`\\s*<uses-permission android:name="android.permission.${p}"\\s*/>`), '');
   };
   setPerm('POST_NOTIFICATIONS', true);
+  // exact notification times when the person allows it (Android 14 asks); otherwise they arrive within minutes
+  setPerm('SCHEDULE_EXACT_ALARM', true);
+  // backups: shifts and settings are kept by Google backup and phone-to-phone transfer (res/xml/*_rules.xml)
+  if (!x.includes('dataExtractionRules')) x = x.replace(/<application\b/, '<application android:dataExtractionRules="@xml/data_extraction_rules" android:fullBackupContent="@xml/backup_rules"');
   // workplace arrival needs location all the time, and re-arming after a reboot
   for (const p of ['ACCESS_COARSE_LOCATION', 'ACCESS_FINE_LOCATION', 'ACCESS_BACKGROUND_LOCATION', 'RECEIVE_BOOT_COMPLETED']) setPerm(p, GEO);
   const block = (name, xml, on) => {

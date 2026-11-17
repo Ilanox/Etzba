@@ -188,3 +188,26 @@ test('release: no developer screens, one notifications switch', async () => {
   assert.equal(sched.length, 0, 'nothing scheduled when off');
   assert.deepEqual(errors, []); await ctx.close();
 });
+
+test('a language that failed to start falls back to Hebrew, with the details to copy', async () => {
+  const { page, ctx, errors } = await open({ native: true, lang: 'en' });
+  await wait(page, 4500);   // a good start clears the mark
+  assert.equal(await page.evaluate(() => localStorage.getItem('etzba.langBoot')), null);
+  // pretend the last start in English never finished
+  await page.evaluate(() => localStorage.setItem('etzba.langBoot', 'en'));
+  await page.reload(); await wait(page, 1500);
+  assert.equal(await page.evaluate(() => document.documentElement.dir), 'rtl');
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('etzba.v1')).settings.lang), 'he');
+  assert.match(await page.locator('.toast').innerText(), /השפה הוחזרה לעברית/);
+  assert.deepEqual(errors, []); await ctx.close();
+});
+
+test('Android: English survives a restart', async () => {
+  const { page, ctx, errors } = await open({ native: true, lang: 'en' });
+  await page.click('#punchBtn'); await wait(page, 500);
+  await page.reload(); await wait(page, 1500);
+  assert.equal(await page.evaluate(() => document.documentElement.dir), 'ltr');
+  assert.ok(await page.locator('#tabs .tic svg').count() >= 5, 'the app drew');
+  assert.match(await page.locator('#tabs').innerText(), /Settings/);
+  assert.deepEqual(errors, []); await ctx.close();
+});

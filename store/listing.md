@@ -22,7 +22,7 @@ To make them again: `node store/make-screenshots.mjs`.
 ⏱ שעון משמרת
 • כניסה ויציאה בנגיעה אחת, והסכום עולה לנגד העיניים
 • שכחת לשים אצבע? משנים את שעת הכניסה או מוסיפים משמרת בדיעבד
-• ווידג׳ט למסך הבית שמראה אם את/ה במשמרת ומאיזו שעה
+• ווידג׳ט למסך הבית בשלושה גדלים: כניסה ויציאה בנגיעה, הזמן והשכר עד עכשיו
 
 💰 כל דקה בתעריף הנכון
 • שעות נוספות 125% ו־150%, ביום ובשבוע (המכסה השבועית ניתנת לשינוי)
@@ -76,7 +76,7 @@ Etzba is a simple shift tracker and pay calculator for hourly workers in Israel.
 ⏱ Shift clock
 • Clock in and out with one tap, and watch your earnings grow
 • Forgot to tap? Change the start time, or add a shift later
-• A home-screen widget that shows whether you're on shift, and since when
+• A home-screen widget in three sizes: clock in and out, time and pay so far
 
 💰 Every minute at the right rate
 • 125% and 150% overtime, daily and weekly (the weekly limit is adjustable)
@@ -119,7 +119,7 @@ An Edvin Studios Project
 | Free or paid | Free |
 | Category | Productivity (Finance also fits, but asks for more declarations) |
 | Tags | Time tracking, Productivity, Calculator |
-| Email | your contact email (required, shown publicly) |
+| Email | ilan@edvin.co.il |
 | Website | https://ilanox.github.io/Etzba/ |
 | Privacy policy | https://ilanox.github.io/Etzba/privacy.html |
 | Ads | No |
@@ -137,6 +137,7 @@ An Edvin Studios Project
 
 **Permissions you may be asked about:**
 - Notifications: shift notifications, can be turned off in Settings
+- Exact alarms (SCHEDULE_EXACT_ALARM): optional, so overtime and Shabbat notifications arrive to the minute; the app works without it. No declaration form is needed for this one (only USE_EXACT_ALARM needs one)
 - No location (arrival detection is switched off in `features.json`)
 
 **Financial features declaration:** "My app doesn't provide any financial features" (it's a calculator: no payments, loans or accounts).
@@ -155,6 +156,16 @@ English:
 The first release of Etzba 🎉
 Shift clock, pay calculated by Israeli law (overtime, Shabbat, holidays, nights), gross and net summary, a home-screen widget, Excel import, and everything stays on your phone.
 ```
+
+## Before production: test checklist
+
+- Internal testing track first: upload the .aab, read the **pre-launch report** (crashes, accessibility, screenshots on Google's devices).
+- Phones: your Samsung (One UI) plus at least one Pixel or other brand, one older Android (10–12), one small screen.
+- Each phone: Hebrew and English · largest system font · dark and light · airplane mode on first launch.
+- Notifications: start a shift, close the app, reboot the phone, battery saver on, and check the overtime notification still arrives. Then turn notifications off in the phone's settings and check the app says so.
+- Samsung: Settings → Battery → Background usage limits: make sure אצבע isn't in "Sleeping apps" during the test.
+- Widget: all three sizes, in Hebrew and English, clocking in and out from it.
+- Data: update over the previous build (data kept), uninstall/reinstall with Google backup on (data restored), restore from a backup file.
 
 ## Publishing steps
 

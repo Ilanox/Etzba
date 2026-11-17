@@ -30,6 +30,8 @@ export const I = {
   trash: s('<path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/>'),
   lock: s('<rect x="5" y="11" width="14" height="9.5" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'),
   clockEdit: s('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
+  bell: s('<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15Z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>'),
+  bellOff: s('<path d="M6 16.5V11a6 6 0 0 1 9.6-4.8M18 11v5.5l1.5 1.5H8"/><path d="M10 20.5a2 2 0 0 0 4 0M4 4l16 16"/>'),
   check: s('<path d="M5 12.5l4.5 4.5L19 7.5"/>', 'stroke-width="2.2"'),
   x: s('<path d="M6 6l12 12M18 6 6 18"/>'),
   coffee: s('<path d="M4.5 9h12v5a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5Z"/><path d="M16.5 10.5h1.5a2.5 2.5 0 0 1 0 5h-1.5M8 3.5v2.5M12 3.5v2.5"/>'),

@@ -20,7 +20,7 @@ const KEY = 'etzba.v1', OLD_KEY = 'shifts.v1';
 function fresh() {
   const job = defaultJob('העבודה שלי');
   return {
-    settings: { city: 'תל אביב', candleMin: 20, havdalahMin: 40, sex: 2.25, extraPts: 0, pension: true, pEmp: 6, pEr: 6.5, sev: 8.33, hish: false, theme: 'auto', lang: 'he', lastJob: job.id, notif: { rates: true, rest: true, long: true } },
+    settings: { city: 'תל אביב', candleMin: 20, havdalahMin: 40, sex: 2.25, extraPts: 0, pension: false, pEmp: 6, pEr: 6.5, sev: 8.33, hish: false, theme: 'auto', lang: 'he', lastJob: job.id, notif: { rates: true, rest: true, long: true } },
     jobs: [job], shifts: [], active: null, ui: {},
   };
 }
@@ -58,6 +58,7 @@ function normalizeState(d) {
   return d;
 }
 let S = load();
+const hadLocal = (() => { try { return !!localStorage.getItem(KEY); } catch { return false; } })();
 loadRules();   // yearly figures: built in, or a newer saved copy
 /** The next election day (or the most recent), as d.m.yyyy. */
 function electionDate() {
@@ -80,7 +81,7 @@ function applyTheme() {
 }
 applyTheme(); darkMQ.addEventListener?.('change', applyTheme);
 let PAY = new Map();
-const persist = () => { invalidate(); S.updatedAt = Date.now(); planNotifications(); syncGeo(); syncWidget(); try { localStorage.setItem(KEY, JSON.stringify(S)); localOk = true; } catch {
+const persist = () => { invalidate(); S.updatedAt = Date.now(); planNotifications(); syncGeo(); syncWidget(); const json = JSON.stringify(S); native.snapshot.save(json); try { localStorage.setItem(KEY, json); localOk = true; } catch {
   // no phone storage (blocked in some frames, or full): keep working; the account copy or a backup keeps the data
   localOk = false;
   if (!warnedLocal) { warnedLocal = true; toast('לא הצלחתי לשמור בטלפון. כדאי לגבות', 'err', { label: 'גיבוי עכשיו', fn: () => backupNow() }); }
@@ -157,6 +158,14 @@ function announce(msg) { const el = $('#sr'); el.textContent = ''; setTimeout(()
 function monthCalc(y, m) {
   const mk = y * 12 + m; if (MEMO.has(mk)) return MEMO.get(mk);
   const r = monthCalcRaw(y, m); MEMO.set(mk, r); return r;
+}
+/** The month including the shift that's running now (if it's this month), so every screen shows the same totals. */
+function withLive(M) {
+  const L = livePay(); if (!L) return M;
+  const st = new Date(S.active.start); if (st.getFullYear() !== M.y || st.getMonth() !== M.m) return M;
+  const gross = M.gross + L.p.base, s = S.settings;
+  return { ...M, gross, hours: M.hours + L.p.hours, live: L,
+    net: grossToNet(gross, { points: +s.sex + +s.extraPts, pension: s.pension, pEmp: +s.pEmp, pEr: +s.pEr, sev: +s.sev, hish: s.hish }, taxFor(M.y)) };
 }
 function monthCalcRaw(y, m) {
   const shifts = [...inMonth(y, m)];
@@ -389,7 +398,7 @@ function tickHome(full) {
     const isRest = /^(rest|chag|elect)/.test(key), isOt = /ot/i.test(key);
     if (hrs >= 14) { $('#pTier').innerHTML = `<span class="tier warn" id="forgot">${I.warn}משמרת פתוחה ${hm(hrs)} שעות · שכחת להחתים יציאה?</span>`; $('#forgot').onclick = onPunch; return; }
     const txt = key === 'reg' ? (p.otOn ? `שעות רגילות · עוד ${hm(Math.max(0, T - hrs))} עד שעות נוספות` : `שעות רגילות ${job.r.reg}%`) : `עכשיו: ${tierLabel(key, job)}`;
-    $('#pTier').innerHTML = `<span class="tier${isRest ? ' rest' : isOt ? ' ot' : ''}">${isRest ? (key.startsWith('chag') || key.startsWith('elect') ? I.chag : I.shabbat) : isOt ? I.ot : I.check}${txt}</span>`;
+    $('#pTier').innerHTML = `<span class="tier${isRest ? ' rest' : isOt ? ' ot' : ''}">${isRest ? (key.startsWith('chag') || key.startsWith('elect') ? I.chag : I.shabbat) : isOt ? I.ot : I.check}${txt}</span>${notifLine()}`;
   } else {
     $('#pTime').textContent = tm(now);
     $('#pEarn').textContent = '';
@@ -412,10 +421,10 @@ function renderTiles(L) {
   }
   if (L) { tH += L.p.hours; tP += L.p.base; if (+weekStart(S.active.start) === ws) H[new Date(S.active.start).getDay()] += L.p.hours; }
   const wH = H.reduce((x, y) => x + y, 0), lim = jobById(S.settings.lastJob).weeklyLimit || 42, mx = Math.max(10, ...H);
-  const M = monthCalc(now.getFullYear(), now.getMonth());
+  const M = withLive(monthCalc(now.getFullYear(), now.getMonth()));
   el.innerHTML = `
     <div class="today"><small>היום · ברוטו</small><b class="num">${money(tP)}</b><span class="num">${hm(tH)} ש׳</span></div>
-    <button class="monthcell" id="mcell"><small>${MONTHS[now.getMonth()]} · ברוטו</small><b class="num">${money(M.gross + (L ? L.p.base : 0))}</b><span class="num">${M.shifts.length} משמרות</span></button>
+    <button class="monthcell" id="mcell"><small>${MONTHS[now.getMonth()]} · ברוטו</small><b class="num">${money(M.gross)}</b><span class="num">${M.shifts.length} משמרות</span></button>
     <div class="wkb"><div class="wkb-h"><b>השבוע</b><span class="num"><b>${hm(wH)}</b> מתוך ${lim} ש׳</span></div>
       <div class="wkb-days">${H.map((h, i) => `<div class="wkb-d${i === now.getDay() ? ' on' : ''}"><i style="height:${h / mx * 100}%"></i><em>${DAY_SHORT[i]}</em></div>`).join('')}</div>
       <div class="wkb-sub num">${wH > lim ? `${hm(wH - lim)} מעל המכסה השבועית` : `נשארו ${hm(lim - wH)} עד המכסה השבועית`}</div></div>`;
@@ -667,14 +676,14 @@ function renderShifts() {
 
 /* ================= SUMMARY (תלוש) ================= */
 function sumMonth(el) {
-  const M = monthCalc(viewY, viewM), n = M.net;
+  const M = withLive(monthCalc(viewY, viewM)), n = M.net;
   const ded = n.tax + n.ni + n.health + n.pEmp + n.hEmp;
   const parts = [[n.net, 'var(--hero-net)', 'נטו'], [n.tax, 'var(--accent)', 'מס הכנסה'], [n.ni + n.health, 'var(--gold)', 'ביטוח לאומי ובריאות'], [n.pEmp + n.hEmp, 'var(--ink3)', 'חיסכון (פנסיה)']].filter(x => x[0] > 0);
   const L = (l, v, cls = '', sub = '') => `<div class="ln ${cls}"><span class="l">${l}${sub ? `<small>${sub}</small>` : ''}</span><span class="v num">${v}</span></div>`;
   const hol = holidaysOfGregorianYear(viewY).filter(h => h.date.getMonth() === viewM);
   el.innerHTML = `${monthBar()}
-    <div class="card hero" style="margin-top:12px"><small>נטו משוער ל${MONTHS[viewM]}<span class="estimate">הערכה</span></small><div class="big num">${money(n.net)}</div>
-      <div class="meta num">${M.shifts.length} משמרות · ${hm(M.hours)} שעות · ברוטו ${money(M.gross)}</div>
+    <div class="card hero" style="margin-top:12px"><small>נטו משוער ל${MONTHS[viewM]}<button type="button" class="estimate" data-legal aria-label="הערכה: מה החישוב כן ולא">הערכה ⓘ</button></small><div class="big num">${money(n.net)}</div>
+      <div class="meta num">${M.shifts.length} משמרות${M.live ? ' + המשמרת הנוכחית' : ''} · ${hm(M.hours)} שעות · ברוטו ${money(M.gross)}</div>
       ${M.gross ? `<div class="stack">${parts.map(([v, c]) => `<span style="flex:${v};background:${c}"></span>`).join('')}</div>
       <div class="legend">${parts.map(([, c, l]) => `<span><i style="background:${c}"></i>${l}</span>`).join('')}</div>` : ''}</div>
     ${M.gross ? `
@@ -946,9 +955,10 @@ function renderSet() {
       <button class="cell" id="s-export"><span class="cell-ic">${I.receipt}</span><span class="grow">ייצוא ל־CSV<div class="sub">לאקסל או לגוגל שיטס</div></span><span class="chev">${I.chevL}</span></button>
     </div>
     <div class="note info" style="margin-top:10px" id="storeNote">${storeNote()}</div>
-    ${native.NATIVE ? `<div class="card" style="margin-top:12px"><label class="cell"><span class="grow">התראות במשמרת<div class="sub">כשמתחילות שעות נוספות, בכניסת שבת וחג, ואם שכחת לצאת</div></span><span class="switch"><input type="checkbox" id="s-notif"${notifOn() ? ' checked' : ''}><i></i></span></label></div>` : ''}
+    ${native.NATIVE ? `<div class="card" style="margin-top:12px"><label class="cell"><span class="grow">התראות במשמרת<div class="sub">כשמתחילות שעות נוספות, בכניסת שבת וחג, ואם שכחת לצאת</div></span><span class="switch"><input type="checkbox" id="s-notif"${notifOn() ? ' checked' : ''}><i></i></span></label><div id="s-nstat"></div></div>` : ''}
     ${FEATURES.devTools ? `<div class="card" style="margin-top:12px"><button class="cell" id="s-debug"><span class="cell-ic">${I.info}</span><span class="grow">אבחון ותקלות<div class="sub">${dbg.lastCrash() ? 'האפליקציה נסגרה בפעם הקודמת · פרטים כאן' : 'מידע טכני לשליחה כשמשהו לא עובד'}</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
     ${FEATURES.devTools && S.settings.dev ? `<div class="card" style="margin-top:12px" data-keep><button class="cell" id="s-dev"><span class="cell-ic">${I.gear}</span><span class="grow">כלי פיתוח<div class="sub">בדיקת התראות, משמרות לדוגמה ועוד</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
+    <div class="card" style="margin-top:12px"><button class="cell" id="s-legal"><span class="cell-ic">${I.lock}</span><span class="grow">פרטיות ומשפטי<div class="sub">מה נשמר, ומה החישוב כן ולא</div></span><span class="chev">${I.chevL}</span></button></div>
     <p class="fine" id="s-ver"><b>אצבע</b> · גרסה ${VERSION}<br>An Edvin Studios Project</p>`;
   $$('[data-job]', el).forEach(b => b.onclick = () => openJobSheet(jobById(b.dataset.job), false));
   $('#addJob', el).onclick = () => { const j = defaultJob('עבודה ' + (S.jobs.length + 1)); j.color = COLORS[S.jobs.length % COLORS.length]; openJobSheet(j, true); };
@@ -958,7 +968,11 @@ function renderSet() {
   for (const k of ['pension', 'hish']) $('#s-' + k, el).onchange = e => set(k, e.target.checked);
   $$('#s-sex button', el).forEach(b => { b.classList.toggle('on', +b.dataset.v === +st.sex); b.onclick = () => set('sex', +b.dataset.v); });
   $$('#s-theme button', el).forEach(b => b.onclick = () => { S.settings.theme = b.dataset.t; applyTheme(); commit(); });
-  $$('#s-lang button', el).forEach(b => b.onclick = () => { if (b.dataset.l !== LANG) setLang(b.dataset.l); });
+  $$('#s-lang button', el).forEach(b => b.onclick = () => {
+    if (b.dataset.l === LANG) return;
+    try { localStorage.setItem('etzba.langBoot', b.dataset.l); } catch {}
+    setLang(b.dataset.l).then(() => setTimeout(() => { try { localStorage.removeItem('etzba.langBoot'); } catch {} }, 4000));
+  });
   $('#s-export', el).onclick = openExport;
   $('#s-import', el).onclick = openImport;
   $('#s-debug', el) && ($('#s-debug', el).onclick = openDebug);
@@ -967,9 +981,11 @@ function renderSet() {
       if (++taps >= 7 && !S.settings.dev) { S.settings.dev = true; persist(); buzz(30); toast('מצב מפתח פעיל', 'ok'); renderSet(); } }; }
   $('#s-notif', el) && ($('#s-notif', el).onchange = e => {
     const on = e.target.checked; S.settings.notif = { rates: on, rest: on, long: on };
-    persist(); if (on) planNotifications(true);
+    persist(); if (on) planNotifications(true); drawNotifStatus();
   });
+  drawNotifStatus();
   $('#s-backup', el).onclick = () => backupNow();
+  $('#s-legal', el).onclick = openLegal;
   $('#s-fimport', el).onclick = openFileImport;
   persistState().then(v => { const pl = $('#persistLine', el); if (pl && v !== null) pl.textContent = v ? 'הדפדפן אישר אחסון קבוע, כך שלא ימחק את הנתונים כשחסר מקום.' : 'הדפדפן עוד לא אישר אחסון קבוע, ועלול למחוק נתונים כשחסר מקום בטלפון.'; });
 }
@@ -1419,18 +1435,55 @@ function buildNotifications(a, N = { rates: true, rest: true, long: true, ...(S.
   return items;
 }
 var planTimer = null;
+/* What happened the last time notifications were planned: shown under the live shift, and in Settings. */
+let NOTIF = { state: 'unknown', next: null, exact: null };
+const PRIVACY_URL = 'https://ilanox.github.io/Etzba/privacy.html', CONTACT = 'ilan@edvin.co.il';
+/** Privacy and the calculation disclaimer, in one place. */
+function openLegal() {
+  openSheet(`<h2>פרטיות ומשפטי</h2>
+    <div class="card legal">
+      <div class="cell flat">${I.lock}<span class="grow">הכל נשמר רק בטלפון שלך<div class="sub">משמרות, שכר והגדרות. אין חשבון, אין שרת, אין פרסומות ואין מעקב.</div></span></div>
+      <div class="cell flat">${I.download}<span class="grow">גיבוי ומחיקה בידיים שלך<div class="sub">גיבוי וייצוא ב״נתונים וגיבוי״. מחיקת האפליקציה או ניקוי הנתונים שלה מוחקים הכל, אז כדאי לגבות לפני.</div></span></div>
+      <div class="cell flat">${I.info}<span class="grow">מה נשלח לאינטרנט<div class="sub">רק בדיקה יומית של נתוני שכר מינימום ומס, בהורדה של קובץ ציבורי. שום מידע שלך.</div></span></div>
+    </div>
+    <div class="note" style="margin-top:12px">${I.warn}<span><b>החישובים הם הערכה.</b> לפי חוק שעות עבודה ומנוחה, הכללים המקובלים וההגדרות שהזנת. זה לא תלוש שכר רשמי ולא ייעוץ משפטי, מיסוי או פיננסי. הסכם קיבוצי או חוזה אישי יכולים לקבוע אחרת.</span></div>
+    <div class="btnrow"><a class="btn soft" href="${PRIVACY_URL}" target="_blank" rel="noopener">${I.file}מדיניות הפרטיות המלאה</a><a class="btn soft" href="mailto:${CONTACT}">${I.receipt}יצירת קשר · ${CONTACT}</a></div>`);
+}
+/** Under the Settings switch: whether the phone lets them through, and how exactly. */
+async function drawNotifStatus() {
+  const box = $('#s-nstat'); if (!box || !native.NATIVE) return;
+  if (!notifOn()) { box.innerHTML = ''; return; }
+  const st = await native.notifyStatus();
+  const row = (icon, text, btn) => `<div class="cell flat nrow">${icon}<span class="grow sub">${text}</span>${btn ? `<button class="btn soft mini" type="button" data-n="${btn[0]}">${btn[1]}</button>` : ''}</div>`;
+  box.innerHTML = st.display === 'denied' ? row(I.bellOff, 'חסומות בהגדרות הטלפון, אז לא יגיעו.', ['open', 'לאפשר'])
+    : st.display !== 'granted' ? row(I.bell, 'הטלפון יבקש אישור בפעם הבאה שנכנסים למשמרת.')
+    : st.exact === false ? row(I.bell, 'מאושרות. הטלפון שולח אותן בערך בזמן, לפעמים באיחור של כמה דקות.', ['exact', 'בדיוק לדקה'])
+    : row(I.check, 'מאושרות, ויגיעו בזמן גם כשהאפליקציה סגורה.');
+}
+function notifLine() {
+  if (!native.NATIVE || !S.active) return '';
+  if (NOTIF.state === 'denied') return `<button class="nstat warn" type="button" data-n="open">${I.bellOff}ההתראות חסומות בטלפון · לפתוח הגדרות</button>`;
+  if (NOTIF.state === 'error') return `<span class="nstat warn">${I.bellOff}לא הצלחתי לקבוע התראות</span>`;
+  if (NOTIF.state === 'ok' && NOTIF.next) return `<span class="nstat">${I.bell}${NOTIF.exact === false ? 'התראה הבאה בסביבות ' : 'התראה הבאה ב־'}${tm(NOTIF.next.at)}</span>`;
+  return '';
+}
 function planNotifications(ask = false) {
   if (!native.NATIVE) return;
   clearTimeout(planTimer);
   planTimer = setTimeout(async () => {
     try {
       const a = S.active, N = { rates: true, rest: true, long: true, ...(S.settings.notif || {}) };
-      if (!a || !(N.rates || N.rest || N.long)) return native.scheduleNotifications([]);
-      if (!(await native.notifyAllowed(ask))) return;
-      const items = buildNotifications(a, N);
-      await native.scheduleNotifications(items.map(x => ({ ...x, title: tr(x.title), body: tr(x.body) })));
-      dbg.log('info', `notifications: ${items.length} scheduled`);
-    } catch (e) { dbg.log('error', 'notifications: ' + (e?.message || e)); }
+      if (!a || !(N.rates || N.rest || N.long)) { NOTIF = { state: 'off', next: null, exact: null }; await native.scheduleNotifications([]); return; }
+      if (!(await native.notifyAllowed(ask))) { NOTIF = { state: 'denied', next: null, exact: null }; dbg.log('warn', 'notifications: not allowed'); return; }
+      const st = await native.notifyStatus();
+      const items = buildNotifications(a, N).filter(x => +x.at > Date.now() + 5000).sort((x, y) => x.at - y.at);
+      const n = await native.scheduleNotifications(items.map(x => ({ ...x, title: tr(x.title), body: tr(x.body) })));
+      NOTIF = { state: 'ok', next: items[0] || null, exact: st.exact, count: n };
+      dbg.log('info', `notifications: ${n} scheduled${st.exact === false ? ' (approximate times)' : ''}`);
+    } catch (e) {
+      NOTIF = { state: 'error', next: null, exact: null };
+      dbg.log('error', 'notifications: ' + (e?.message || e));
+    } finally { if (view === 'home') renderHome(); if (view === 'set') drawNotifStatus(); }
   }, 400);
 }
 
@@ -1496,10 +1549,22 @@ function syncGeo(force = false) {
 /** The home-screen widget mirrors the running shift. */
 let lastWidget = '';
 function syncWidget() {
-  const a = S.active, job = a ? jobById(a.jobId) : jobById(S.settings.lastJob);
-  const state = { active: !!a, start: a ? +new Date(a.start) : 0, job: S.jobs.length > 1 || a ? (job?.name || '') : '',
-    labels: { idle: tr('לא במשמרת'), idleHint: tr('נגיעה כדי להתחיל משמרת'), since: tr('במשמרת מ־'), starts: tr('המשמרת מתחילה ב־'),
-      start: tr('כניסה'), end: tr('סיום'), open: tr('פתיחה') } };
+  const a = S.active, job = a ? jobAt(jobById(a.jobId), a.start) : jobById(S.settings.lastJob);
+  // pay rate over the shift (regular → overtime → Shabbat…), so the widget can work out earnings on its own
+  let segs = [];
+  if (a) {
+    const k = a.start + '|' + a.jobId;
+    if (syncWidget.k !== k) {
+      const wb = weekRegBefore(job, a.start), first = shiftPay({ start: a.start, end: new Date(+new Date(a.start) + 6e4).toISOString(), breakMin: 0 }, job, place(), wb).lastKey || 'reg';
+      const per = key => Math.round(job.rate * job.r[key]) / 100;
+      syncWidget.segs = [[+new Date(a.start), per(first)], ...rateChanges(a.start, job, place(), wb, 16).map(c => [+new Date(c.at), per(c.key)])];
+      syncWidget.k = k;
+    }
+    segs = syncWidget.segs;
+  }
+  const state = { active: !!a, start: a ? +new Date(a.start) : 0, job: job?.name || '', rate: +job?.rate || 0, rtl: document.documentElement.dir === 'rtl', segs,
+    labels: { idle: tr('לא במשמרת'), idleHint: tr('שמים אצבע כדי להתחיל'), on: tr('במשמרת'), since: EN ? 'since ' : 'מ־', starts: tr('מתחילה ב־'),
+      start: EN ? 'Clock in' : 'כניסה', end: EN ? 'Clock out' : 'יציאה', open: tr('פתיחה'), perHour: tr('לשעה'), sofar: tr('עד עכשיו') } };
   const k = JSON.stringify(state); if (k === lastWidget) return; lastWidget = k;
   native.appActions.updateWidget(state);
 }
@@ -1791,7 +1856,7 @@ function render() {
   dbg.log('begin', 'paint ' + v);
   requestAnimationFrame(() => requestAnimationFrame(() => dbg.log('end', 'paint ' + v)));
   try {
-    const now = new Date(), M = monthCalc(now.getFullYear(), now.getMonth());
+    const now = new Date(), M = withLive(monthCalc(now.getFullYear(), now.getMonth()));
     countUp($('#barNet'), M.net.net);
     $('#brandMark').innerHTML = mark({ t: now, sw: 5.4 });
   } catch (e) { report(e); }
@@ -1837,11 +1902,35 @@ $('#fab').onclick = () => {
 const step = (name, fn) => { try { fn(); } catch (e) { (window.__etzbaErr || []).push(name + ': ' + (e && e.message)); console.error(name, e); } };
 step('recompute', recompute);
 step('render', render);
+// (index.html starts in Hebrew if the last start in another language never finished)
 if (LANG !== 'he') step('language', () => { setLang(LANG, false); });
+step('langCheck', () => {
+  let failed = null; try { failed = localStorage.getItem('etzba.langFailed'); localStorage.removeItem('etzba.langFailed'); } catch {}
+  if (failed) {
+    dbg.log('error', `language ${failed}: the last start didn't finish, back to Hebrew`);
+    // what happened, to send to the developer (works without developer tools)
+    let errs = ''; try { errs = localStorage.getItem('etzba.bootErr') || ''; } catch {}
+    const report = [`language ${failed} failed to start · v${VERSION}`, errs || '(no error recorded: it stopped responding)', ...dbg.getLog().slice(-40).map(e => JSON.stringify(e)), navigator.userAgent].join('\n');
+    setTimeout(() => toast('השפה הוחזרה לעברית בגלל תקלה. אפשר לנסות שוב בהגדרות', 'err', { label: 'העתקת פרטים', fn: () => copyText(report).then(() => toast('הועתק', 'ok')) }), 800);
+  }
+  // this start worked: clear the mark a few seconds after everything is drawn
+  setTimeout(() => { try { localStorage.removeItem('etzba.langBoot'); } catch {} }, 4000);
+});
 window.__etzbaReady = true;
 dbg.log('perf', 'ready', dbg.sinceStart());
 step('crashNote', () => { const c = dbg.lastCrash(); if (c) { dbg.log('warn', 'last session ended during: ' + c.step); if (FEATURES.devTools) toast(`בפעם הקודמת האפליקציה נסגרה (${c.step}). פרטים באבחון`, 'err', { label: 'פרטים', fn: openDebug }); } });
 step('debugHash', () => { if (!FEATURES.devTools) return; if (location.hash === '#debug') openDebug(); addEventListener('hashchange', () => { if (location.hash === '#debug') openDebug(); }); });
+step('restore', async () => {
+  // the WebView's storage came back empty but the app's own copy has data: bring it back
+  if (!native.NATIVE || hadLocal) return;
+  const json = await native.snapshot.load(); if (!json) return;
+  let d; try { d = JSON.parse(json); } catch (e) { dbg.log('error', 'snapshot unreadable'); return; }
+  if (!d || !Array.isArray(d.shifts) || (!d.shifts.length && !d.active)) return;
+  S = normalizeState(d); try { localStorage.setItem(KEY, json); } catch {}
+  $('#onboard')?.remove(); applyTheme(); recompute(); render();
+  dbg.log('warn', `restored ${S.shifts.length} shifts from the app's copy`);
+  toast(`שוחזרו ${S.shifts.length} משמרות מהעותק השמור בטלפון`, 'ok');
+});
 step('welcome', () => { if (!S.settings.onboarded && !S.shifts.length && !S.active) openOnboarding(); });
 step('shared', () => {
   takeSharedFile();
@@ -1859,7 +1948,14 @@ step('back', () => native.onBack(() => {
   return true;
 }));
 step('splash', native.ready);
-step('notifications', () => planNotifications());
+step('notifications', () => {
+  planNotifications();
+  document.addEventListener('click', e => {
+    if (e.target.closest('[data-legal]')) return openLegal();
+    const b = e.target.closest('[data-n="open"], [data-n="exact"]'); if (!b) return;
+    (b.dataset.n === 'open' ? native.openNotificationSettings() : native.openExactSettings());
+  });
+});
 step('rules', () => {
   // newer yearly figures from the internet (once a day at most); everything works without them
   const changed = () => { recompute(); render(); toast('עודכנו נתוני השכר והחגים', 'ok'); };
@@ -1870,7 +1966,7 @@ step('geo', () => { syncGeo(true); native.appActions.onAction(appAction); syncWi
 step('meter', () => { try { if (localStorage.getItem('etzba.meter') === '1') dbg.setMeter(true); } catch {} });
 step('backupDot', updateBackupDot);
 setInterval(() => { tickHome(false); if (new Date().getSeconds() === 0) { renderRestCard(); $('#brandMark').innerHTML = mark({ t: new Date(), sw: 5.4 }); } }, 1000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { render(); planNotifications(); } });
 
 /* Offline cache for the website version. Inside an embedded frame service workers aren't allowed,
    so any old one is removed there instead. The Android app has everything built in and needs none. */

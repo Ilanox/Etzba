@@ -67,8 +67,10 @@ export function weekStart(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); x.
 export function shiftPay(sh, job, place, weekRegBefore = 0) {
   const start = new Date(sh.start), end = new Date(sh.end);
   const total = Math.max(0, Math.round((end - start) / 6e4));
-  const paid = Math.max(0, total - (+sh.breakMin || 0));
-  const f = total ? paid / total : 0;
+  // An unpaid break is a block of whole minutes in the middle of the shift: it isn't work time, so it
+  // doesn't count towards overtime, and every paid minute is a whole minute at one rate.
+  const brk = Math.min(total, Math.max(0, Math.round(+sh.breakMin || 0)));
+  const paid = total - brk, bs = Math.floor((total - brk) / 2), be = bs + brk, f = 1;
   const off = sh.forceRest === false;
   const shabWins = off || job.shabbatOn === false ? [] : restWindows(start, end, place, { ...job, chag: false });
   const chagWins = off || job.chag === false ? [] : restWindows(start, end, place, { ...job, shabbatOn: false });
@@ -97,6 +99,7 @@ export function shiftPay(sh, job, place, weekRegBefore = 0) {
   const forced = sh.forceRest === true, chagFirst = job.r.chag >= job.r.rest, s0 = +start;
   let ei = 0, si = 0, ci = 0, cum = 0, wk = weekRegBefore * 60, weeklyOT = 0, restStart = null, lastKey = null, lastSw = null, lastCw = null;
   for (let i = 0; i < total; i++) {
+    if (i >= bs && i < be) continue;   // the break
     const t = s0 + i * 6e4 + 3e4;
     while (si < shabWins.length && shabWins[si].end <= t) si++;
     while (ci < chagWins.length && chagWins[ci].end <= t) ci++;

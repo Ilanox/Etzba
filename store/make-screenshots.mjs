@@ -3,6 +3,7 @@
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync } from 'node:fs';
+import { mark } from '../js/svg-icons.js';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url)), OUT = ROOT + 'store/screenshots/';
@@ -12,17 +13,17 @@ const NOW = new Date('2026-11-20T15:12:00+02:00');   // a Friday afternoon, Shab
 const CAPTIONS = {
   he: [
     ['home', 'שמים אצבע כשנכנסים', 'ורואים כמה הרווחתם, תוך כדי המשמרת'],
-    ['detail', 'כל דקה בתעריף הנכון', 'שעות נוספות, שבת, חג ולילה, לפי החוק'],
+    ['sum', 'כמה ייכנס לחשבון', 'ברוטו ונטו, עם מס הכנסה וביטוח לאומי'],
     ['shifts', 'כל המשמרות במקום אחד', 'מסודרות לפי שבועות, עם הסכום של כל אחת'],
-    ['sum', 'כמה ייכנס לחשבון', 'ברוטו, נטו, מס הכנסה, ביטוח לאומי ופנסיה'],
+    ['detail', 'כל דקה בתעריף הנכון', 'שעות נוספות, שבת, חג ולילה, לפי החוק בישראל'],
     ['rights', 'מה מגיע לך', 'הזכויות של עובדים לפי שעה, בשפה פשוטה'],
     ['job', 'מתאים לכל עבודה', 'שכר, נסיעות, שבוע של 5 או 6 ימים, וכמה עבודות'],
   ],
   en: [
     ['home', 'Tap in, tap out', 'and watch your pay add up during the shift'],
-    ['detail', 'Every minute at the right rate', 'overtime, Shabbat, holidays and nights, by Israeli law'],
+    ['sum', 'What reaches your account', 'gross and net, with income tax and National Insurance'],
     ['shifts', 'All your shifts in one place', 'by week, with what each one paid'],
-    ['sum', 'What actually reaches your account', 'gross, net, income tax, National Insurance and pension'],
+    ['detail', 'Every minute at the right rate', 'overtime, Shabbat, holidays and nights, by Israeli law'],
     ['rights', 'Know your rights', 'what hourly workers are owed, in plain words'],
     ['job', 'Fits any job', 'pay, travel, 5- or 6-day weeks, and more than one job'],
   ],
@@ -56,7 +57,7 @@ const icon = 'data:image/png;base64,' + readFileSync(ROOT + 'resources/icon-only
 try {
   for (const lang of ['he', 'en']) {
     mkdirSync(OUT + lang, { recursive: true });
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 780 }, deviceScaleFactor: 2, colorScheme: 'dark', timezoneId: 'Asia/Jerusalem', locale: lang === 'he' ? 'he-IL' : 'en-US', serviceWorkers: 'block' });
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 780 }, deviceScaleFactor: 2, colorScheme: 'dark', reducedMotion: 'reduce', timezoneId: 'Asia/Jerusalem', locale: lang === 'he' ? 'he-IL' : 'en-US', serviceWorkers: 'block' });
     await ctx.route(/^https?:\/\/(?!localhost)/, r => r.abort());
     const page = await ctx.newPage();
     await page.clock.install({ time: NOW });
@@ -66,12 +67,12 @@ try {
     const shots = {};
     const snap = async k => { await page.waitForTimeout(500); shots[k] = (await page.screenshot()).toString('base64'); };
     await snap('home');
+    await page.click('[data-v=sum]'); await snap('sum');
     await page.click('[data-v=shifts]'); await snap('shifts');
     // a Friday that runs into Shabbat, scrolled to its pay breakdown
     await page.locator('#v-shifts .srow', { hasText: '13.11' }).first().click(); await page.waitForTimeout(500);
     await page.evaluate(() => document.querySelector('#f-explain').scrollIntoView({ block: 'center' })); await snap('detail');
     await page.keyboard.press('Escape'); await page.evaluate(() => document.querySelector('#scrim, .scrim')?.click()); await page.waitForTimeout(400);
-    await page.click('[data-v=sum]'); await snap('sum');
     await page.click('[data-v=rights]'); await snap('rights');
     await page.click('[data-v=set]'); await page.waitForTimeout(300); await page.locator('[data-job]').first().click(); await snap('job');
     await ctx.close();
@@ -89,13 +90,18 @@ try {
       await frame.waitForTimeout(150);
       await frame.screenshot({ path: `${OUT}${lang}/${i + 1}-${k}.png` });
     }
-    // feature graphic 1024×500
+    // feature graphic 1024×500: the name and the promise lead; the fingerprint is a large, quiet shape behind
     await frame.setViewportSize({ width: 1024, height: 500 });
-    await frame.setContent(`<!doctype html><html dir="${lang === 'he' ? 'rtl' : 'ltr'}"><body style="margin:0;width:1024px;height:500px;overflow:hidden;font-family:Heebo,sans-serif;
-      background:radial-gradient(90% 120% at 80% 50%,#4a2e22 0%,#1B1916 65%);color:#EFEAE0;display:flex;align-items:center;gap:56px;padding:0 80px;box-sizing:border-box">
-      <img src="${icon}" style="width:250px;height:250px;border-radius:56px;box-shadow:0 20px 60px rgba(0,0,0,.5)">
-      <div><div style="font-size:${lang === 'he' ? 112 : 88}px;font-weight:800;line-height:1">${lang === 'he' ? 'אצבע' : 'Etzba'}</div>
-      <div style="font-size:38px;color:#C9C2B5;margin-top:18px;line-height:1.3">${lang === 'he' ? 'משמרות ושכר לעובדים לפי שעה' : 'Shifts and pay for hourly workers in Israel'}</div></div></body></html>`);
+    const he = lang === 'he', fp = mark({ ink: '#EFEAE0', accent: '#FF6A3D', sw: 4.2 });
+    const chips = he ? ['שעות נוספות', 'שבת וחג', 'ברוטו ונטו'] : ['Overtime', 'Shabbat & holidays', 'Gross & net'];
+    await frame.setContent(`<!doctype html><html dir="${he ? 'rtl' : 'ltr'}"><body style="margin:0;width:1024px;height:500px;overflow:hidden;font-family:Heebo,sans-serif;position:relative;
+      background:radial-gradient(70% 110% at ${he ? '18%' : '82%'} 55%,#3b261c 0%,#1B1916 62%);color:#EFEAE0">
+      <div style="position:absolute;${he ? 'left' : 'right'}:40px;top:50%;transform:translateY(-50%) rotate(-6deg);width:400px;height:400px;opacity:.95">${fp.replace('<svg ', '<svg width="400" height="400" ')}</div>
+      <div style="position:absolute;${he ? 'right' : 'left'}:84px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;max-width:520px">
+        <div style="font-size:${he ? 150 : 128}px;font-weight:900;line-height:.95;letter-spacing:${he ? 0 : -2}px">${he ? 'אצבע' : 'Etzba'}</div>
+        <div style="font-size:36px;font-weight:600;margin-top:20px;line-height:1.25">${he ? 'משמרות ושכר לפי החוק בישראל' : 'Shifts and pay, by Israeli law'}</div>
+        <div style="display:flex;gap:10px;margin-top:26px;flex-wrap:wrap">${chips.map(c => `<span style="font-size:22px;font-weight:600;padding:8px 16px;border-radius:999px;background:rgba(255,106,61,.16);color:#FF8A63;border:1.5px solid rgba(255,106,61,.45)">${c}</span>`).join('')}</div>
+      </div></body></html>`);
     await frame.waitForTimeout(150);
     await frame.screenshot({ path: `${OUT}${lang}/feature-graphic.png` });
     await frame.close();
@@ -103,6 +109,6 @@ try {
   // app icon 512×512
   const p = await browser.newPage({ viewport: { width: 512, height: 512 } });
   await p.setContent(`<body style="margin:0"><img src="${icon}" style="width:512px;height:512px;display:block">`);
-  await p.screenshot({ path: OUT + 'icon-512.png' });
+  await p.screenshot({ path: OUT + 'icon-512.png', omitBackground: false });
   console.log('✓ store/screenshots/');
 } finally { await browser.close(); server.kill(); }
