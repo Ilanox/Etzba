@@ -21,12 +21,12 @@
 (function(){var E=[];window.__etzbaErr=E;
 addEventListener('error',function(e){E.push((e.message||'error')+(e.filename?' @'+e.filename.split('/').pop()+':'+e.lineno:''))},true);
 addEventListener('unhandledrejection',function(e){E.push('promise: '+((e.reason&&(e.reason.message||e.reason))||'?'))});
-setTimeout(function(){if(window.__etzbaReady)return;var d=document.createElement('div');d.id='bootfail';d.setAttribute('role','alert');
+setTimeout(function(){try{var sp=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.SplashScreen;sp&&sp.hide()}catch(e){}if(window.__etzbaReady)return;var d=document.createElement('div');d.id='bootfail';d.setAttribute('role','alert');
 d.style.cssText='position:fixed;inset:0;z-index:99;background:#F5F2EC;color:#1d1b18;padding:28px 22px;font:15px/1.5 system-ui,sans-serif;overflow:auto;direction:rtl';
 d.innerHTML='<h2 style="margin:0 0 8px">אצבע לא נפתחה</h2><p style="margin:0 0 12px">הנתונים שלך לא נמחקו. אפשר לנסות שוב, או להעתיק את פרטי התקלה ולשלוח אותם.</p><p style="margin:0 0 12px;direction:ltr;text-align:left">Etzba didn\'t start. Your data is safe.</p><pre id="bf-msg" style="white-space:pre-wrap;direction:ltr;text-align:left;background:#fff;border:1px solid #ccc;padding:10px;font-size:12px"></pre><button id="bf-retry" style="min-height:44px;padding:0 18px;margin:6px 0 0 8px">לנסות שוב</button><button id="bf-copy" style="min-height:44px;padding:0 18px;margin-top:6px">העתקת פרטי התקלה</button>';
 document.body.appendChild(d);var m=(E.length?E.join('\n'):'no error reported (timeout)')+'\n'+navigator.userAgent;document.getElementById('bf-msg').textContent=m;
 document.getElementById('bf-retry').onclick=function(){location.reload()};
-document.getElementById('bf-copy').onclick=function(){try{navigator.clipboard.writeText(m)}catch(x){}};},9000);})();
+document.getElementById('bf-copy').onclick=function(){try{navigator.clipboard.writeText(m)}catch(x){}};},6000);})();
 </script>
 <link rel="stylesheet" href="style.css">
 </head>
