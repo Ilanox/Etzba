@@ -231,3 +231,20 @@ export function holidayPayDays(year, month, job) {
   if (!job.holidayPay) return [];
   return holidaysOfGregorianYear(year).filter(h => h.date.getMonth() === month && h.dow !== 6);
 }
+
+/**
+ * When does the pay rate change during a running shift? Returns [{ at: Date, key, from, weekly, names }]
+ * for each change in the next `hours` hours (the tier of the minute being worked: reg, ot1, rest, chagOt1…).
+ * Used to schedule "you're now on 125%" style notifications.
+ */
+export function rateChanges(start, job, place, weekRegBefore = 0, hours = 16) {
+  const s0 = +new Date(start), out = [];
+  let prev = null, prevNames = [];
+  for (let m = 1; m <= hours * 60; m++) {
+    const p = shiftPay({ start: new Date(s0).toISOString(), end: new Date(s0 + m * 6e4).toISOString(), breakMin: 0 }, job, place, weekRegBefore);
+    const key = p.lastKey;
+    if (prev && key !== prev) out.push({ at: new Date(s0 + (m - 1) * 6e4), key, from: prev, weekly: p.weeklyOT > 0 && prev === 'reg' && key === 'ot1', names: p.names.filter(n => !prevNames.includes(n)), threshold: p.threshold });
+    prev = key; prevNames = p.names;
+  }
+  return out;
+}

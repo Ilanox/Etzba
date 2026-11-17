@@ -80,3 +80,28 @@ export function setBars(dark) {
   withP('SystemBars', sb => { sb.setStyle({ style: dark ? 'DARK' : 'LIGHT' }).catch(() => {}); }).catch(() => {});
 }
 export function ready() { withP('SplashScreen', s => { s.hide({ fadeOutDuration: 150 }).catch(() => {}); }).catch(() => {}); }
+
+/* ---- notifications (local, scheduled on the phone; nothing goes through a server) ---- */
+export async function notifyAllowed(ask = false) {
+  if (!NATIVE) return false;
+  return (await withP('LocalNotifications', async n => {
+    let s = await n.checkPermissions();
+    if (s.display !== 'granted' && ask) s = await n.requestPermissions();
+    return s.display === 'granted';
+  }).catch(() => false)) || false;
+}
+/** Replaces every scheduled notification with `items` ([{ at: Date, title, body }]). */
+export async function scheduleNotifications(items) {
+  if (!NATIVE) return;
+  await withP('LocalNotifications', async n => {
+    const { notifications: pend } = await n.getPending();
+    if (pend.length) await n.cancel({ notifications: pend.map(x => ({ id: x.id })) });
+    const now = Date.now() + 5000;
+    const list = items.filter(x => +x.at > now).slice(0, 30).map((x, i) => ({
+      id: 100 + i, title: x.title, body: x.body,
+      schedule: { at: x.at, allowWhileIdle: true },
+      smallIcon: 'ic_stat_etzba', iconColor: '#FF6A3D',
+    }));
+    if (list.length) await n.schedule({ notifications: list });
+  }).catch(() => {});
+}

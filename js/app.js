@@ -1,16 +1,16 @@
 // אצבע — app
 import { grossToNet } from './net-pay.js';
-import { computeAll, shiftPay, defaultJob, normalizeJob, holidayPayDays, shiftKind, KIND_NAME, TIERS, TIER_NAME, MIN_WAGE_HOURLY, weekStart, jobAt, applyRulesFrom, rulesChanged } from './pay-engine.js';
+import { rateChanges, computeAll, shiftPay, defaultJob, normalizeJob, holidayPayDays, shiftKind, KIND_NAME, TIERS, TIER_NAME, MIN_WAGE_HOURLY, weekStart, jobAt, applyRulesFrom, rulesChanged } from './pay-engine.js';
 import { readSheets } from './file-reader.js';
 import { rowsToShifts, guessYear } from './shift-import.js';
 import { CITIES, nextRest, restWindows, holidaysOfGregorianYear } from './hebrew-calendar.js';
 import { I, mark, ridges, handAngles } from './svg-icons.js';
-import { usePack, startTranslating, stopTranslating } from './translate.js';
+import { usePack, startTranslating, stopTranslating, tr } from './translate.js';
 import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
 
-const VERSION = '1.23';
+const VERSION = '1.24';
 dbg.log('boot', 'v' + VERSION);
 
 /* ================= state ================= */
@@ -18,7 +18,7 @@ const KEY = 'etzba.v1', OLD_KEY = 'shifts.v1';
 function fresh() {
   const job = defaultJob('העבודה שלי');
   return {
-    settings: { city: 'תל אביב', candleMin: 20, havdalahMin: 40, sex: 2.25, extraPts: 0, pension: true, pEmp: 6, pEr: 6.5, sev: 8.33, hish: false, theme: 'auto', lang: 'he', lastJob: job.id },
+    settings: { city: 'תל אביב', candleMin: 20, havdalahMin: 40, sex: 2.25, extraPts: 0, pension: true, pEmp: 6, pEr: 6.5, sev: 8.33, hish: false, theme: 'auto', lang: 'he', lastJob: job.id, notif: { rates: true, rest: true, long: true } },
     jobs: [job], shifts: [], active: null, ui: {},
   };
 }
@@ -69,7 +69,7 @@ function applyTheme() {
 }
 applyTheme(); darkMQ.addEventListener?.('change', applyTheme);
 let PAY = new Map();
-const persist = () => { invalidate(); S.updatedAt = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(S)); localOk = true; } catch {
+const persist = () => { invalidate(); S.updatedAt = Date.now(); planNotifications(); try { localStorage.setItem(KEY, JSON.stringify(S)); localOk = true; } catch {
   // no phone storage (blocked in some frames, or full): keep working; the account copy or a backup keeps the data
   localOk = false;
   if (!warnedLocal) { warnedLocal = true; toast('לא הצלחתי לשמור בטלפון. כדאי לגבות', 'err', { label: 'גיבוי עכשיו', fn: () => backupNow() }); }
@@ -373,7 +373,7 @@ function tickHome(full) {
   } else {
     $('#pTime').textContent = tm(now);
     $('#pEarn').textContent = '';
-    $('#pLabel').textContent = 'לוחצים על האצבע כדי להתחיל משמרת';
+    $('#pLabel').textContent = 'שמים אצבע כדי להתחיל משמרת';
     punch.dataset.phase = 'idle'; setFill(0); tickHome.key = null;
     $('#punchBtn').setAttribute('aria-label', `לא במשמרת. לחיצה להתחלת משמרת · ${job.name}`);
     $('#pTier').innerHTML = S.jobs.length > 1 ? '' : `<span class="tier plain">${I.briefcase}${esc(job.name)} · ₪${job.rate} לשעה</span>`;
@@ -406,7 +406,7 @@ function onPunch() {
     const jobId = S.settings.lastJob && S.jobs.some(j => j.id === S.settings.lastJob) ? S.settings.lastJob : S.jobs[0].id;
     S.active = { jobId, start: new Date().toISOString() };
     if (!persist()) { S.active = null; return; }
-    buzz(35); askPersist();
+    buzz(35); askPersist(); planNotifications(true);
     announce(`משמרת התחילה ב־${tm(S.active.start)}`);
     toast(`נכנסת למשמרת ב־${tm(S.active.start)}`, 'ok', { label: 'ביטול', fn: () => { S.active = null; persist(); renderHome(); toast('הכניסה בוטלה'); announce('הכניסה בוטלה'); } });
     renderHome();
@@ -866,6 +866,13 @@ function renderSet() {
       <button class="cell" id="s-export"><span class="cell-ic">${I.receipt}</span><span class="grow">ייצוא ל־CSV<div class="sub">לאקסל או לגוגל שיטס</div></span><span class="chev">${I.chevL}</span></button>
     </div>
     <div class="note info" style="margin-top:10px" id="storeNote">${storeNote()}</div>
+    ${native.NATIVE ? `<div class="sec"><span>התראות</span></div>
+    <div class="card" id="s-notif">
+      <label class="cell"><span class="grow">שינוי בתעריף<div class="sub">"אנחנו כבר אחרי 8:36 שעות · התחלנו 125%"</div></span><span class="switch"><input type="checkbox" data-n="rates"${S.settings.notif?.rates !== false ? ' checked' : ''}><i></i></span></label>
+      <label class="cell"><span class="grow">כניסה ויציאה של שבת וחג<div class="sub">"נכנסנו לשבת · התחלנו 150%"</div></span><span class="switch"><input type="checkbox" data-n="rest"${S.settings.notif?.rest !== false ? ' checked' : ''}><i></i></span></label>
+      <label class="cell"><span class="grow">משמרת פתוחה 12 שעות<div class="sub">למקרה ששכחת לשים אצבע ביציאה</div></span><span class="switch"><input type="checkbox" data-n="long"${S.settings.notif?.long !== false ? ' checked' : ''}><i></i></span></label>
+    </div>
+    <p class="fine" style="margin-top:6px">רק בזמן משמרת. בלי תזכורות אחרות.</p>` : ''}
     <div class="card" style="margin-top:12px"><button class="cell" id="s-debug"><span class="cell-ic">${I.info}</span><span class="grow">אבחון ותקלות<div class="sub">${dbg.lastCrash() ? 'האפליקציה נסגרה בפעם הקודמת · פרטים כאן' : 'מידע טכני לשליחה כשמשהו לא עובד'}</div></span><span class="chev">${I.chevL}</span></button></div>
     <p class="fine"><b>אצבע</b> · גרסה ${VERSION}<br>An Edvin Studios Project</p>`;
   $$('[data-job]', el).forEach(b => b.onclick = () => openJobSheet(jobById(b.dataset.job), false));
@@ -880,6 +887,10 @@ function renderSet() {
   $('#s-export', el).onclick = openExport;
   $('#s-import', el).onclick = openImport;
   $('#s-debug', el).onclick = openDebug;
+  $$('#s-notif input', el).forEach(i => i.onchange = () => {
+    S.settings.notif = { rates: true, rest: true, long: true, ...(S.settings.notif || {}), [i.dataset.n]: i.checked };
+    persist(); if (i.checked) planNotifications(true);
+  });
   $('#s-backup', el).onclick = () => backupNow();
   $('#s-fimport', el).onclick = openFileImport;
   persistState().then(v => { const pl = $('#persistLine', el); if (pl && v !== null) pl.textContent = v ? 'הדפדפן אישר אחסון קבוע, כך שלא ימחק את הנתונים כשחסר מקום.' : 'הדפדפן עוד לא אישר אחסון קבוע, ועלול למחוק נתונים כשחסר מקום בטלפון.'; });
@@ -1288,6 +1299,38 @@ function openImport() {
   });
 }
 
+/* ================= notifications during a shift =================
+   Only about the shift that's running: the rate changing (overtime, weekly limit), Shabbat or a holiday
+   starting or ending, and a shift left open for 12 hours. Scheduled on the phone when the shift starts. */
+var planTimer = null;
+function planNotifications(ask = false) {
+  if (!native.NATIVE) return;
+  clearTimeout(planTimer);
+  planTimer = setTimeout(async () => {
+    try {
+      const a = S.active, N = { rates: true, rest: true, long: true, ...(S.settings.notif || {}) };
+      if (!a || !(N.rates || N.rest || N.long)) return native.scheduleNotifications([]);
+      if (!(await native.notifyAllowed(ask))) return;
+      const job = jobAt(jobById(a.jobId), a.start), start = +new Date(a.start), items = [];
+      const special = k => /^(rest|chag|elect)/.test(k);
+      const place_ = k => k.startsWith('rest') ? 'שבת' : k.startsWith('elect') ? 'יום הבחירות' : 'חג';
+      for (const c of rateChanges(a.start, job, place(), weekRegBefore(job, a.start), 14)) {
+        const pct = job.r[c.key] ?? 100;
+        if (special(c.key) && !special(c.from)) {
+          if (N.rest) items.push({ at: c.at, title: `נכנסנו ל${c.key.startsWith('chag') && c.names[0] ? c.names[0] : place_(c.key)}`, body: `התחלנו ${pct}%` });
+        } else if (special(c.from) && !special(c.key)) {
+          if (N.rest) items.push({ at: c.at, title: c.from.startsWith('rest') ? 'השבת יצאה' : `${place_(c.from) === 'חג' ? 'החג' : place_(c.from)} נגמר`, body: `חזרנו ל־${pct}%` });
+        } else if (N.rates && pct !== job.r[c.from]) {
+          items.push({ at: c.at, title: c.weekly ? `עברנו ${job.weeklyLimit} שעות השבוע` : `אנחנו כבר אחרי ${hm((+c.at - start) / 3.6e6)} שעות`, body: `התחלנו ${pct}%` });
+        }
+      }
+      if (N.long) items.push({ at: new Date(start + 12 * 3.6e6), title: 'המשמרת פתוחה כבר 12 שעות', body: 'שכחת לשים אצבע ביציאה?' });
+      await native.scheduleNotifications(items.map(x => ({ ...x, title: tr(x.title), body: tr(x.body) })));
+      dbg.log('info', `notifications: ${items.length} scheduled`);
+    } catch (e) { dbg.log('error', 'notifications: ' + (e?.message || e)); }
+  }, 400);
+}
+
 /* ================= first open: welcome and job setup =================
    Four short steps, every one skippable. Nothing here is required: the defaults already work. */
 function openOnboarding() {
@@ -1539,6 +1582,7 @@ step('back', () => native.onBack(() => {
   return false;
 }));
 step('splash', native.ready);
+step('notifications', () => planNotifications());
 step('meter', () => { try { if (localStorage.getItem('etzba.meter') === '1') dbg.setMeter(true); } catch {} });
 step('backupDot', updateBackupDot);
 setInterval(() => { tickHome(false); if (new Date().getSeconds() === 0) { renderRestCard(); $('#brandMark').innerHTML = mark({ t: new Date(), sw: 5.4 }); } }, 1000);

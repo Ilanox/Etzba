@@ -19,6 +19,10 @@
       "launchFadeOutDuration": 200,
       "backgroundColor": "#F1EEE6",
       "showSpinner": false
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_etzba",
+      "iconColor": "#FF6A3D"
     }
   }
 }

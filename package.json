@@ -1,6 +1,6 @@
 {
   "name": "etzba",
-  "version": "1.23.0",
+  "version": "1.24.0",
   "private": true,
   "description": "אצבע — shift tracker and pay calculator for hourly workers in Israel. An Edvin Studios Project.",
   "author": "Ilan Levy (Ilanox)",
@@ -22,6 +22,7 @@
     "@capacitor/core": "^8.5.0",
     "@capacitor/filesystem": "^8.0.0",
     "@capacitor/haptics": "^8.0.0",
+    "@capacitor/local-notifications": "^8.0.0",
     "@capacitor/share": "^8.0.0",
     "@capacitor/splash-screen": "^8.0.0",
     "@fontsource/heebo": "^5.0.0"

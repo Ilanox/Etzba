@@ -17,6 +17,19 @@ export default {
   months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
 
   phrases: {
+    'השבת יצאה': 'Shabbat is over',
+    'החג נגמר': 'The holiday is over',
+    'המשמרת פתוחה כבר 12 שעות': 'Your shift has been open for 12 hours',
+    'שכחת לשים אצבע ביציאה?': 'Forgot to clock out?',
+    'התראות': 'Notifications',
+    'שינוי בתעריף': 'Rate changes',
+    '"אנחנו כבר אחרי 8:36 שעות · התחלנו 125%"': '"Past 8:36 hours today · now on 125%"',
+    'כניסה ויציאה של שבת וחג': 'Shabbat and holidays starting and ending',
+    '"נכנסנו לשבת · התחלנו 150%"': '"Shabbat has started · now on 150%"',
+    'משמרת פתוחה 12 שעות': 'Shift open for 12 hours',
+    'למקרה ששכחת לשים אצבע ביציאה': 'In case you forgot to clock out',
+    'רק בזמן משמרת. בלי תזכורות אחרות.': 'Only during a shift. No other reminders.',
+
     'ברוכים הבאים לאצבע': 'Welcome to Etzba',
     'שמים אצבע כשנכנסים למשמרת, ושמים אצבע כשיוצאים. אצבע מחשבת את השכר לפי החוק: שעות נוספות, שבת, חגים ונסיעות.': 'Tap the fingerprint when your shift starts, and again when it ends. Etzba works out your pay by Israeli law: overtime, Shabbat, holidays and travel.',
     'איפה את/ה עובד/ת?': 'Where do you work?',
@@ -90,6 +103,13 @@ export default {
   'מתוך 42 ש׳': 'of 42 h this week'
   },
   templates: [
+    ['נכנסנו ל{}', '{1} has started'],
+    ['התחלנו {}%', 'Now on {1}%'],
+    ['חזרנו ל־{}%', 'Back to {1}%'],
+    ['{} נגמר', '{1} is over'],
+    ['עברנו {} שעות השבוע', 'Past {1} hours this week'],
+    ['אנחנו כבר אחרי {} שעות', 'Past {1} hours today'],
+
     ['{} · ₪{} לשעה · שבוע של {} ימים', '{1} · ₪{2} an hour · {3}-day week'],
     ['{} · ₪{} לשעה · נסיעות ₪{} · שבוע של {} ימים', '{1} · ₪{2} an hour · travel ₪{3} · {4}-day week'],
     ['נמוך משכר המינימום (₪{} לשעה)', 'Below minimum wage (₪{1} an hour)'],
@@ -146,7 +166,7 @@ export default {
   'שעון': 'Clock', 'משמרות': 'Shifts', 'סיכום': 'Summary', 'מה מגיע לי': 'My rights', 'הגדרות': 'Settings',
   'נטו החודש': 'Net this month', 'הוספת משמרת': 'Add shift',
   // home
-  'לוחצים על האצבע כדי להתחיל משמרת': 'Tap the fingerprint to start a shift',
+  'שמים אצבע כדי להתחיל משמרת': 'Tap the fingerprint to start a shift',
   'לוחצים על האצבע כשמתחילים לעבוד.': 'Tap the fingerprint when you start working.',
   'עוד אין משמרות.': 'No shifts yet.', 'במשמרת מ־': 'On shift since ', 'נכנסת למשמרת ב־': 'Clocked in at ',
   'שעות רגילות · עוד': 'Regular hours ·', 'עד שעות נוספות': 'until overtime', 'עכשיו:': 'Now:', 'עכשיו': 'Now', 'הבא': 'Next',

@@ -717,3 +717,6 @@ details.adv summary{min-height:44px;padding-top:12px}
 .ob-note svg{flex:none;width:18px;height:18px;margin-top:2px}
 .ob-foot{padding:10px 22px calc(var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)) + 16px);max-width:520px;width:100%;margin:0 auto;box-sizing:border-box}
 [dir=ltr] #ob-back svg{transform:scaleX(-1)}
+/* clock button: equal space above (below the header) and below (above the time) its outer ring */
+.punch{padding-top:30px}
+.punch-time{margin-top:20px}

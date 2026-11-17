@@ -21,6 +21,8 @@ function android() {
   for (const f of ['ShareInPlugin.java', 'MainActivity.java']) copyFileSync(join(root, 'native/android', f), join(pkgDir, f));
   // 2. appear in the Share menu and in "Open with" for spreadsheets and CSV
   const mf = join(app, 'src/main/AndroidManifest.xml'); let x = readFileSync(mf, 'utf8');
+  // notifications on Android 13+
+  if (!x.includes('POST_NOTIFICATIONS')) { x = x.replace(/<application/, '<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <application'); writeFileSync(mf, x); }
   if (!x.includes('etzba-share-in')) {
     const data = MIMES.map(m => `                <data android:mimeType="${m}" />`).join('\n');
     const filters = `
