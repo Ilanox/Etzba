@@ -20,14 +20,15 @@ function P(name) {
   const p = reg ? reg(name) : window.Capacitor?.Plugins?.[name];
   return p ? (plugins[name] = p) : null;
 }
-/** Resolves with the plugin once Capacitor's core is ready (null on the web or if it's unavailable). */
-const use = async name => { await loaded; return P(name); };
+/** Runs fn(plugin) once Capacitor's core is ready. Plugins are proxies that answer any property, including
+    "then", so a plugin must never be the value a promise resolves with: always use it inside fn. */
+const withP = (name, fn) => loaded.then(() => { const p = P(name); return p ? fn(p) : undefined; });
 
 /* ---- files out: write to the app's cache, then open the system share sheet (Save to Files, Drive, WhatsApp…) ---- */
 export async function saveFile(name, text) {
-  const fs = await use('Filesystem'), share = await use('Share');
-  const { uri } = await fs.writeFile({ path: name, data: text, directory: 'CACHE', encoding: 'utf8' });
-  try { await share.share({ title: name, files: [uri], dialogTitle: name }); }
+  await loaded;
+  const { uri } = await P('Filesystem').writeFile({ path: name, data: text, directory: 'CACHE', encoding: 'utf8' });
+  try { await P('Share').share({ title: name, files: [uri], dialogTitle: name }); }
   catch (e) { if (!/cancel/i.test(e?.message || '')) throw e; return false; }
   return true;
 }
@@ -59,8 +60,7 @@ export async function onSharedFile(onFile) {
 /* ---- haptics (iOS has no navigator.vibrate) ---- */
 export function haptic(kind = 'light') {
   if (!NATIVE) return false;
-  use('Haptics').then(h => {
-    if (!h) return;
+  withP('Haptics', h => {
     if (kind === 'success') h.notification({ type: 'SUCCESS' });
     else if (kind === 'warn') h.notification({ type: 'WARNING' });
     else h.impact({ style: kind === 'heavy' ? 'HEAVY' : kind === 'medium' ? 'MEDIUM' : 'LIGHT' });
@@ -77,6 +77,6 @@ export async function onBack(handler) {
 
 /* ---- system bars and splash ---- */
 export function setBars(dark) {
-  use('SystemBars').then(sb => sb && sb.setStyle({ style: dark ? 'DARK' : 'LIGHT' })).catch(() => {});
+  withP('SystemBars', sb => { sb.setStyle({ style: dark ? 'DARK' : 'LIGHT' }).catch(() => {}); }).catch(() => {});
 }
-export function ready() { use('SplashScreen').then(s => s && s.hide({ fadeOutDuration: 150 })).catch(() => {}); }
+export function ready() { withP('SplashScreen', s => { s.hide({ fadeOutDuration: 150 }).catch(() => {}); }).catch(() => {}); }

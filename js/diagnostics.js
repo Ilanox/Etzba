@@ -57,7 +57,7 @@ export function env() {
   try { localStorage.setItem('etzba.t', '1'); localStorage.removeItem('etzba.t'); storageOk = true; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); bytes += (localStorage.getItem(k) || '').length * 2; } } catch {}
   const mem = performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) + ' / ' + Math.round(performance.memory.jsHeapSizeLimit / 1048576) + ' MB' : 'n/a';
   return {
-    where: framed ? 'embedded frame' : standalone ? 'installed app' : 'browser tab',
+    where: window.Capacitor?.isNativePlatform?.() ? 'Android app' : framed ? 'embedded frame' : standalone ? 'installed app' : 'browser tab',
     webview: /; wv\)/.test(ua) ? 'Android WebView' : /Android/.test(ua) ? 'Android Chrome' : /iPhone|iPad/.test(ua) ? 'iOS' : 'desktop',
     lite: document.documentElement.classList.contains('lite'),
     screen: `${innerWidth}×${innerHeight} @${devicePixelRatio}x`,
