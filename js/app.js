@@ -10,7 +10,7 @@ import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
 
-const VERSION = '1.25';
+const VERSION = '1.26';
 dbg.log('boot', 'v' + VERSION);
 
 /* ================= state ================= */
@@ -33,7 +33,8 @@ function normalizeState(d) {
   d.jobs = d.jobs.map(normalizeJob);
   d.settings = { ...f.settings, ...d.settings };
   d.shifts = (d.shifts || []).filter(s => s && s.start && s.end);
-  d.ui = { sort: 'new', filter: 'all', ...(d.ui || {}) };
+  d.ui = { sort: 'old', filter: 'all', ...(d.ui || {}) };
+  if (!d.settings.migSort) { if (d.ui.sort === 'new') d.ui.sort = 'old'; d.settings.migSort = 1; }   // 1.26: oldest first is the default
   if (d.settings.onboarded == null && (d.shifts.length || d.active)) d.settings.onboarded = true;   // existing users skip the welcome
   // 1.16: earlier imports stamped the file's travel on every shift, which locked it against the job
   // setting. Shifts carrying their job's usual imported value now follow the job instead.
@@ -601,10 +602,10 @@ function confirmBtn(btn, msg, fn) {
 
 /* ================= SHIFTS ================= */
 const FILTERS = [['all', 'הכל'], ['morning', 'בוקר'], ['noon', 'צהריים'], ['evening', 'ערב'], ['night', 'לילה'], ['rest', 'שבת וחג'], ['ot', 'עם נוספות']];
-const SORTS = [['new', 'מהחדש לישן'], ['old', 'מהישן לחדש'], ['pay', 'הכי משתלמות'], ['hours', 'הכי ארוכות']];
+const SORTS = [['old', 'מהישן לחדש'], ['new', 'מהחדש לישן'], ['pay', 'הכי משתלמות'], ['hours', 'הכי ארוכות']];
 function renderShifts() {
   const el = $('#v-shifts');
-  if (!SORTS.some(x => x[0] === S.ui.sort)) S.ui.sort = 'new';
+  if (!SORTS.some(x => x[0] === S.ui.sort)) S.ui.sort = 'old';
   if (!FILTERS.some(x => x[0] === S.ui.filter)) S.ui.filter = 'all';
   const M = monthCalc(viewY, viewM), f = S.ui.filter, so = S.ui.sort;
   let list = M.shifts.filter(s => {
