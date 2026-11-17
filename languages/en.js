@@ -17,6 +17,17 @@ export default {
   months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
 
   phrases: {
+    'שינוי שעת הכניסה': 'Change start time',
+    'שעת הכניסה': 'Start time',
+    'התחלת קודם או מאוחר יותר? בוחרים את השעה שבה המשמרת באמת התחילה.': 'Started earlier or later? Pick the time your shift really started.',
+    'לפני 15 דק׳': '15 min ago',
+    'לפני 30 דק׳': '30 min ago',
+    'לפני שעה': '1 hour ago',
+    'בעוד 15 דק׳': 'In 15 min',
+    'בעוד 30 דק׳': 'In 30 min',
+    'מעכשיו': 'Starting now',
+    'אפשר לקבוע עד 12 שעות קדימה': 'You can set up to 12 hours ahead',
+
     'השבת יצאה': 'Shabbat is over',
     'החג נגמר': 'The holiday is over',
     'המשמרת פתוחה כבר 12 שעות': 'Your shift has been open for 12 hours',
@@ -103,6 +114,14 @@ export default {
   'מתוך 42 ש׳': 'of 42 h this week'
   },
   templates: [
+    ['המשמרת תתחיל בעוד {} שעות', 'The shift starts in {1} h'],
+    ['היום · במשמרת כבר {} שעות', 'Today · on shift for {1} h'],
+    ['אתמול · במשמרת כבר {} שעות', 'Yesterday · on shift for {1} h'],
+    ['המשמרת מתחילה ב־{}', 'Shift starts at {1}'],
+    ['שעת הכניסה: {}', 'Start time: {1}'],
+    ['נכנסת למשמרת ב־{} · אפשר לשנות את השעה', 'Clocked in at {1} · you can change the time'],
+    ['שעת הכניסה עודכנה ל־{}', 'Start time changed to {1}'],
+
     ['נכנסנו ל{}', '{1} has started'],
     ['התחלנו {}%', 'Now on {1}%'],
     ['חזרנו ל־{}%', 'Back to {1}%'],

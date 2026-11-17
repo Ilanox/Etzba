@@ -720,3 +720,7 @@ details.adv summary{min-height:44px;padding-top:12px}
 /* clock button: equal space above (below the header) and below (above the time) its outer ring */
 .punch{padding-top:30px}
 .punch-time{margin-top:20px}
+.punch-edit{display:inline-flex;align-items:center;gap:6px;margin-top:6px;min-height:40px;padding:0 14px;border-radius:999px;background:var(--surface2);color:var(--ink2);font:inherit;font-size:.9rem;font-weight:600;border:0}
+.punch-edit[hidden]{display:none}
+.punch-edit svg{width:16px;height:16px}
+.tp.tp-one{grid-template-columns:minmax(0,220px);justify-content:center}

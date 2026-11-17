@@ -10,7 +10,7 @@ import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
 
-const VERSION = '1.24';
+const VERSION = '1.25';
 dbg.log('boot', 'v' + VERSION);
 
 /* ================= state ================= */
@@ -181,7 +181,7 @@ function weekRegBefore(job, start) {
 function livePay() {
   const a = S.active; if (!a) return null;
   const job = jobAt(jobById(a.jobId), a.start);
-  return { job, p: shiftPay({ start: a.start, end: new Date(), breakMin: 0 }, job, place(), weekRegBefore(job, a.start)) };
+  return { job, p: shiftPay({ start: a.start, end: new Date(Math.max(Date.now(), +new Date(a.start))), breakMin: 0 }, job, place(), weekRegBefore(job, a.start)) };
 }
 
 /* ================= sheets ================= */
@@ -306,6 +306,7 @@ function renderHome() {
       <div class="earn-cap" id="pEarnCap">ברוטו עד עכשיו</div>
       <div class="earn num" id="pEarn"></div>
       <div class="punch-label" id="pLabel"></div>
+      <button class="punch-edit" id="pEdit" hidden>${I.clockEdit}שינוי שעת הכניסה</button>
       <div id="pTier"></div>
       ${multi ? `<div class="jobchips" id="jobChips">${S.jobs.map(j => `<button class="chip${j.id === (S.active?.jobId || S.settings.lastJob) ? ' on' : ''}" data-j="${j.id}"><span class="dot" style="background:${j.color}"></span>${esc(j.name)}</button>`).join('')}</div>` : ''}
     </div>
@@ -315,6 +316,7 @@ function renderHome() {
     <div class="card" id="recent"></div>`;
   ridgeLens = null;
   $('#punchBtn').onclick = onPunch;
+  $('#pEdit').onclick = openStartTime;
   if (multi) $$('#jobChips .chip').forEach(c => c.onclick = () => {
     if (S.active) return toast('אי אפשר להחליף עבודה באמצע משמרת');
     S.settings.lastJob = c.dataset.j; persist(); renderHome();
@@ -353,7 +355,8 @@ function tickHome(full) {
     const key = shiftPay({ start: a.start, end: new Date(+st + (mNow + 1) * 6e4), breakMin: 0 }, job, place(), wb).lastKey || 'reg';
     $('#pTime').textContent = `${pad(Math.floor(sec / 3600))}:${pad(Math.floor(sec / 60) % 60)}:${pad(sec % 60)}`;
     $('#pEarn').textContent = money2(p.base + ((ms % 6e4) / 3.6e6) * p.rate * job.r[key] / 100);
-    $('#pLabel').textContent = `במשמרת מ־${tm(a.start)}${S.jobs.length > 1 ? ' · ' + job.name : ''}`;
+    $('#pLabel').textContent = `${+st > +now ? 'המשמרת מתחילה ב־' : 'במשמרת מ־'}${tm(a.start)}${S.jobs.length > 1 ? ' · ' + job.name : ''}`;
+    $('#pEdit').hidden = false;
     // fingerprint fills over the regular day, then refills in overtime colours
     const hrs = ms / 3.6e6, T = p.threshold;
     let phase = 'reg', frac;
@@ -374,6 +377,7 @@ function tickHome(full) {
     $('#pTime').textContent = tm(now);
     $('#pEarn').textContent = '';
     $('#pLabel').textContent = 'שמים אצבע כדי להתחיל משמרת';
+    $('#pEdit').hidden = true;
     punch.dataset.phase = 'idle'; setFill(0); tickHome.key = null;
     $('#punchBtn').setAttribute('aria-label', `לא במשמרת. לחיצה להתחלת משמרת · ${job.name}`);
     $('#pTier').innerHTML = S.jobs.length > 1 ? '' : `<span class="tier plain">${I.briefcase}${esc(job.name)} · ₪${job.rate} לשעה</span>`;
@@ -408,7 +412,7 @@ function onPunch() {
     if (!persist()) { S.active = null; return; }
     buzz(35); askPersist(); planNotifications(true);
     announce(`משמרת התחילה ב־${tm(S.active.start)}`);
-    toast(`נכנסת למשמרת ב־${tm(S.active.start)}`, 'ok', { label: 'ביטול', fn: () => { S.active = null; persist(); renderHome(); toast('הכניסה בוטלה'); announce('הכניסה בוטלה'); } });
+    toast(`נכנסת למשמרת ב־${tm(S.active.start)} · אפשר לשנות את השעה`, 'ok', { label: 'ביטול', fn: () => { S.active = null; persist(); renderHome(); toast('הכניסה בוטלה'); announce('הכניסה בוטלה'); } });
     renderHome();
   } else {
     buzz(15);
@@ -536,6 +540,57 @@ function openShiftSheet(sh, mode) {
     $('#f-cont', root) && ($('#f-cont', root).onclick = closeSheet);
     $('#f-discard', root) && ($('#f-discard', root).onclick = () => confirmBtn($('#f-discard', root), 'ללחוץ שוב כדי למחוק', () => { S.active = null; closeSheet(); commit(); toast('המשמרת נמחקה'); announce('המשמרת נמחקה'); }));
     $('#f-del', root) && ($('#f-del', root).onclick = () => confirmBtn($('#f-del', root), 'ללחוץ שוב כדי למחוק', () => { S.shifts = S.shifts.filter(x => x.id !== sh.id); closeSheet(); commit(); toast('נמחק'); }));
+  });
+}
+/** Change when the running shift started: earlier (forgot to clock in) or later (clocked in early). */
+function openStartTime() {
+  const a = S.active; if (!a) return;
+  $('#toast').classList.remove('on');   // the clock-in message would cover the wheels
+  const now = new Date(), st0 = new Date(a.start);
+  const T = [st0.getHours(), st0.getMinutes()];
+  const IH = 44;
+  const wheel = (id, n) => `<div class="wheel" id="w-${id}" data-step="1">${Array.from({ length: n }, (_, i) => `<div class="wi num" data-v="${i}">${pad(i)}</div>`).join('')}</div>`;
+  const QUICK = [['עכשיו', 0], ['לפני 15 דק׳', -15], ['לפני 30 דק׳', -30], ['לפני שעה', -60], ['בעוד 15 דק׳', 15], ['בעוד 30 דק׳', 30]];
+  // the chosen clock time, on whichever day puts it closest to now (yesterday for a night shift, never more than 12h ahead)
+  const pick = () => {
+    const d = new Date(now); d.setHours(T[0], T[1], 0, 0);
+    if (+d - +now > 12 * 3.6e6) d.setDate(d.getDate() - 1);
+    else if (+now - +d > 20 * 3.6e6) d.setDate(d.getDate() + 1);
+    return d;
+  };
+  openSheet(`<h2>שעת הכניסה</h2>
+    <p class="shsub">התחלת קודם או מאוחר יותר? בוחרים את השעה שבה המשמרת באמת התחילה.</p>
+    <div class="qchips" id="st-q">${QUICK.map(([l, m]) => `<button type="button" data-m="${m}">${l}</button>`).join('')}</div>
+    <div class="tp tp-one"><div class="tp-col"><div class="tp-cap">כניסה</div><div class="wheels" dir="ltr">${wheel('xh', 24)}<span class="colon">:</span>${wheel('xm', 60)}</div></div></div>
+    <div class="tp-sum" id="st-sum"></div>
+    <div class="btnrow"><button class="btn primary" id="st-save">${I.check}שמירה</button></div>`, root => {
+    const W = { xh: 0, xm: 1 };
+    const setW = (id, smooth) => { const w = $('#w-' + id, root); w.scrollTo({ top: T[W[id]] * IH, behavior: smooth ? 'smooth' : 'auto' }); };
+    const upd = () => {
+      const d = pick(), diff = (+d - +now) / 6e4;
+      for (const id in W) $$('.wi', $('#w-' + id, root)).forEach(it => it.classList.toggle('on', +it.dataset.v === T[W[id]]));
+      $('#st-sum', root).textContent = Math.abs(diff) < 1 ? 'מעכשיו' : diff > 0 ? `המשמרת תתחיל בעוד ${hm(diff / 60)} שעות` : `${sameDay(d, now) ? 'היום' : 'אתמול'} · במשמרת כבר ${hm(-diff / 60)} שעות`;
+    };
+    for (const id in W) {
+      const w = $('#w-' + id, root); let t;
+      w.addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(() => {
+        const v = Math.max(0, Math.min(w.children.length - 1, Math.round(w.scrollTop / IH)));
+        if (T[W[id]] !== v) { T[W[id]] = v; buzz(5); upd(); }
+      }, 80); }, { passive: true });
+      $$('.wi', w).forEach(it => it.onclick = () => { T[W[id]] = +it.dataset.v; setW(id, true); upd(); });
+    }
+    $$('#st-q button', root).forEach(b => b.onclick = () => {
+      const d = new Date(Math.round((+now + +b.dataset.m * 6e4) / 6e4) * 6e4); T[0] = d.getHours(); T[1] = d.getMinutes();
+      for (const id in W) setW(id, true); upd();
+    });
+    upd(); for (const id in W) setW(id, false);
+    $('#st-save', root).onclick = () => {
+      const d = pick();
+      if (+d - Date.now() > 12 * 3.6e6) return toast('אפשר לקבוע עד 12 שעות קדימה', 'err');
+      S.active.start = d.toISOString(); persist(); closeSheet(); renderHome(); buzz(15);
+      toast(`שעת הכניסה: ${tm(d)}`, 'ok'); announce(`שעת הכניסה עודכנה ל־${tm(d)}`);
+      dbg.log('info', 'start time changed');
+    };
   });
 }
 function confirmBtn(btn, msg, fn) {
