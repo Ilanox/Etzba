@@ -13,7 +13,7 @@
     "android": "npm run build && node scripts/native-setup.mjs && npx cap sync android && npx cap open android",
     "android:run": "npm run build && node scripts/native-setup.mjs && npx cap run android",
     "apk": "node scripts/build-apk.mjs",
-    "install-apk": "adb install -r etzba.apk",
+    "install-apk": "node scripts/install-apk.mjs",
     "check:translations": "node scripts/check-translations.mjs"
   },
   "dependencies": {
