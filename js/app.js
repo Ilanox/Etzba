@@ -246,7 +246,7 @@ function shiftRow(s) {
   const pills = [
     p.otHours > 0.01 ? `<span class="pill ot">+${hm(p.otHours)} נוספות</span>` : '',
     p.restHours > 0.01 ? `<span class="pill rest">${esc(p.names[0])}</span>` : '',
-    S.jobs.length > 1 ? `<span class="pill jobp" style="color:${job.color}">${esc(job.name)}</span>` : '',
+    S.jobs.length > 1 ? `<span class="pill jobp"><i style="background:${job.color}"></i>${esc(job.name)}</span>` : '',
   ].join('');
   return `<button class="srow" data-id="${s.id}">
     <span class="kic k-${k}" title="${KIND_NAME[k]}">${I[k]}</span>

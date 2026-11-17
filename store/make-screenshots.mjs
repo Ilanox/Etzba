@@ -93,14 +93,13 @@ try {
     // feature graphic 1024×500: the name and the promise lead; the fingerprint is a large, quiet shape behind
     await frame.setViewportSize({ width: 1024, height: 500 });
     const he = lang === 'he', fp = mark({ ink: '#EFEAE0', accent: '#FF6A3D', sw: 4.2 });
-    const chips = he ? ['שעות נוספות', 'שבת וחג', 'ברוטו ונטו'] : ['Overtime', 'Shabbat & holidays', 'Gross & net'];
     await frame.setContent(`<!doctype html><html dir="${he ? 'rtl' : 'ltr'}"><body style="margin:0;width:1024px;height:500px;overflow:hidden;font-family:Heebo,sans-serif;position:relative;
       background:radial-gradient(70% 110% at ${he ? '18%' : '82%'} 55%,#3b261c 0%,#1B1916 62%);color:#EFEAE0">
       <div style="position:absolute;${he ? 'left' : 'right'}:40px;top:50%;transform:translateY(-50%) rotate(-6deg);width:400px;height:400px;opacity:.95">${fp.replace('<svg ', '<svg width="400" height="400" ')}</div>
       <div style="position:absolute;${he ? 'right' : 'left'}:84px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;max-width:520px">
         <div style="font-size:${he ? 150 : 128}px;font-weight:900;line-height:.95;letter-spacing:${he ? 0 : -2}px">${he ? 'אצבע' : 'Etzba'}</div>
-        <div style="font-size:36px;font-weight:600;margin-top:20px;line-height:1.25">${he ? 'משמרות ושכר לפי החוק בישראל' : 'Shifts and pay, by Israeli law'}</div>
-        <div style="display:flex;gap:10px;margin-top:26px;flex-wrap:wrap">${chips.map(c => `<span style="font-size:22px;font-weight:600;padding:8px 16px;border-radius:999px;background:rgba(255,106,61,.16);color:#FF8A63;border:1.5px solid rgba(255,106,61,.45)">${c}</span>`).join('')}</div>
+        <div style="font-size:38px;font-weight:600;margin-top:22px;line-height:1.25">${he ? 'משמרות ושכר לפי החוק בישראל' : 'Shifts and pay, by Israeli law'}</div>
+        <div style="font-size:26px;color:#B9B0A2;margin-top:10px;line-height:1.35">${he ? 'שעות נוספות, שבת וחג, ברוטו ונטו' : 'Overtime, Shabbat and holidays, gross and net'}</div>
       </div></body></html>`);
     await frame.waitForTimeout(150);
     await frame.screenshot({ path: `${OUT}${lang}/feature-graphic.png` });
