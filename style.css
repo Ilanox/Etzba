@@ -724,3 +724,6 @@ details.adv summary{min-height:44px;padding-top:12px}
 .punch-edit[hidden]{display:none}
 .punch-edit svg{width:16px;height:16px}
 .tp.tp-one{grid-template-columns:minmax(0,220px);justify-content:center}
+.fab{transition:transform .2s ease,opacity .2s ease}
+.fab.tuck{transform:translateY(90px);opacity:0;pointer-events:none}
+main{padding-bottom:calc(var(--tab-h) + 110px + var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))}

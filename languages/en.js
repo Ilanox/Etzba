@@ -17,6 +17,14 @@ export default {
   months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
 
   phrases: {
+    'מחיקה: המשמרת לא נשמרת, כאילו לא נכנסת. אפשר לבטל מיד אחרי.': 'Delete: the shift isn’t saved, as if you never clocked in. You can undo right after.',
+    'המשמרת נמחקה': 'Shift deleted',
+    'המשמרת חזרה': 'Shift restored',
+    'לצאת מאצבע?': 'Leave Etzba?',
+    'המשמרת ממשיכה להיספר גם כשהאפליקציה סגורה.': 'Your shift keeps counting while the app is closed.',
+    'להישאר': 'Stay',
+    'יציאה מהאפליקציה': 'Exit the app',
+
     'שינוי שעת הכניסה': 'Change start time',
     'שעת הכניסה': 'Start time',
     'התחלת קודם או מאוחר יותר? בוחרים את השעה שבה המשמרת באמת התחילה.': 'Started earlier or later? Pick the time your shift really started.',

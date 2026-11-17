@@ -105,3 +105,4 @@ export async function scheduleNotifications(items) {
     if (list.length) await n.schedule({ notifications: list });
   }).catch(() => {});
 }
+export function exitApp() { withP('App', a => { a.exitApp().catch(() => a.minimizeApp()); }).catch(() => {}); }

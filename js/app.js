@@ -10,7 +10,7 @@ import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
 
-const VERSION = '1.26';
+const VERSION = '1.27';
 dbg.log('boot', 'v' + VERSION);
 
 /* ================= state ================= */
@@ -198,9 +198,14 @@ function closeSheet() { scrim.classList.remove('on'); sheet.classList.remove('on
 scrim.onclick = closeSheet;
 (() => { // swipe down to close
   let y0 = null, dy = 0;
-  sheet.addEventListener('touchstart', e => { if (sheet.scrollTop <= 0 && !e.target.closest('.wheel,.daystrip,.chips')) { y0 = e.touches[0].clientY; dy = 0; sheet.style.transition = 'none'; } }, { passive: true });
+  // only a drag that starts on the handle area (top of the sheet) closes it; scrolling the content never does
+  sheet.addEventListener('touchstart', e => {
+    const top = sheet.getBoundingClientRect().top, y = e.touches[0].clientY;
+    if (y - top < 56 && !e.target.closest('button,input,select,.wheel,.qchips,.chips,.daystrip')) { y0 = y; dy = 0; sheet.style.transition = 'none'; }
+  }, { passive: true });
   sheet.addEventListener('touchmove', e => { if (y0 == null) return; dy = Math.max(0, e.touches[0].clientY - y0); if (dy > 0) sheet.style.transform = `translateY(${dy}px)`; }, { passive: true });
-  sheet.addEventListener('touchend', () => { sheet.style.transition = ''; if (y0 != null && dy > 110) closeSheet(); else sheet.style.transform = ''; y0 = null; });
+  const end = () => { sheet.style.transition = ''; if (y0 != null && dy > 90) closeSheet(); else sheet.style.transform = ''; y0 = null; };
+  sheet.addEventListener('touchend', end); sheet.addEventListener('touchcancel', end);
 })();
 
 /* ================= shared bits ================= */
@@ -478,7 +483,7 @@ function openShiftSheet(sh, mode) {
     <div id="f-explain"></div>
     <div class="btnrow">
       <button class="btn ${mode === 'end' ? 'accent' : 'primary'}" id="f-save">${I.check}${mode === 'end' ? 'סיום ושמירה' : 'שמירה'}</button>
-      ${mode === 'end' ? `<button class="btn soft" id="f-cont">חזרה, המשמרת ממשיכה</button><button class="btn danger" id="f-discard">${I.trash}מחיקת המשמרת</button><p class="hint" style="text-align:center">מחיקה: המשמרת לא נשמרת, כאילו לא נכנסת.</p>` : ''}
+      ${mode === 'end' ? `<button class="btn soft" id="f-cont">חזרה, המשמרת ממשיכה</button><button class="btn danger" id="f-discard">${I.trash}מחיקת המשמרת</button><p class="hint" style="text-align:center">מחיקה: המשמרת לא נשמרת, כאילו לא נכנסת. אפשר לבטל מיד אחרי.</p>` : ''}
       ${mode === 'edit' ? `<button class="btn danger" id="f-del">${I.trash}מחיקה</button>` : ''}
     </div>`, root => {
     let rest = sh.rest || 'auto', jobId = sh.jobId;
@@ -539,8 +544,16 @@ function openShiftSheet(sh, mode) {
       toast(`נשמר · ${money(PAY.get(s.id).pay)} על ${hm(PAY.get(s.id).hours)} ש׳`, 'ok');
     };
     $('#f-cont', root) && ($('#f-cont', root).onclick = closeSheet);
-    $('#f-discard', root) && ($('#f-discard', root).onclick = () => confirmBtn($('#f-discard', root), 'ללחוץ שוב כדי למחוק', () => { S.active = null; closeSheet(); commit(); toast('המשמרת נמחקה'); announce('המשמרת נמחקה'); }));
-    $('#f-del', root) && ($('#f-del', root).onclick = () => confirmBtn($('#f-del', root), 'ללחוץ שוב כדי למחוק', () => { S.shifts = S.shifts.filter(x => x.id !== sh.id); closeSheet(); commit(); toast('נמחק'); }));
+    $('#f-discard', root) && ($('#f-discard', root).onclick = () => {
+      const was = S.active; S.active = null; closeSheet(); commit(); buzz(20); announce('המשמרת נמחקה');
+      toast('המשמרת נמחקה', '', { label: 'ביטול', fn: () => { S.active = was; commit(); toast('המשמרת חזרה', 'ok'); } });
+    });
+    $('#f-del', root) && ($('#f-del', root).onclick = () => {
+      const i = S.shifts.findIndex(x => x.id === sh.id), was = S.shifts[i];
+      if (i < 0) return closeSheet();
+      S.shifts.splice(i, 1); closeSheet(); commit(); buzz(20); announce('המשמרת נמחקה');
+      toast('המשמרת נמחקה', '', { label: 'ביטול', fn: () => { S.shifts.push(was); commit(); toast('המשמרת חזרה', 'ok'); } });
+    });
   });
 }
 /** Change when the running shift started: earlier (forgot to clock in) or later (clocked in early). */
@@ -1612,6 +1625,7 @@ addEventListener('error', e => { if (window.__etzbaReady && e.error) report(e.er
 addEventListener('unhandledrejection', e => { if (window.__etzbaReady) report(e.reason); });
 $$('#tabs button').forEach(b => { b.querySelector('.tic').innerHTML = I[b.querySelector('.tic').dataset.i]; b.onclick = () => go(b.dataset.v); });
 $('#fab').innerHTML = I.plus;
+{ let lastY = scrollY; addEventListener('scroll', () => { const y = scrollY; if (Math.abs(y - lastY) > 6) { $('#fab').classList.toggle('tuck', y > lastY && y > 80); lastY = y; } }, { passive: true }); }
 $('#fab').onclick = () => {
   const job = jobById(S.settings.lastJob), end = new Date(); end.setMinutes(0, 0, 0);
   const start = new Date(+end - Math.round(job.regHours) * 3.6e6);
@@ -1634,8 +1648,14 @@ step('shared', () => {
 });
 step('back', () => native.onBack(() => {
   if (sheet.classList.contains('on')) { closeSheet(); return true; }
+  if ($('#onboard')) return false;
   if (view !== 'home') { go('home'); return true; }
-  return false;
+  openSheet(`<h2>לצאת מאצבע?</h2>${S.active ? '<p class="shsub">המשמרת ממשיכה להיספר גם כשהאפליקציה סגורה.</p>' : ''}
+    <div class="btnrow"><button class="btn primary" id="x-stay">להישאר</button><button class="btn soft" id="x-exit">יציאה מהאפליקציה</button></div>`, root => {
+    $('#x-stay', root).onclick = closeSheet;
+    $('#x-exit', root).onclick = () => { closeSheet(); native.exitApp(); };
+  });
+  return true;
 }));
 step('splash', native.ready);
 step('notifications', () => planNotifications());
