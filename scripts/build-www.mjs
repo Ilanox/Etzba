@@ -1,0 +1,35 @@
+// Copies the web app into www/ for the native apps, with the Heebo font bundled so nothing loads from the internet.
+import { cpSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, readdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..'), out = join(root, 'www');
+const WEB = ['index.html', 'style.css', 'manifest.webmanifest', 'js', 'languages', 'icons'];
+
+rmSync(out, { recursive: true, force: true }); mkdirSync(join(out, 'fonts'), { recursive: true });
+for (const f of WEB) cpSync(join(root, f), join(out, f), { recursive: true });
+
+// fonts: Hebrew + Latin subsets of Heebo, weights the app uses
+const src = join(root, 'node_modules/@fontsource/heebo/files');
+const RANGES = {
+  hebrew: 'U+0307-0308, U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F',
+  latin: 'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD',
+};
+let css = '', n = 0;
+if (existsSync(src)) {
+  for (const w of [400, 500, 600, 700, 800]) for (const [sub, range] of Object.entries(RANGES)) {
+    const file = `heebo-${sub}-${w}-normal.woff2`;
+    if (!existsSync(join(src, file))) continue;
+    cpSync(join(src, file), join(out, 'fonts', file)); n++;
+    css += `@font-face{font-family:'Heebo';font-style:normal;font-display:swap;font-weight:${w};src:url(${file}) format('woff2');unicode-range:${range}}\n`;
+  }
+}
+writeFileSync(join(out, 'fonts/fonts.css'), css);
+
+// index.html: local font instead of Google Fonts
+let html = readFileSync(join(out, 'index.html'), 'utf8');
+html = html.replace(/<link rel="preconnect"[^>]*>\s*/g, '').replace(/<link href="https:\/\/fonts\.googleapis\.com[^>]*>/, '<link rel="stylesheet" href="fonts/fonts.css">');
+const mods = [...readdirSync(join(root, 'js')).map(f => 'js/' + f), ...readdirSync(join(root, 'languages')).filter(f => f.endsWith('.js')).map(f => 'languages/' + f)];
+html = html.replace('<script type="module"', mods.map(m => `<link rel="modulepreload" href="${m}">`).join('') + '\n<script type="module"');
+writeFileSync(join(out, 'index.html'), html);
+console.log(`www ready: ${mods.length} modules, ${n} font files${n ? '' : ' (run npm install to bundle Heebo; system font used meanwhile)'}`);

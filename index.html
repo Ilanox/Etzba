@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F5F2EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121110" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="אצבע">
+<title>אצבע</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>var t='auto',l='he';try{var s=(JSON.parse(localStorage.getItem('etzba.v1'))||{}).settings;t=s.theme||'auto';l=s.lang||'he'}catch(e){}if(l!=='he'){document.documentElement.lang=l;document.documentElement.dir=({ar:1,fa:1,he:1})[l]?'rtl':'ltr'}var fr=true;try{fr=window.self!==window.top}catch(e){}var lo='';try{lo=localStorage.getItem('etzba.lite')||''}catch(e){}if(lo==='on'||(lo!=='off'&&(fr||(navigator.deviceMemory&&navigator.deviceMemory<=2))))document.documentElement.classList.add('lite');document.documentElement.dataset.theme=t==='auto'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t</script>
+<script>
+/* Boot guard: if the app hasn't drawn within a few seconds, show why instead of a blank page. */
+(function(){var E=[];window.__etzbaErr=E;
+addEventListener('error',function(e){E.push((e.message||'error')+(e.filename?' @'+e.filename.split('/').pop()+':'+e.lineno:''))},true);
+addEventListener('unhandledrejection',function(e){E.push('promise: '+((e.reason&&(e.reason.message||e.reason))||'?'))});
+setTimeout(function(){if(window.__etzbaReady)return;var d=document.createElement('div');d.id='bootfail';d.setAttribute('role','alert');
+d.style.cssText='position:fixed;inset:0;z-index:99;background:#F5F2EC;color:#1d1b18;padding:28px 22px;font:15px/1.5 system-ui,sans-serif;overflow:auto;direction:rtl';
+d.innerHTML='<h2 style="margin:0 0 8px">אצבע לא נפתחה</h2><p style="margin:0 0 12px">הנתונים שלך לא נמחקו. אפשר לנסות שוב, או להעתיק את פרטי התקלה ולשלוח אותם.</p><p style="margin:0 0 12px;direction:ltr;text-align:left">Etzba didn\'t start. Your data is safe.</p><pre id="bf-msg" style="white-space:pre-wrap;direction:ltr;text-align:left;background:#fff;border:1px solid #ccc;padding:10px;font-size:12px"></pre><button id="bf-retry" style="min-height:44px;padding:0 18px;margin:6px 0 0 8px">לנסות שוב</button><button id="bf-copy" style="min-height:44px;padding:0 18px;margin-top:6px">העתקת פרטי התקלה</button>';
+document.body.appendChild(d);var m=(E.length?E.join('\n'):'no error reported (timeout)')+'\n'+navigator.userAgent;document.getElementById('bf-msg').textContent=m;
+document.getElementById('bf-retry').onclick=function(){location.reload()};
+document.getElementById('bf-copy').onclick=function(){try{navigator.clipboard.writeText(m)}catch(x){}};},9000);})();
+</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="appbar">
+  <div class="brand"><span class="logo" id="brandMark"></span>אצבע</div>
+  <div class="spacer"></div>
+  <div class="chip-net"><small>נטו משוער</small><b class="num" id="barNet">₪0</b></div>
+</header>
+
+<main>
+  <section class="view on" id="v-home"></section>
+  <section class="view" id="v-shifts"></section>
+  <section class="view" id="v-sum"></section>
+  <section class="view" id="v-rights"></section>
+  <section class="view" id="v-set"></section>
+</main>
+
+<button class="fab hidden" id="fab" aria-label="הוספת משמרת"></button>
+
+<nav class="tabs" id="tabs">
+  <button data-v="home" class="on"><span class="tic" data-i="home"></span><span class="tl">שעון</span></button>
+  <button data-v="shifts"><span class="tic" data-i="list"></span><span class="tl">משמרות</span></button>
+  <button data-v="sum"><span class="tic" data-i="coins"></span><span class="tl">סיכום</span></button>
+  <button data-v="rights"><span class="tic" data-i="book"></span><span class="tl">מה מגיע לי</span></button>
+  <button data-v="set"><span class="tic" data-i="gear"></span><span class="tl">הגדרות</span></button>
+</nav>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="sr" id="sr" aria-live="polite"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

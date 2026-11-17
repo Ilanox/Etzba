@@ -1,0 +1,23 @@
+{
+  "appId": "com.edvinstudios.etzba",
+  "appName": "אצבע",
+  "webDir": "www",
+  "backgroundColor": "#F1EEE6",
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css",
+      "style": "DEFAULT"
+    },
+    "SplashScreen": {
+      "launchAutoHide": false,
+      "launchShowDuration": 3000,
+      "backgroundColor": "#F1EEE6",
+      "showSpinner": false
+    }
+  }
+}

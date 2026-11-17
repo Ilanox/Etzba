@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run אצבע",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/serve.mjs",
+      "console": "integratedTerminal",
+      "serverReadyAction": { "pattern": "Computer:\\s+(http://localhost:\\d+)", "uriFormat": "%s", "action": "openExternally" }
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "name": "etzba",
+  "version": "1.21.0",
+  "private": true,
+  "description": "אצבע — shift tracker and pay calculator for hourly workers in Israel. An Edvin Studios Project.",
+  "author": "Ilan Levy (Ilanox)",
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "start:www": "npm run build && node scripts/serve.mjs www",
+    "build": "node scripts/build-www.mjs",
+    "android:init": "npm run build && npx cap add android && node scripts/native-setup.mjs && npx cap sync android",
+    "icons": "npx @capacitor/assets generate --android --iconBackgroundColor \"#1b1916\" --iconBackgroundColorDark \"#1b1916\" --splashBackgroundColor \"#f5f2ec\" --splashBackgroundColorDark \"#141518\"",
+    "android": "npm run build && node scripts/native-setup.mjs && npx cap sync android && npx cap open android",
+    "android:run": "npm run build && node scripts/native-setup.mjs && npx cap run android",
+    "apk": "node scripts/build-apk.mjs",
+    "install-apk": "adb install -r etzba.apk",
+    "check:translations": "node scripts/check-translations.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/filesystem": "^8.0.0",
+    "@capacitor/haptics": "^8.0.0",
+    "@capacitor/share": "^8.0.0",
+    "@capacitor/splash-screen": "^8.0.0",
+    "@fontsource/heebo": "^5.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.0",
+    "@capacitor/cli": "^8.5.0"
+  }
+}
