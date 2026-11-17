@@ -17,6 +17,10 @@ export default {
   months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
 
   phrases: {
+    ', בלי חשבון ובלי שרת. מחיקת האפליקציה מוחקת אותם, אז כדאי לגבות מדי פעם. כדי לעבור לטלפון חדש: גיבוי מלא כאן, ואז ״שחזור״ בטלפון החדש.': ', with no account and no server. Uninstalling the app deletes it, so back up now and then. To move to a new phone: full backup here, then "Restore" on the new phone.',
+    'רק בדפדפן הזה': 'only in this browser',
+    ', בלי חשבון ובלי שרת. ניקוי נתוני האתר מוחק אותם. כדי לעבור למכשיר אחר: גיבוי מלא כאן, ואז ״שחזור״ במכשיר החדש.': ', with no account and no server. Clearing site data deletes it. To move to another device: full backup here, then "Restore" on the new one.',
+
     'שמים אצבע כדי להתחיל': 'Tap to start',
     'במשמרת': 'On shift',
     'מתחילה ב־': 'starts ',
@@ -213,6 +217,8 @@ export default {
   'מתוך 42 ש׳': 'of 42 h this week'
   },
   templates: [
+    ['{} משמרות + המשמרת הנוכחית · {} שעות', '{1} shifts + the current one · {2} hours'],
+    ['₪{} לשעה', '₪{1} per hour'],
     ['יצירת קשר · {}', 'Contact · {1}'],
     ['שוחזרו {} משמרות מהעותק השמור בטלפון', 'Restored {1} shifts from the copy saved on the phone'],
     ['התראה הבאה ב־{}', 'Next notification at {1}'],

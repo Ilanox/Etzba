@@ -244,14 +244,14 @@ function shiftRow(s) {
   const job = jobById(s.jobId), p = PAY.get(s.id); if (!p) return '';
   const k = shiftKind(s, p), d = new Date(s.start);
   const pills = [
-    p.otHours > 0.01 ? `<span class="pill ot">+${hm(p.otHours)} נוספות</span>` : '',
     p.restHours > 0.01 ? `<span class="pill rest">${esc(p.names[0])}</span>` : '',
-    S.jobs.length > 1 ? `<span class="pill jobp"><i style="background:${job.color}"></i>${esc(job.name)}</span>` : '',
+    p.otHours > 0.01 ? `<span class="pill ot">+${hm(p.otHours)} נוספות</span>` : '',
   ].join('');
+  const second = [S.jobs.length > 1 ? `<span class="jobp"><i style="background:${job.color}"></i>${esc(job.name)}</span>` : esc(KIND_NAME[k]), s.note ? esc(s.note) : ''].filter(Boolean);
   return `<button class="srow" data-id="${s.id}">
     <span class="kic k-${k}" title="${KIND_NAME[k]}">${I[k]}</span>
     <span class="mid"><span class="t1">${DAYS[d.getDay()]} ${dShort(d)} ${pills}</span>
-      <span class="t2 num tline"><bdi dir="ltr" class="trange">${tm(s.start)}–${tm(s.end)}</bdi><span class="tmore"> · ${KIND_NAME[k]}${s.note ? ' · ' + esc(s.note) : ''}</span></span></span>
+      <span class="t2 num tline"><bdi dir="ltr" class="trange">${tm(s.start)}–${tm(s.end)}</bdi><span class="tmore">${second.map(x => `<span class="sep">·</span>${x}`).join('')}</span></span></span>
     <span class="end"><span class="amt num">${money(p.pay)}</span><br><span class="t2 num">${hm(p.hours)} ש׳</span></span></button>`;
 }
 function bindRows(root) { $$('.srow', root).forEach(r => r.onclick = () => openShiftSheet(index().byId.get(r.dataset.id), 'edit')); }
@@ -470,7 +470,9 @@ function openShiftSheet(sh, mode) {
   const sub = mode === 'end' ? `${esc(job.name)} · אם שכחת להחתים בזמן, אפשר לתקן את השעות.` : '';
   const d0 = new Date(Math.min(+today - 45 * 864e5, +T.date - 3 * 864e5)), d1 = new Date(Math.max(+today + 7 * 864e5, +T.date + 3 * 864e5));
   let days = '';
-  for (let d = new Date(d1); d >= d0; d.setDate(d.getDate() - 1)) {
+  // oldest first: in Hebrew the days run right to left, like reading
+  d0.setHours(0, 0, 0, 0); d1.setHours(0, 0, 0, 0);   // whole days, also across a clock change
+  for (let d = new Date(d0); d <= d1; d.setDate(d.getDate() + 1)) {
     const diff = Math.round((today - d) / 864e5);
     days += `<button type="button" class="day${d.getDay() === 6 ? ' sat' : ''}" data-d="${+d}"><small>${diff === 0 ? 'היום' : diff === 1 ? 'אתמול' : DAY_SHORT[d.getDay()]}</small><b class="num">${d.getDate()}</b><em class="num">${MONTHS[d.getMonth()].slice(0, 3)}${EN ? '' : '׳'}</em></button>`;
   }
@@ -551,7 +553,10 @@ function openShiftSheet(sh, mode) {
     $$('input', root).forEach(i => i.addEventListener('input', upd));
     upd();
     for (const id in W) setWheel(id, false);
-    $('.day.on', root)?.scrollIntoView({ inline: 'center', block: 'nearest' });
+    // bring the chosen day to the middle of the strip (works the same right-to-left and left-to-right)
+    const centerDay = () => { const st = $('#f-days', root), on = $('.day.on', root); if (!st || !on) return;
+      const a = on.getBoundingClientRect(), b = st.getBoundingClientRect(); st.scrollLeft += (a.left + a.width / 2) - (b.left + b.width / 2); };
+    centerDay(); requestAnimationFrame(() => requestAnimationFrame(centerDay)); setTimeout(centerDay, 350);
     $('#f-save', root).onclick = () => {
       const s = read(), len = new Date(s.end) - new Date(s.start);
       if (len < 6e4) { $$('.wheels', root).forEach(w => w.classList.add('bad')); return toast('המשמרת קצרה מדי. אפשר לבטל אותה', 'err'); }
@@ -683,7 +688,7 @@ function sumMonth(el) {
   const hol = holidaysOfGregorianYear(viewY).filter(h => h.date.getMonth() === viewM);
   el.innerHTML = `${monthBar()}
     <div class="card hero" style="margin-top:12px"><small>נטו משוער ל${MONTHS[viewM]}<button type="button" class="estimate" data-legal aria-label="הערכה: מה החישוב כן ולא">הערכה ⓘ</button></small><div class="big num">${money(n.net)}</div>
-      <div class="meta num">${M.shifts.length} משמרות${M.live ? ' + המשמרת הנוכחית' : ''} · ${hm(M.hours)} שעות · ברוטו ${money(M.gross)}</div>
+      <div class="meta num"><b>ברוטו ${money(M.gross)}</b><br>${M.shifts.length} משמרות${M.live ? ' + המשמרת הנוכחית' : ''} · ${hm(M.hours)} שעות</div>
       ${M.gross ? `<div class="stack">${parts.map(([v, c]) => `<span style="flex:${v};background:${c}"></span>`).join('')}</div>
       <div class="legend">${parts.map(([, c, l]) => `<span><i style="background:${c}"></i>${l}</span>`).join('')}</div>` : ''}</div>
     ${M.gross ? `
@@ -700,7 +705,7 @@ function sumMonth(el) {
     </div>
     <div class="sec"><span>פירוט שעות ותוספות</span></div>
     ${M.perJob.map(J => `<div class="card">
-      ${S.jobs.length > 1 ? `<div class="ln"><span class="l" style="color:${J.job.color};font-weight:700">${esc(J.job.name)}</span><span class="v num">₪${J.job.rate}/ש׳</span></div>` : ''}
+      ${S.jobs.length > 1 ? `<div class="ln"><span class="l" style="color:${J.job.color};font-weight:700">${esc(J.job.name)}</span><span class="v num mutedv">₪${J.job.rate} לשעה</span></div>` : ''}
       ${TIERS.filter(k => J.b[k] > 0.004).map(k => L(tierLabel(k, J.job), money2(J.money[k]), '', `${hm(J.b[k])} ש׳`)).join('')}
       ${J.travel ? L('נסיעות', money2(J.travel), '', `${J.count} משמרות`) : ''}
       ${J.bonus ? L('טיפים ובונוסים', money2(J.bonus)) : ''}
@@ -751,7 +756,7 @@ function mountChart(el, items, sel) {
   const max = niceMax(Math.max(...items.map(tot), met === 'm' ? 100 : 1));
   const read = i => { const it = items[i]; return `<div class="c-r1"><b>${it.title}</b><span class="num c-tot">${fmt(tot(it))}</span></div><div class="c-parts">${GROUPS.map((g, j) => it[met][j] > 0.004 ? `<span><i class="cg${j}"></i>${g} <b class="num">${fmt(it[met][j])}</b></span>` : '').join('') || '<span>אין משמרות</span>'}</div>`; };
   el.innerHTML = `<div class="c-read">${read(sel)}</div>
-    <div class="c-plot" dir="ltr"><div class="c-grid">${[1, .5, 0].map(f => `<span style="bottom:${f * 100}%"><em class="num">${fmt(max * f)}</em></span>`).join('')}</div>
+    <div class="c-plot"><div class="c-grid">${[1, .5, 0].map(f => `<span style="bottom:${f * 100}%"><em class="num">${fmt(max * f)}</em></span>`).join('')}</div>
     <div class="c-bars${items.length > 14 ? ' thin' : ''}">${items.map((it, i) => {
       const parts = it[met], last = parts.reduce((a, v, j) => v > 0.004 ? j : a, -1);
       return `<button class="c-col${i === sel ? ' on' : ''}" data-i="${i}" aria-label="${it.title}"><span class="c-stack" style="height:${tot(it) / max * 100}%">${parts.map((v, j) => v > 0.004 ? `<i class="cg${j}${j === last ? ' top' : ''}" style="flex:${v}"></i>` : '').join('')}</span><em class="num">${it.label ?? ''}</em></button>`;
@@ -1357,7 +1362,9 @@ function summarize(d) {
 }
 /** Where the data lives right now, in plain words. */
 function storeNote() {
-  return `${I.info}<span>הנתונים נשמרים <b>רק בטלפון הזה</b>, בלי חשבון ובלי שרת. מחיקת האפליקציה או ניקוי נתוני האתר בדפדפן מוחקים אותם. כדי לעבור לטלפון חדש: גיבוי מלא כאן, ואז "שחזור" בטלפון החדש. <span id="persistLine"></span></span>`;
+  return native.NATIVE
+    ? `${I.info}<span>הנתונים נשמרים <b>רק בטלפון הזה</b>, בלי חשבון ובלי שרת. מחיקת האפליקציה מוחקת אותם, אז כדאי לגבות מדי פעם. כדי לעבור לטלפון חדש: גיבוי מלא כאן, ואז ״שחזור״ בטלפון החדש.</span>`
+    : `${I.info}<span>הנתונים נשמרים <b>רק בדפדפן הזה</b>, בלי חשבון ובלי שרת. ניקוי נתוני האתר מוחק אותם. כדי לעבור למכשיר אחר: גיבוי מלא כאן, ואז ״שחזור״ במכשיר החדש. <span id="persistLine"></span></span>`;
 }
 
 function openImport() {

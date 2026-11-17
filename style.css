@@ -755,3 +755,36 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
 .pill.ot{color:var(--accent-ink,var(--accent))!important}
 .estimate,button.estimate{border:0!important;padding:0!important;margin-inline-start:6px;font-size:.78em!important;font-weight:500!important;color:var(--ink3)!important;letter-spacing:0!important;vertical-align:baseline!important;background:none!important}
 .estimate::before{content:'· '}
+
+/* ---- polish ---- */
+/* shift rows: two steady lines, the same in every row */
+.srow .t1{flex-wrap:nowrap;white-space:nowrap;overflow:hidden}
+.srow .t1 .pill{flex:none}
+.srow .tline{align-items:center}
+.srow .tmore{display:flex;align-items:center;min-width:0}
+.srow .tmore .sep{margin:0 6px;color:var(--ink3)}
+.srow .jobp{display:inline-flex;align-items:center;gap:5px;color:var(--ink2);white-space:nowrap}
+.srow .jobp i{width:7px;height:7px;border-radius:50%;flex:none}
+/* every kind of shift gets the same quiet tile; the icon colour tells them apart */
+.kic,.k-night.kic,.k-shabbat.kic,.k-chag.kic{background:var(--surface2)!important;color:var(--kc)!important;box-shadow:none!important}
+.k-night.kic{color:var(--k-night)!important}
+/* sideways-scrolling rows fade at the edges instead of cutting a chip in half */
+.chips,.daystrip,#f-pre{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);padding-inline:14px;margin-inline:-14px}
+#f-pre{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+#f-pre::-webkit-scrollbar,.chips::-webkit-scrollbar,.daystrip::-webkit-scrollbar{display:none}
+#f-pre button{flex:none}
+/* break: the minutes box sits in the same row as the presets */
+#f-bq,#j-brk{flex-wrap:nowrap}
+#f-bq button,#j-brk button{flex:1;padding:0 4px;min-width:0;white-space:nowrap;font-size:.8rem}
+#f-bq .input.mini{flex:none;width:64px}
+/* summary card: gross on its own line */
+.hero .meta{line-height:1.5}.hero .meta b{font-weight:700}
+.ln .mutedv{color:var(--ink3);font-weight:600}
+/* the live status line: icon right next to the words */
+#pTier{display:flex;flex-direction:column;align-items:center}
+#pTier .tier{justify-content:center;text-align:center}
+
+/* the day chart follows the reading direction: day 1 on the right in Hebrew, on the left in English */
+.c-plot{padding:0 0 22px 0;padding-inline-start:38px}
+.c-grid{inset:0 0 22px 0;inset-inline-start:38px}
+.c-grid em{left:auto;inset-inline-start:-38px;text-align:end}
