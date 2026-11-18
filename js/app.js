@@ -322,6 +322,8 @@ function shiftRow(s) {
       <span class="t2 num tline"><bdi dir="ltr" class="trange">${tm(s.start)}–${tm(s.end)}</bdi><span class="tmore">${second.map(x => `<span class="sep">·</span>${x}`).join('')}</span></span></span>
     <span class="end"><span class="amt num">${money(p.pay)}</span><br><span class="t2 num">${hm(p.hours)} ש׳</span></span></button>`;
 }
+/** A shift's sheet, scrolled to "how it's calculated". */
+function showWhy(sh) { openShiftSheet(sh, 'edit'); setTimeout(() => $('#f-explain')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 350); }
 function bindRows(root) { $$('.srow', root).forEach(r => r.onclick = () => openShiftSheet(index().byId.get(r.dataset.id), 'edit')); }
 
 /** Plain-language explanation of a shift's pay. */
@@ -502,7 +504,7 @@ function renderTiles(L) {
   const wH = H.reduce((x, y) => x + y, 0), lim = jobById(S.settings.lastJob).weeklyLimit || 42, mx = Math.max(10, ...H);
   const M = withLive(monthCalc(now.getFullYear(), now.getMonth()));
   el.innerHTML = `${planCell()}
-    <div class="today"><small>היום · ברוטו</small><b class="num">${money(tP)}</b><span class="num">${hm(tH)} ש׳</span></div>
+    <button class="today" id="tcell" type="button" aria-label="איך חושב היום"><small>היום · ברוטו</small><b class="num">${money(tP)}</b><span class="num">${hm(tH)} ש׳</span></button>
     <button class="monthcell" id="mcell"><small>${MONTHS[now.getMonth()]} · ברוטו</small><b class="num">${money(M.gross)}</b><span class="num">${M.shifts.length} משמרות</span></button>
     <div class="wkb"><div class="wkb-h"><b>השבוע</b><span class="num"><b>${hm(wH)}</b> מתוך ${lim} ש׳</span></div>
       <div class="wkb-days">${H.map((h, i) => `<div class="wkb-d${i === now.getDay() ? ' on' : ''}"><i style="height:${h / mx * 100}%"></i><em>${DAY_SHORT[i]}</em></div>`).join('')}</div>
@@ -510,6 +512,12 @@ function renderTiles(L) {
     ${goalCell(M)}`;
   $('#mcell', el).onclick = () => { viewY = now.getFullYear(); viewM = now.getMonth(); S.ui.sumView = 'month'; go('sum'); };
   $('#goal', el).onclick = openGoal;
+  // tapping an amount shows how it was worked out: today's shift opens with its breakdown, otherwise the shift list
+  $('#tcell', el).onclick = () => {
+    const today = S.shifts.filter(x => sameDay(x.start, now)).sort((a, b) => new Date(b.start) - new Date(a.start));
+    if (today.length === 1) return showWhy(today[0]);
+    go('shifts');
+  };
   $$('[data-plan]', el).forEach(b => b.onclick = e => { e.stopPropagation(); planAction(b.dataset.plan, b.dataset.do); });
 }
 
@@ -1072,7 +1080,7 @@ function sumMonth(el) {
   const L = (l, v, cls = '', sub = '') => `<div class="ln ${cls}"><span class="l">${l}${sub ? `<small>${sub}</small>` : ''}</span><span class="v num">${v}</span></div>`;
   const hol = holidaysOfGregorianYear(viewY).filter(h => h.date.getMonth() === viewM);
   el.innerHTML = `${monthBar()}
-    <div class="card hero" style="margin-top:12px"><small>נטו משוער ל${MONTHS[viewM]}<button type="button" class="estimate" data-legal aria-label="הערכה: מה החישוב כן ולא">הערכה ⓘ</button></small><div class="big num">${money(n.net)}</div>
+    <div class="card hero" style="margin-top:12px"><small>נטו משוער ל${MONTHS[viewM]}<button type="button" class="estimate" data-legal aria-label="הערכה: מה החישוב כן ולא">הערכה ⓘ</button></small><button type="button" class="big num hero-amt" id="netWhy" aria-label="איך מחושב הנטו">${money(n.net)}</button>
       <div class="meta num"><b>ברוטו ${money(M.gross)}</b>${M.tipsOwn ? ` · טיפים ${money(M.tipsOwn)}` : ''}<br>${M.shifts.length} משמרות${M.live ? ' + המשמרת הנוכחית' : ''} · ${hm(M.hours)} שעות</div>
       ${M.gross ? `<div class="stack">${parts.map(([v, c]) => `<span style="flex:${v};background:${c}"></span>`).join('')}</div>
       <div class="legend">${parts.map(([, c, l]) => `<span><i style="background:${c}"></i>${l}</span>`).join('')}</div>` : ''}</div>
@@ -1080,7 +1088,7 @@ function sumMonth(el) {
     <div class="sec"><span>${secIc('cal', 'blue')}לפי ימים</span></div>
     <div class="card pad">${metricSeg()}<div id="dayChart"></div></div>
     <div class="sec"><span>${secIc('receipt', 'green')}איך זה מחושב</span></div>
-    <div class="card steps">
+    <div class="card steps" id="steps">
       ${L('עבדת', hm(M.hours) + ' ש׳')}
       ${L('הרווחת ברוטו', money(M.gross), '', 'לפני ניכויים, כולל שעות נוספות, תוספות ונסיעות')}
       ${L('מס הכנסה', n.tax ? '−' + money(n.tax) : '₪0', n.tax ? 'neg' : '', n.tax ? `אחרי ${(+S.settings.sex + +S.settings.extraPts)} נקודות זיכוי (${money(n.pointsCredit)})` : 'נקודות הזיכוי מכסות את כל המס')}
@@ -1126,6 +1134,7 @@ function sumMonth(el) {
   }
   $('#xMonth', el).onclick = () => exportShifts('month');
   $('#xReport', el).onclick = () => openReport();
+  $('#netWhy', el) && ($('#netWhy', el).onclick = () => $('#steps', el)?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
   bindLeave(el);
   $('#xMore', el).onclick = openExport;
 }
@@ -2656,7 +2665,8 @@ function openOnboarding() {
   document.body.appendChild(el);
   dbg.log('info', 'onboarding opened');
   const dots = () => `<div class="ob-dots" aria-hidden="true">${[0, 1, 2, 3, 4].map(i => `<i class="${i === step ? 'on' : ''}"></i>`).join('')}</div>`;
-  const yesNo = (k, on) => `<div class="seg" data-k="${k}"><button type="button" data-v="1" class="${on ? 'on' : ''}">כן</button><button type="button" data-v="0" class="${on ? '' : 'on'}">לא</button></div>`;
+  // pay questions can be answered "not sure": then the law's default is used, and it says so
+  const yesNo = (k, on, unsure) => `<div class="seg" data-k="${k}"><button type="button" data-v="1" class="${on && !d[k + 'Unsure'] ? 'on' : ''}">כן</button><button type="button" data-v="0" class="${on ? '' : 'on'}">לא</button>${unsure ? `<button type="button" data-v="?" class="${d[k + 'Unsure'] ? 'on' : ''}">לא בטוח/ה</button>` : ''}</div>`;
   const STEPS = [
     () => `<div class="ob-hero sm">${mark({ ink: 'var(--ink)', accent: 'var(--accent)' })}</div>
       <h1 id="ob-title">ברוכים הבאים לאצבע</h1>
@@ -2679,8 +2689,8 @@ function openOnboarding() {
       <p class="ob-sub">זה קובע מתי מתחילות שעות נוספות. לא בטוח/ה? אפשר להשאיר את מה שמסומן.</p>
       <div class="field"><span>ימי עבודה בשבוע</span><div class="seg" data-k="weekDays"><button type="button" data-v="5" class="${d.weekDays === 5 ? 'on' : ''}">5 ימים</button><button type="button" data-v="6" class="${d.weekDays === 6 ? 'on' : ''}">6 ימים</button></div>
         <p class="hint">${d.weekDays === 5 ? 'שעות נוספות אחרי 8.6 שעות ביום (7.6 ביום חמישי).' : 'שעות נוספות אחרי 8 שעות ביום (7 ביום שישי).'}</p></div>
-      <div class="field"><span>משלמים לך שעות נוספות (125% / 150%)?</span>${yesNo('otOn', d.otOn)}<p class="hint">מגיע לפי חוק. יש מקומות שלא משלמים; אם כך, כדאי לדעת כמה זה יוצא.</p></div>
-      <div class="field"><span>משלמים תוספת על שבת וחגים?</span>${yesNo('shabbatOn', d.shabbatOn)}</div>
+      <div class="field"><span>משלמים לך שעות נוספות (125% / 150%)?</span>${yesNo('otOn', d.otOn, true)}<p class="hint">מגיע לפי חוק. יש מקומות שלא משלמים; אם כך, כדאי לדעת כמה זה יוצא.</p></div>
+      <div class="field"><span>משלמים תוספת על שבת וחגים?</span>${yesNo('shabbatOn', d.shabbatOn, true)}${d.otOnUnsure || d.shabbatOnUnsure ? '<p class="hint">לא בטוח/ה? נחשב לפי החוק, ואפשר לשנות בכל רגע בהגדרות העבודה.</p>' : ''}</div>
       <label class="field"><span>העיר שלך (לזמני כניסת ויציאת שבת)</span><select class="input" id="ob-city">${Object.keys(CITIES).map(c => `<option value="${c}"${c === d.city ? ' selected' : ''}>${c}</option>`).join('')}</select></label>`,
     () => `<h1 id="ob-title">עוד שני דברים</h1>
       <p class="ob-sub">כדי לחשב חופשה, מחלה, הבראה וטיפים נכון.</p>
@@ -2731,7 +2741,10 @@ function openOnboarding() {
     $o('#ob-skip').onclick = () => { if (step < LAST) { S.settings.onboarded = true; persist(); el.remove(); dbg.log('info', 'onboarding skipped'); setTimeout(askFirstPerms, 400); } };
     el.querySelectorAll('#ob-lang button').forEach(b => b.onclick = async () => { await setLang(b.dataset.l); d.lang = b.dataset.l; draw(); });
     el.querySelectorAll('.seg[data-k]').forEach(g => g.querySelectorAll('button').forEach(b => b.onclick = () => {
-      const k = g.dataset.k; read(); d[k] = k === 'weekDays' ? +b.dataset.v : k === 'tipsMode' ? b.dataset.v : b.dataset.v === '1'; draw(); buzz(8);
+      const k = g.dataset.k; read();
+      if (b.dataset.v === '?') { d[k] = true; d[k + 'Unsure'] = true; }   // the law's default
+      else { d[k] = k === 'weekDays' ? +b.dataset.v : k === 'tipsMode' ? b.dataset.v : b.dataset.v === '1'; d[k + 'Unsure'] = false; }
+      draw(); buzz(8);
     }));
     if ($o('#ob-import')) $o('#ob-import').onclick = () => finish(true);
     const rate = $o('#ob-rate');
@@ -2971,7 +2984,7 @@ step('geo', () => { syncGeo(true); native.appActions.onAction(appAction); syncWi
 step('meter', () => { try { if (localStorage.getItem('etzba.meter') === '1') dbg.setMeter(true); } catch {} });
 step('backupDot', updateBackupDot);
 setInterval(() => { tickHome(false); if (new Date().getSeconds() === 0) { renderRestCard(); $('#brandMark').innerHTML = mark({ t: new Date(), sw: 5.4 }); } }, 1000);
-$('#chipNet') && ($('#chipNet').onclick = () => go('sum'));
+$('#chipNet') && ($('#chipNet').onclick = () => { const n = new Date(); viewY = n.getFullYear(); viewM = n.getMonth(); S.ui.sumView = 'month'; go('sum'); setTimeout(() => $('#steps')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 300); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { render(); planNotifications(); checkEarly(); } });
 
 /* Offline cache for the website version. Inside an embedded frame service workers aren't allowed,

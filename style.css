@@ -1128,3 +1128,9 @@ html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;an
 .punch .punch-btn{transition:width .35s cubic-bezier(.2,.8,.2,1),transform .15s}
 details.adv-cell>summary{list-style:none;cursor:pointer}details.adv-cell>summary::-webkit-details-marker{display:none}
 details.adv-cell[open]>summary .chev svg{transform:rotate(180deg)}
+
+/* amounts that open their breakdown */
+button.today,button.hero-amt{font:inherit;color:inherit;background:none;border:0;text-align:start;cursor:pointer}
+button.today{width:100%;border-inline-end:1px solid var(--line)}
+button.hero-amt{display:block;width:100%;padding:0}
+#steps,#f-explain{scroll-margin-top:120px}
