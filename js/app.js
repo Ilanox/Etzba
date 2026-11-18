@@ -78,14 +78,21 @@ let EN = LANG !== 'he';          // any language other than Hebrew (built-in Eng
 let PACK = null;
 document.documentElement.lang = LANG; document.documentElement.dir = langInfo(LANG).dir;
 const darkMQ = matchMedia('(prefers-color-scheme: dark)');
+// the developer can look at the app as everyone else does: as a regular user, a supporter, or the developer
+const viewAs = () => S.settings.owner ? (S.settings.viewAs || 'dev') : null;
+const isSup = () => { const v = viewAs(); return v ? v !== 'regular' : !!S.settings.supported; };
+const isOwner = () => viewAs() === 'dev';
+const FREE_THEMES = ['auto', 'light', 'dark', 'blurple'];
 function applyTheme() {
-  const t = S.settings.theme || 'auto', r = t === 'auto' ? (darkMQ.matches ? 'dark' : 'light') : t;
+  let t = S.settings.theme || 'auto';
+  if ((!isSup() && !FREE_THEMES.includes(t)) || (t === 'dev' && !isOwner())) t = 'auto';   // a theme this view doesn't have
+  const r = t === 'auto' ? (darkMQ.matches ? 'dark' : 'light') : t;
   document.documentElement.dataset.theme = r;
   const bg = { light: '#F1EEE6', dark: '#141518', blurple: '#1E1F22', gold: '#15130E', night: '#0C1322', sunset: '#F7EEE8', forest: '#0F1712', ocean: '#0B1A1E', plum: '#171021', ember: '#1A100C', sand: '#F2EDDF', dev: '#07090B', aurora: '#101531', dawn: '#FBEFE8', neon: '#0A0712', rosegold: '#F6EAE4' }[r];
   document.querySelectorAll('meta[name=theme-color]').forEach(m => { m.removeAttribute('media'); m.content = bg; });
-  document.documentElement.classList.toggle('supporter', !!S.settings.supported);
+  document.documentElement.classList.toggle('supporter', isSup());
   const tag = document.getElementById('devTag');
-  if (tag) { tag.hidden = !S.settings.supported; tag.textContent = tr(S.settings.owner ? 'מצב מפתח' : 'תומך'); }
+  if (tag) { tag.hidden = !isSup(); tag.textContent = tr(isOwner() ? 'מצב מפתח' : 'תומך'); }
   native.setBars(!['light', 'sunset', 'sand', 'dawn', 'rosegold'].includes(r));
   try { syncWidget(); } catch {}
 }
@@ -694,7 +701,7 @@ function onPunch() {
     const plan = planNow(jobId);   // clocking in for a planned shift: it's happening, so it's no longer a plan
     if (plan) S.plans = S.plans.filter(x => x !== plan);
     if (!persist()) { S.active = null; if (plan) S.plans.push(plan); return; }
-    if (S.settings.supported) celebrate('in'); else buzz(35);
+    if (isSup()) celebrate('in'); else buzz(35);
     askPersist(); planNotifications(true);
     announce(`משמרת התחילה ב־${tm(S.active.start)}`);
     toast(`נכנסת למשמרת ב־${tm(S.active.start)} · אפשר לשנות את השעה`, 'ok', { label: 'ביטול', fn: () => { S.active = null; persist(); renderHome(); toast('הכניסה בוטלה'); announce('הכניסה בוטלה'); } });
@@ -712,7 +719,7 @@ function onPunch() {
     openShiftDone(sh, a);
     // reaching the month's goal with this shift: a small celebration (supporters)
     const g1 = goalState(monthCalc(viewY, viewM));
-    if (S.settings.supported && g0 && g1 && g0.left > 0 && g1.left <= 0) setTimeout(() => { celebrate('goal'); toast('הגעת ליעד של החודש!', 'ok'); }, 450);
+    if (isSup() && g0 && g1 && g0.left > 0 && g1.left <= 0) setTimeout(() => { celebrate('goal'); toast('הגעת ליעד של החודש!', 'ok'); }, 450);
   }
 }
 
@@ -1341,7 +1348,7 @@ function announceEarly() {
   let locked; try { locked = new Set(JSON.parse(localStorage.getItem('etzba.early.locked') || '[]')); } catch { locked = new Set(); }
   let news = null;
   for (const name of Object.keys(EARLY_NEWS)) {
-    if (S.settings.supported) { locked.delete(name); continue; }
+    if (isSup()) { locked.delete(name); continue; }
     if (!earlyOpen(name)) locked.add(name);
     else if (locked.has(name) && !news && !pop.classList.contains('on') && !sheet.classList.contains('on')) { locked.delete(name); news = EARLY_NEWS[name]; }
   }
@@ -1361,7 +1368,7 @@ function announceEarly() {
   $('#en-go', pop).onclick = () => { closePop(); news.go(); };
   $('#en-later', pop).onclick = closePop;
 }
-const recapOpen = () => !!S.settings.supported || earlyOpen('recap');
+const recapOpen = () => isSup() || earlyOpen('recap');
 /** Under the header while the year's recap is open: November to January (or right after it opens), until seen or closed. */
 function recapBanner() {
   const el = $('#rcBanner'); if (!el) return;
@@ -1730,7 +1737,7 @@ const THEMES_GRAD = [['aurora', 'זוהר', 'linear-gradient(135deg,#8B5CF6,#22D
 const THEME_DEV = ['dev', 'מפתח', 'linear-gradient(135deg,#07090B 50%,#39D98A 50%)'];
 const ICONS = [['default', 'רגיל', 'app-default.png'], ['gold', 'זהב', 'app-gold.png'], ['night', 'לילה', 'app-night.png'], ['paper', 'נייר', 'app-paper.png'], ['forest', 'יער', 'app-forest.png'],
   ['sunset', 'שקיעה', 'app-sunset.png'], ['ocean', 'ים', 'app-ocean.png'], ['plum', 'שזיף', 'app-plum.png'], ['ember', 'גחלים', 'app-ember.png'], ['sand', 'חול', 'app-sand.png']];
-const themeBtn = ([k, n, bg]) => { const locked = [...THEMES_SUPPORT, ...THEMES_GRAD].some(t => t[0] === k) && !S.settings.supported;
+const themeBtn = ([k, n, bg]) => { const locked = [...THEMES_SUPPORT, ...THEMES_GRAD].some(t => t[0] === k) && !isSup();
   return `<button data-t="${k}" class="${(S.settings.theme || 'auto') === k ? 'on' : ''}${locked ? ' locked' : ''}"><i style="background:${bg}"></i>${n}${locked ? `<span class="lk">${I.lock}</span>` : ''}</button>`; };
 // a small colored icon before a section title; the same colors as the rows below it
 const secIc = (i, t) => `<i class="sec-ic t-${t}">${I[i]}</i>`;
@@ -1745,11 +1752,11 @@ function renderSet() {
 
     <div class="sec"><span>${secIc('noon', 'gold')}מראה</span></div>
     <div class="card pad"><div class="themes" id="s-theme">${THEMES.map(themeBtn).join('')}</div>
-      ${native.billing.available() || st.supported ? `<div class="themes-h">${I.heart}${st.supported ? 'בתודה על התמיכה' : 'לתומכים באצבע'}</div><div class="themes" id="s-theme2">${THEMES_SUPPORT.map(themeBtn).join('')}</div>
+      ${native.billing.available() || isSup() ? `<div class="themes-h">${I.heart}${isSup() ? 'בתודה על התמיכה' : 'לתומכים באצבע'}</div><div class="themes" id="s-theme2">${THEMES_SUPPORT.map(themeBtn).join('')}</div>
         <div class="themes-h">מעברי צבע</div><div class="themes" id="s-theme3">${THEMES_GRAD.map(themeBtn).join('')}</div>` : ''}
-      ${st.owner ? `<div class="themes-h dev">${I.gear}מצב מפתח</div><div class="themes" id="s-theme4">${themeBtn(THEME_DEV)}</div>` : ''}
-      ${st.supported && native.PLATFORM === 'android' ? `<div class="themes-h">סגנון הווידג׳ט</div><div class="seg" id="s-wstyle">${[['classic', 'רגיל'], ['glass', 'שקוף'], ['bold', 'גדול'], ['accent', 'צבעוני']].map(([k, n]) => `<button data-w="${k}" class="${(st.widgetStyle || 'classic') === k ? 'on' : ''}">${n}</button>`).join('')}</div>` : ''}
-      ${st.supported && (native.billing.available() || native.PLATFORM === 'android') ? `<div class="themes-h">אייקון האפליקציה</div><div class="icons" id="s-icon">${ICONS.map(([k, n, f]) => `<button data-ic="${k}" class="${(st.icon || 'default') === k ? 'on' : ''}"><img src="icons/${f}" alt="">${n}</button>`).join('')}</div>` : ''}
+      ${isOwner() ? `<div class="themes-h dev">${I.gear}מצב מפתח</div><div class="themes" id="s-theme4">${themeBtn(THEME_DEV)}</div>` : ''}
+      ${isSup() && native.PLATFORM === 'android' ? `<div class="themes-h">סגנון הווידג׳ט</div><div class="seg" id="s-wstyle">${[['classic', 'רגיל'], ['glass', 'שקוף'], ['bold', 'גדול'], ['accent', 'צבעוני']].map(([k, n]) => `<button data-w="${k}" class="${(st.widgetStyle || 'classic') === k ? 'on' : ''}">${n}</button>`).join('')}</div>` : ''}
+      ${isSup() && (native.billing.available() || native.PLATFORM === 'android') ? `<div class="themes-h">אייקון האפליקציה</div><div class="icons" id="s-icon">${ICONS.map(([k, n, f]) => `<button data-ic="${k}" class="${(st.icon || 'default') === k ? 'on' : ''}"><img src="icons/${f}" alt="">${n}</button>`).join('')}</div>` : ''}
       <div class="field"><span>שפה</span><div class="seg" id="s-lang">${LANGS.map(l => `<button data-l="${l.code}" class="${l.code === LANG ? 'on' : ''}" data-keep>${l.name}</button>`).join('')}</div></div></div>
 
     <div class="sec"><span>${secIc('shabbat', 'gold')}זמני שבת וחג</span></div>
@@ -1789,9 +1796,9 @@ function renderSet() {
     ${native.NATIVE ? `<div class="card" style="margin-top:12px"><label class="cell"><span class="cell-ic t-orange">${I.bell}</span><span class="grow">התראות במשמרת<div class="sub">כשמתחילות שעות נוספות, בכניסת שבת וחג, ואם שכחת לצאת</div></span><span class="switch"><input type="checkbox" id="s-notif"${notifOn() ? ' checked' : ''}><i></i></span></label><div id="s-nstat"></div></div>` : ''}
     ${devOK() ? `<div class="card" style="margin-top:12px"><button class="cell" id="s-debug"><span class="cell-ic t-violet">${I.info}</span><span class="grow">אבחון ותקלות<div class="sub">${dbg.lastCrash() ? 'האפליקציה נסגרה בפעם הקודמת · פרטים כאן' : 'מידע טכני לשליחה כשמשהו לא עובד'}</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
     ${devOK() && S.settings.dev ? `<div class="card" style="margin-top:12px" data-keep><button class="cell" id="s-dev"><span class="cell-ic t-gray">${I.gear}</span><span class="grow">כלי פיתוח<div class="sub">בדיקת התראות, משמרות לדוגמה ועוד</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
-    ${native.billing.available() || S.settings.owner ? `<div class="card" style="margin-top:12px"><button class="cell" id="s-support"><span class="cell-ic t-red">${I.heart}</span><span class="grow">${S.settings.owner ? 'מפתח' : S.settings.supported ? 'תומך/ת באצבע' : 'תמיכה באצבע'}<div class="sub">${S.settings.owner ? 'כל האפשרויות פתוחות במכשיר הזה' : S.settings.supported ? `מאז ${dFull(S.settings.supportedAt || S.updatedAt)} · תודה! אפשר לתמוך שוב מתי שרוצים` : 'האפליקציה חינמית ובלי פרסומות. תומכים מקבלים ערכות צבע ואייקונים'}</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
+    ${native.billing.available() || isOwner() ? `<div class="card" style="margin-top:12px"><button class="cell" id="s-support"><span class="cell-ic t-red">${I.heart}</span><span class="grow">${isOwner() ? 'מפתח' : isSup() ? 'תומך/ת באצבע' : 'תמיכה באצבע'}<div class="sub">${isOwner() ? 'כל האפשרויות פתוחות במכשיר הזה' : isSup() ? `מאז ${dFull(S.settings.supportedAt || S.updatedAt)} · תודה! אפשר לתמוך שוב מתי שרוצים` : 'האפליקציה חינמית ובלי פרסומות. תומכים מקבלים ערכות צבע ואייקונים'}</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
     <div class="card" style="margin-top:12px"><button class="cell" id="s-legal"><span class="cell-ic t-gray">${I.lock}</span><span class="grow">פרטיות ומשפטי<div class="sub">מה נשמר, ומה החישוב כן ולא</div></span><span class="chev">${I.chevL}</span></button></div>
-    <p class="fine" id="s-ver"><b>אצבע</b> · גרסה ${VERSION}${S.settings.supported ? ' <span style="color:#D9534F">♥</span>' : ''}<br>An Edvin Studios Project</p>`;
+    <p class="fine" id="s-ver"><b>אצבע</b> · גרסה ${VERSION}${isSup() ? ' <span style="color:#D9534F">♥</span>' : ''}<br>An Edvin Studios Project</p>`;
   $$('[data-job]', el).forEach(b => b.onclick = () => openJobSheet(jobById(b.dataset.job), false));
   $('#addJob', el).onclick = () => { const j = defaultJob('עבודה ' + (S.jobs.length + 1)); j.color = COLORS[S.jobs.length % COLORS.length]; openJobSheet(j, true); };
   const set = (k, v) => { S.settings[k] = v; commit(); };
@@ -1800,7 +1807,7 @@ function renderSet() {
   for (const k of ['pension', 'hish']) $('#s-' + k, el).onchange = e => set(k, e.target.checked);
   $$('#s-sex button', el).forEach(b => { b.classList.toggle('on', +b.dataset.v === +st.sex); b.onclick = () => set('sex', +b.dataset.v); });
   $$('#s-theme button, #s-theme2 button, #s-theme3 button, #s-theme4 button', el).forEach(b => b.onclick = () => {
-    if ([...THEMES_SUPPORT, ...THEMES_GRAD].some(t => t[0] === b.dataset.t) && !S.settings.supported) return openSupport();
+    if ([...THEMES_SUPPORT, ...THEMES_GRAD].some(t => t[0] === b.dataset.t) && !isSup()) return openSupport();
     S.settings.theme = b.dataset.t; applyTheme(); commit();
   });
   $$('#s-wstyle button', el).forEach(b => b.onclick = () => { S.settings.widgetStyle = b.dataset.w; persist(); renderSet(); toast('הווידג׳ט יתעדכן בעוד רגע', 'ok'); });
@@ -2471,7 +2478,7 @@ function syncWidget() {
     ['accent', '--accent'], ['rega', '--g-money-a'], ['regb', '--g-money-b'], ['ot1a', '--g-ot-a'], ['ot1b', '--g-ot-b'], ['ot2a', '--g-hot-a'], ['ot2b', '--g-hot-b'], ['hub', '--g-acc-a']]
     .map(([k, v]) => [k, cssHex(v)]));
   const state = { active: !!a, start: a ? +new Date(a.start) : 0, job: job?.name || '', rate: +job?.rate || 0, rtl: document.documentElement.dir === 'rtl', segs,
-    extra: { thr, ot1: job?.ot1Hours ?? 2, otOn: job?.otOn !== false, theme: S.settings.supported ? { ...theme, ring: (S.settings.theme === 'gold' ? '#D9A93F' : cssHex('--accent')) } : theme, wstyle: S.settings.supported ? (S.settings.widgetStyle || 'classic') : 'classic', month: { name: MONTHS[now.getMonth()], gross: money(M.gross), count: M.shifts.length } },
+    extra: { thr, ot1: job?.ot1Hours ?? 2, otOn: job?.otOn !== false, theme: isSup() ? { ...theme, ring: (S.settings.theme === 'gold' ? '#D9A93F' : cssHex('--accent')) } : theme, wstyle: isSup() ? (S.settings.widgetStyle || 'classic') : 'classic', month: { name: MONTHS[now.getMonth()], gross: money(M.gross), count: M.shifts.length } },
     labels: EN
       ? { idle: 'Not on shift', starts: 'Starts ', since: 'since ', perHour: 'per hour', toOt: 'Overtime in {t}', now: 'Now: ', shortReg: 'regular', shortOt: 'overtime',
           tapStart: 'Tap the dial to clock in', tapShort: 'Tap to start', gross: 'gross', shifts: 'shifts' }
@@ -2516,6 +2523,9 @@ function openDevTools() {
   let pick = S.active ? 'current' : 'friday', items = [];
   const jobId = S.active?.jobId || S.settings.lastJob;
   openSheet(`<div data-keep><h2>כלי פיתוח</h2><p class="shsub">לבדיקות בלבד. לא משנה את החישובים.</p>
+    ${S.settings.owner ? `<div class="sec"><span>להציג את האפליקציה כמו</span></div>
+    <div class="seg" id="dv-view">${[['regular', 'משתמש רגיל'], ['supporter', 'תומך'], ['dev', 'מפתח']].map(([k, n]) => `<button data-v="${k}" class="${viewAs() === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+    <p class="hint">רק התצוגה משתנה. מצב המפתח נשאר, וכלי הפיתוח תמיד כאן.</p>` : ''}
     <div class="sec"><span>התראות</span></div>
     <div class="card">
       <button class="cell" id="dv-one"><span class="grow">התראה אחת לבדיקה<div class="sub">מגיעה בעוד 3 שניות</div></span></button>
@@ -2562,6 +2572,11 @@ function openDevTools() {
     const geoTest = kind => { if (!native.geo.available()) return toast('רק באפליקציה לאנדרואיד', 'err'); const j = jobById(jobId); syncGeo(true); setTimeout(() => native.geo.test(kind, j.id, j.name), 300); toast('נשלחה התראה', 'ok'); };
     $('#dv-geo-in', root) && ($('#dv-geo-in', root).onclick = () => geoTest('in'));
     $('#dv-geo-out', root) && ($('#dv-geo-out', root).onclick = () => geoTest('out'));
+    $$('#dv-view button', root).forEach(b => b.onclick = () => {
+      S.settings.viewAs = b.dataset.v; persist(); applyTheme(); render(); buzz(10);
+      $$('#dv-view button', root).forEach(x => x.classList.toggle('on', x === b));
+      toast(`מוצג כמו ${b.textContent}`, 'ok');
+    });
     $('#dv-onb', root).onclick = () => { closeSheet(); openOnboarding(); };
     $('#dv-demo', root).onclick = () => {
       const days = 90, out = []; const now = new Date();
