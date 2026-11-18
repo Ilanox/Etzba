@@ -14,6 +14,7 @@ import * as native from './native-bridge.js';
 import { balances, dayValue, sickShares, runStarts, dateKey, havraa } from './leave.js';
 import { drawReport, pagesToPDF } from './report.js';
 import DEV_KEY from './dev-key.js';
+import { setSpeech, startA11y, say, speechLang } from './a11y.js';
 import FEATURES from './features.js';
 
 const VERSION = '1.0.0';
@@ -161,7 +162,9 @@ let view = 'home';
 
 function toast(msg, kind = '', action = null) {
   const t = $('#toast'); t.className = 'toast ' + kind + (action ? ' act' : '');
-  t.innerHTML = (kind === 'ok' ? I.check : kind === 'err' ? I.warn : '') + `<span>${esc(msg)}</span>` + (action ? `<button type="button" class="t-act">${esc(action.label)}</button>` : '');
+  // the screen reader hears it in its own language (English by default): the visible Hebrew is hidden from it
+  const spoken = say(tr(msg)), alt = spoken !== tr(msg);
+  t.innerHTML = (kind === 'ok' ? I.check : kind === 'err' ? I.warn : '') + `<span${alt ? ' aria-hidden="true"' : ''}>${esc(msg)}</span>${alt ? `<span class="sr" lang="en">${esc(spoken)}</span>` : ''}` + (action ? `<button type="button" class="t-act">${esc(action.label)}</button>` : '');
   if (action) {
     $('.t-act', t).onclick = () => { t.classList.remove('on'); clearTimeout(toast.t); action.fn(); };
     // an action message waits while the finger or keyboard focus is on it
@@ -172,7 +175,9 @@ function toast(msg, kind = '', action = null) {
   clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), action ? 8000 : 2400);
 }
 /** Spoken by screen readers (polite), never shown. */
-function announce(msg) { const el = $('#sr'); el.textContent = ''; setTimeout(() => { el.textContent = msg; }, 60); }
+/** A date as the screen reader should say it, in its own language. */
+const spokenDate = d => new Date(d).toLocaleDateString(speechLang() === 'en' ? 'en-GB' : 'he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
+function announce(msg) { const el = $('#sr'); el.textContent = ''; setTimeout(() => { el.textContent = say(tr(msg)); el.lang = /[\u0590-\u05FF]/.test(el.textContent) ? 'he' : 'en'; }, 60); }
 
 /* ================= month math ================= */
 function monthCalc(y, m) {
@@ -791,7 +796,7 @@ function openShiftSheet(sh, mode) {
   d0.setHours(0, 0, 0, 0); d1.setHours(0, 0, 0, 0);   // whole days, also across a clock change
   for (let d = new Date(d0); d <= d1; d.setDate(d.getDate() + 1)) {
     const diff = Math.round((today - d) / 864e5);
-    days += `<button type="button" class="day${d.getDay() === 6 ? ' sat' : ''}" data-d="${+d}"><small>${diff === 0 ? 'היום' : diff === 1 ? 'אתמול' : diff === -1 ? 'מחר' : DAY_SHORT[d.getDay()]}</small><b class="num">${d.getDate()}</b><em class="num">${MONTHS[d.getMonth()].slice(0, 3)}${EN ? '' : '׳'}</em></button>`;
+    days += `<button type="button" class="day${d.getDay() === 6 ? ' sat' : ''}" data-d="${+d}" aria-label="${spokenDate(d)}"><small>${diff === 0 ? 'היום' : diff === 1 ? 'אתמול' : diff === -1 ? 'מחר' : DAY_SHORT[d.getDay()]}</small><b class="num">${d.getDate()}</b><em class="num">${MONTHS[d.getMonth()].slice(0, 3)}${EN ? '' : '׳'}</em></button>`;
   }
   openSheet(`
     <h2 id="f-title">${title}</h2>${sub ? `<p class="shsub">${sub}</p>` : ''}
@@ -1708,6 +1713,11 @@ function renderRights() {
       <div class="rate-grid"><span>שכר מינימום לשעה (מ־1.4.2026)</span><span>₪35.40</span><span>שכר מינימום חודשי</span><span>₪6,443.85</span>
       <span>דמי הבראה ליום (מגזר פרטי)</span><span>₪451.5</span><span>נקודת זיכוי ממס</span><span>₪242</span></div>`)}
     <p class="fine">מידע כללי בלבד, לא ייעוץ משפטי. מבוסס על חוק שעות עבודה ומנוחה וצווי ההרחבה. מקורות: כל זכות, משרד העבודה, ביטוח לאומי.</p>`;
+  if (speechLang() === 'en') {   // the reader speaks English: each question's name comes from the English page
+    const tmp = document.createElement('div'); tmp.innerHTML = rightsEN(y, low, w, qaEN);
+    const en = [...tmp.querySelectorAll('summary')].map(x => x.textContent.trim()), he = $$('summary', el);
+    if (en.length === he.length) he.forEach((x, i) => x.setAttribute('aria-label', en[i]));
+  }
 }
 /* translations: skip-end */
 
@@ -1802,7 +1812,9 @@ function renderSet() {
       ${isOwner() ? `<div class="themes-h dev">${I.gear}מצב מפתח</div><div class="themes" id="s-theme4">${themeBtn(THEME_DEV)}</div>` : ''}
       ${isSup() && native.PLATFORM === 'android' ? `<div class="themes-h">סגנון הווידג׳ט</div><div class="seg" id="s-wstyle">${[['classic', 'רגיל'], ['glass', 'שקוף'], ['bold', 'גדול'], ['accent', 'צבעוני']].map(([k, n]) => `<button data-w="${k}" class="${(st.widgetStyle || 'classic') === k ? 'on' : ''}">${n}</button>`).join('')}</div>` : ''}
       ${isSup() && (native.billing.available() || native.PLATFORM === 'android') ? `<div class="themes-h">אייקון האפליקציה</div><div class="icons" id="s-icon">${ICONS.map(([k, n, f]) => `<button data-ic="${k}" class="${(st.icon || 'default') === k ? 'on' : ''}"><img src="icons/${f}" alt="">${n}</button>`).join('')}</div>` : ''}
-      <div class="field"><span>שפה</span><div class="seg" id="s-lang">${LANGS.map(l => `<button data-l="${l.code}" class="${l.code === LANG ? 'on' : ''}" data-keep>${l.name}</button>`).join('')}</div></div></div>
+      <div class="field"><span>שפה</span><div class="seg" id="s-lang">${LANGS.map(l => `<button data-l="${l.code}" class="${l.code === LANG ? 'on' : ''}" data-keep>${l.name}</button>`).join('')}</div></div>
+      <div class="field"><span>קריאה בקול (TalkBack)</span><div class="seg" id="s-speech"><button data-s="en" class="${speechLang() === 'en' ? 'on' : ''}" data-keep>English</button><button data-s="he" class="${speechLang() === 'he' ? 'on' : ''}" data-keep>עברית</button></div>
+        <p class="hint">השפה שבה קורא המסך מקריא כפתורים והודעות. בסמסונג הקול לרוב לא תומך בעברית, ולכן ברירת המחדל היא אנגלית.</p></div></div>
 
     <div class="sec"><span>${secIc('shabbat', 'gold')}זמני שבת וחג</span></div>
     <div class="card">
@@ -1861,6 +1873,11 @@ function renderSet() {
   $$('#s-icon button', el).forEach(b => b.onclick = async () => {
     try { await native.billing.setIcon(b.dataset.ic); S.settings.icon = b.dataset.ic; persist(); renderSet(); toast('האייקון יתחלף בעוד רגע במסך הבית', 'ok'); }
     catch (e) { report(e); toast('לא הצלחתי להחליף את האייקון', 'err'); }
+  });
+  $$('#s-speech button', el).forEach(b => b.onclick = () => {
+    S.settings.speech = b.dataset.s; persist(); setSpeech(b.dataset.s); buzz(8);
+    $$('#s-speech button', el).forEach(x => x.classList.toggle('on', x === b));
+    announce(b.dataset.s === 'en' ? 'Screen reader: English' : 'קורא המסך: עברית');
   });
   $$('#s-lang button', el).forEach(b => b.onclick = () => {
     if (b.dataset.l === LANG) return;
@@ -2048,7 +2065,7 @@ function openJobSheet(job, isNew) {
     <h2>${isNew ? 'מקום עבודה חדש' : 'הגדרות עבודה'}</h2>
     <p class="shsub">כל מקום עבודה שונה. מדליקים רק את התוספות שבאמת משלמים לך, ומשנים את האחוזים לפי החוזה.</p>
     <label class="field"><span>שם</span><input class="input" type="text" data-k="name" value="${esc(j.name)}"></label>
-    <div class="field"><span>צבע</span><div class="swatches" id="j-col">${COLORS.map(c => `<button type="button" data-c="${c}" style="background:${c}"></button>`).join('')}</div></div>
+    <div class="field"><span>צבע</span><div class="swatches" id="j-col">${COLORS.map((c, i) => `<button type="button" data-c="${c}" style="background:${c}" aria-label="צבע ${i + 1}"></button>`).join('')}</div></div>
     <label class="field"><span class="ih">${secIc('coins', 'green')}שכר לשעה (₪)</span><input class="input num" type="number" step="0.01" inputmode="decimal" data-k="rate" value="${j.rate}"><p class="hint" id="j-minw"></p></label>
 
     <h3 class="ih">${secIc('coffee', 'gray')}הפסקה קבועה</h3>
@@ -2971,6 +2988,7 @@ step('notifications', () => {
     native.openNotificationSettings();
   });
 });
+step('a11y', () => { setSpeech(S.settings.speech || 'en', LANGS.find(l => l.code === 'en')?.pack); startA11y(); });
 step('rules', () => {
   // newer yearly figures from the internet (once a day at most); everything works without them
   const changed = () => { recompute(); render(); toast('עודכנו נתוני השכר והחגים', 'ok'); };

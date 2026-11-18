@@ -40,6 +40,11 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
 ${plugins.map(p => `        registerPlugin(${p}.class);`).join('\n')}
         super.onCreate(savedInstanceState);
+        // follow the phone's font size, up to 130%: past that the layout can't keep numbers and labels on one line
+        try {
+            float fs = getResources().getConfiguration().fontScale;
+            getBridge().getWebView().getSettings().setTextZoom(Math.round(Math.min(Math.max(fs, 0.85f), 1.3f) * 100));
+        } catch (Exception ignored) { }
     }
 }
 `);

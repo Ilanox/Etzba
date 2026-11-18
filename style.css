@@ -1134,3 +1134,9 @@ button.today,button.hero-amt{font:inherit;color:inherit;background:none;border:0
 button.today{width:100%;border-inline-end:1px solid var(--line)}
 button.hero-amt{display:block;width:100%;padding:0}
 #steps,#f-explain{scroll-margin-top:120px}
+
+/* large system fonts: keep the header and labels on one line, let shift rows wrap instead of cutting the date */
+.brand,.brand .devtag,.chip-net small,.chip-net b{white-space:nowrap}
+.tabs button .tl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;padding:0 2px}
+.srow .mid .tline{flex-wrap:wrap;white-space:normal}
+.srow .t1{min-width:0}

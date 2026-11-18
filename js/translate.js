@@ -25,6 +25,32 @@ export function usePack(pack) {
   POLISH = pack.polish || [];
 }
 export const activePack = () => PACK;
+
+/** A separate translator for one pack, independent of the active one (used for the screen reader's language). */
+export function translator(pack) {
+  if (!pack) return s => s;
+  const words = pack.words || {}, phrases = pack.phrases || {}, ex = new Map(), cache = new Map();
+  for (const [he, t] of Object.entries(words)) ex.set(squash(he), t);
+  for (const [he, t] of Object.entries(phrases)) ex.set(squash(he), t);
+  const tpl = (pack.templates || []).map(([he, t]) => [new RegExp('^' + squash(he).split('{}').map(esc).join('(.+?)') + '$'), t]);
+  const rules = Object.entries(words).sort((a, b) => b[0].length - a[0].length)
+    .map(([he, t]) => [new RegExp('(^|[^\\u0590-\\u05FF])' + esc(he) + '(?=[^\\u0590-\\u05FF]|$)', 'g'), t]);
+  const pol = pack.polish || [];
+  const inner = s => {
+    if (!s || !HEB.test(s)) return s;
+    const k = squash(s);
+    if (ex.has(k)) return ex.get(k);
+    for (const [re, t] of tpl) { const m = re.exec(k); if (m) return t.replace(/\{(\d)\}/g, (_, i) => inner(m[+i])); }
+    let out = k; for (const [re, t] of rules) { out = out.replace(re, (_, pre) => pre + t); if (!HEB.test(out)) break; }
+    return out;
+  };
+  return s => {
+    if (!s || !HEB.test(s)) return s;
+    let v = cache.get(s);
+    if (v === undefined) { try { v = inner(s); for (const [re, to] of pol) v = v.replace(re, to); } catch { v = s; } if (cache.size > 3000) cache.clear(); cache.set(s, v); }
+    return v;
+  };
+}
 const fill = (t, m) => t.replace(/\{(\d)\}/g, (_, k) => trInner(m[+k]));
 function polish(t) { for (const [re, to] of POLISH) t = t.replace(re, to); return t; }
 
