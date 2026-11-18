@@ -32,9 +32,9 @@
             <LinearLayout android:id="@+id/w_idle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
                 android:layout_marginStart="18dp" android:orientation="vertical" android:visibility="gone">
                 <TextView android:id="@+id/w_title" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:maxLines="1" android:textColor="#FFF2EDE4" android:textSize="24sp" android:textStyle="bold" />
+                    android:maxLines="1" android:ellipsize="end" android:textColor="#FFF2EDE4" android:textSize="24sp" android:textStyle="bold" />
                 <TextView android:id="@+id/w_sub" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp" android:maxLines="1" android:textColor="#FF9C978E" android:textSize="14sp" />
+                    android:layout_marginTop="2dp" android:maxLines="2" android:ellipsize="end" android:textColor="#FF9C978E" android:textSize="14sp" />
             </LinearLayout>
         </LinearLayout>
 
