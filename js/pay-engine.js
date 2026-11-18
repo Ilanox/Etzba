@@ -45,9 +45,9 @@ export function normalizeJob(j) {
   return { ...d, ...j, r: { ...d.r, ...(j.r || {}) }, fixedStart: { ...d.fixedStart, ...(j.fixedStart || {}) }, fixedEnd: { ...d.fixedEnd, ...(j.fixedEnd || {}) } };
 }
 
-export const TIERS = ['reg', 'ot1', 'ot2', 'rest', 'restOt1', 'restOt2', 'chag', 'chagOt1', 'chagOt2', 'elect', 'electOt1', 'electOt2'];
+export const TIERS = ['reg', 'ot1', 'ot2', 'rest', 'restOt1', 'restOt2', 'chag', 'chagOt1', 'chagOt2', 'elect', 'electOt1', 'electOt2', 'special'];
 export const TIER_NAME = {
-  reg: 'שעות רגילות', ot1: 'שעות נוספות', ot2: 'שעות נוספות', rest: 'שבת', restOt1: 'נוספות בשבת', restOt2: 'נוספות בשבת', chag: 'חג', chagOt1: 'נוספות בחג', chagOt2: 'נוספות בחג', elect: 'יום בחירות', electOt1: 'נוספות ביום בחירות', electOt2: 'נוספות ביום בחירות',
+  reg: 'שעות רגילות', ot1: 'שעות נוספות', ot2: 'שעות נוספות', rest: 'שבת', restOt1: 'נוספות בשבת', restOt2: 'נוספות בשבת', chag: 'חג', chagOt1: 'נוספות בחג', chagOt2: 'נוספות בחג', elect: 'יום בחירות', electOt1: 'נוספות ביום בחירות', electOt2: 'נוספות ביום בחירות', special: 'תעריף מיוחד',
 };
 
 /* Knesset election days are a paid day off (שבתון). Working one is paid 200% by accepted practice
@@ -101,11 +101,14 @@ export function shiftPay(sh, job, place, weekRegBefore = 0) {
   const regMin = threshold * 60, ot1Min = regMin + job.ot1Hours * 60;
   const weekCap = otOn && job.weeklyRule ? job.weeklyLimit * 60 : Infinity;
 
-  const b = { reg: 0, ot1: 0, ot2: 0, rest: 0, restOt1: 0, restOt2: 0, chag: 0, chagOt1: 0, chagOt2: 0, elect: 0, electOt1: 0, electOt2: 0 };
+  const b = { reg: 0, ot1: 0, ot2: 0, rest: 0, restOt1: 0, restOt2: 0, chag: 0, chagOt1: 0, chagOt2: 0, elect: 0, electOt1: 0, electOt2: 0, special: 0 };
+  // a special shift: every paid hour at one agreed rate (say 3 hours, all at 200%), outside the usual rules
+  const specialPct = Math.max(0, +sh.specialPct || 0);
   const forced = sh.forceRest === true, chagFirst = job.r.chag >= job.r.rest, s0 = +start;
   let ei = 0, si = 0, ci = 0, cum = 0, wk = weekRegBefore * 60, weeklyOT = 0, restStart = null, lastKey = null, lastSw = null, lastCw = null;
   for (let i = 0; i < total; i++) {
     if (i >= bs && i < be) continue;   // the break
+    if (specialPct) { b.special += f / 60; lastKey = 'special'; cum += f; continue; }
     const t = s0 + i * 6e4 + 3e4;
     while (si < shabWins.length && shabWins[si].end <= t) si++;
     while (ci < chagWins.length && chagWins[ci].end <= t) ci++;
@@ -130,10 +133,10 @@ export function shiftPay(sh, job, place, weekRegBefore = 0) {
     b[key] += f / 60; lastKey = key;
     cum += f;
   }
-  if (sh.forceRest === true && !names.size) names.add('סומן ידנית');
+  if (sh.forceRest === true && !names.size && !specialPct) names.add('סומן ידנית');
   const rate = +(sh.rate ?? job.rate);
   const money = {}; let base = 0;
-  for (const k of TIERS) { money[k] = b[k] * rate * job.r[k] / 100; base += money[k]; }
+  for (const k of TIERS) { money[k] = b[k] * rate * (k === 'special' ? specialPct : job.r[k]) / 100; base += money[k]; }
   const travel = +(sh.travel ?? job.travel) || 0, bonus = +sh.bonus || 0, tips = Math.max(0, +sh.tips || 0);
   // tips through the employer count towards the hourly pay, which tops them up when they fall short;
   // tips of your own come on top and aren't part of the pay
@@ -142,7 +145,7 @@ export function shiftPay(sh, job, place, weekRegBefore = 0) {
   const wage = tipsInPay ? Math.max(base, tips) : base;
   const sum = ks => ks.reduce((a, k) => a + b[k], 0);
   return {
-    hours: paid / 60, total: total / 60, b, money, base, travel, bonus, tips, tipsInPay, topUp, pay: wage + travel + bonus, rate,
+    hours: paid / 60, total: total / 60, b, money, base, travel, bonus, tips, specialPct, tipsInPay, topUp, pay: wage + travel + bonus, rate,
     isNight, isShort, threshold, weeklyOT, regUsed: wk / 60 - weekRegBefore, lastKey, otOn,
     names: [...names], restStart,
     otHours: sum(['ot1', 'ot2', 'restOt1', 'restOt2', 'chagOt1', 'chagOt2', 'electOt1', 'electOt2']),
@@ -216,7 +219,7 @@ export function computeAll(shifts, jobById, place) {
         if (travelDays.has(dk)) s = { ...s, travel: 0 }; else travelDays.add(dk);
       }
       const before = reg.get(job.id) || 0;
-      const ck = s.start + '|' + s.end + '|' + s.breakMin + '|' + s.bonus + '|' + s.tips + '|' + s.rate + '|' + s.travel + '|' + s.forceRest + '|' + before + '|' + pk + '|' + jobKey(job);
+      const ck = s.start + '|' + s.end + '|' + s.breakMin + '|' + s.bonus + '|' + s.tips + '|' + s.specialPct + '|' + s.rate + '|' + s.travel + '|' + s.forceRest + '|' + before + '|' + pk + '|' + jobKey(job);
       let p = PAY_CACHE.get(ck);
       if (!p) { p = shiftPay(s, job, place, before); if (PAY_CACHE.size > 50000) PAY_CACHE.clear(); PAY_CACHE.set(ck, p); }
       reg.set(job.id, before + p.regUsed);

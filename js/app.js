@@ -141,7 +141,8 @@ const jobById = id => S.jobs.find(j => j.id === id) || S.jobs[0];
 const buzz = ms => { if (native.haptic(+ms >= 30 || Array.isArray(ms) ? 'medium' : 'light')) return; try { navigator.vibrate?.(ms); } catch {} };
 /** A name the person typed (job, note), kept apart from the text around it so mixed Hebrew/English reads in order. */
 const nm = t => `<bdi>${esc(t)}</bdi>`;
-const tierLabel = (k, job) => `${TIER_NAME[k]} ${job.r[k]}%`;
+// a special shift's rate is its own; in month totals several special rates add up under one line
+const tierLabel = (k, job, pct) => k === 'special' ? (pct ? `${TIER_NAME[k]} ${pct}%` : TIER_NAME[k]) : `${TIER_NAME[k]} ${job.r[k]}%`;
 
 let viewY = new Date().getFullYear(), viewM = new Date().getMonth();
 let view = 'home';
@@ -203,20 +204,21 @@ function monthCalcRaw(y, m) {
     if (cap > 0 && J.travel > cap) { gross -= J.travel - cap; J.travelFull = J.travel; J.travel = cap; }
   }
   // sick and vacation days: paid from an ordinary day's pay
-  const mk = `${y}-${pad(m + 1)}`, absent = S.absences.filter(a => a.date.startsWith(mk));
+  const mk = `${y}-${pad(m + 1)}`, absent = S.absences.filter(a => a.date.startsWith(mk)), absPay = new Map();
   for (const a of absent) {
     const job0 = S.jobs.find(j => j.id === a.jobId); if (!job0) continue;
     const job = jobAt(job0, a.date), J = per.get(job0.id) || J0(jobAt(job0, monthEnd));
     const share = a.kind === 'sick' ? sickShares(S.absences.filter(x => x.jobId === a.jobId))[a.id] ?? 0 : 1;
     const v = dayValue(job, workedFor(a.jobId, a.date), a.date) * share;
     if (a.kind === 'sick') { J.sick += v; J.sickDays++; } else { J.vac += v; J.vacDays++; }
+    absPay.set(a.id, { pay: v, share });
     per.set(job0.id, J); gross += v;
   }
   let tipsOwn = 0;
   for (const J of per.values()) { J.total = Object.values(J.money).reduce((a, b) => a + b, 0) + J.travel + J.bonus + J.holiday + J.tipsOver + J.sick + J.vac; tipsOwn += J.tipsOwn; }
   const st = S.settings;
   const net = grossToNet(gross, { points: +st.sex + +st.extraPts, pension: st.pension, pEmp: +st.pEmp, pEr: +st.pEr, sev: +st.sev, hish: st.hish }, taxFor(y));
-  return { y, m, shifts, absent, perJob: [...per.values()], gross, hours, net, tipsOwn };
+  return { y, m, shifts, absent, absPay, perJob: [...per.values()], gross, hours, net, tipsOwn };
 }
 /** A job's shifts in the 90 days before a date, with what the hours paid (for an ordinary day's pay). */
 function workedFor(jobId, date) {
@@ -285,6 +287,7 @@ function shiftRow(s) {
   const pills = [
     p.restHours > 0.01 ? `<span class="pill rest">${esc(p.names[0])}</span>` : '',
     p.otHours > 0.01 ? `<span class="pill ot">+${hm(p.otHours)} נוספות</span>` : '',
+    p.specialPct ? `<span class="pill ot">${p.specialPct}%</span>` : '',
   ].join('');
   const second = [S.jobs.length > 1 ? `<span class="jobp"><i style="background:${job.color}"></i>${nm(job.name)}</span>` : esc(KIND_NAME[k]), s.note ? nm(s.note) : ''].filter(Boolean);
   return `<button class="srow" data-id="${s.id}">
@@ -297,7 +300,7 @@ function bindRows(root) { $$('.srow', root).forEach(r => r.onclick = () => openS
 
 /** Plain-language explanation of a shift's pay. */
 function explain(sh, job, p) {
-  const lines = TIERS.filter(k => p.b[k] > 0.004).map(k => `<div class="ln"><span class="l">${tierLabel(k, job)}<small class="num">${hm(p.b[k])} ש׳ × ${money2(p.rate * job.r[k] / 100)}</small></span><span class="v num">${money2(p.money[k])}</span></div>`);
+  const lines = TIERS.filter(k => p.b[k] > 0.004).map(k => `<div class="ln"><span class="l">${tierLabel(k, job, p.specialPct)}<small class="num">${hm(p.b[k])} ש׳ × ${money2(p.rate * (k === 'special' ? p.specialPct : job.r[k]) / 100)}</small></span><span class="v num">${money2(p.money[k])}</span></div>`);
   if (p.travel) lines.push(`<div class="ln"><span class="l">נסיעות</span><span class="v num">${money2(p.travel)}</span></div>`);
   if (p.bonus) lines.push(`<div class="ln"><span class="l">בונוס</span><span class="v num">${money2(p.bonus)}</span></div>`);
   if (p.tipsInPay) lines.push(`<div class="ln"><span class="l">טיפים דרך המעסיק<small class="num">${p.topUp > 0 ? `המעסיק משלים ${money2(p.topUp)}` : `${money2(p.tips - p.base)} מעל השכר לשעות`}</small></span><span class="v num">${money2(p.tips)}</span></div>`);
@@ -306,10 +309,11 @@ function explain(sh, job, p) {
   const w = (ic, txt, bad) => why.push(`<div class="why${bad ? ' bad' : ''}">${I[ic]}<span>${txt}</span></div>`);
   const kind = p.isNight ? ' (משמרת לילה)' : p.isShort ? ` (יום ${DAYS[job.shortDay]} הוא היום המקוצר)` : '';
   if (p.restHours > 0.01) w(p.b.chag + p.b.chagOt1 + p.b.chagOt2 + p.b.elect + p.b.electOt1 + p.b.electOt2 > 0 ? 'chag' : 'shabbat', `${hm(p.restHours)} ש׳ בתוך ${esc(p.names.join(EN ? ' and ' : ' ו'))}${p.restStart ? ` (נכנס ב־${tm(p.restStart)})` : ''}, ולכן בתוספת.`);
-  if (!p.otOn) w('info', 'שעות נוספות כבויות בהגדרות של העבודה הזו, אז כל השעות בתעריף הרגיל.');
+  if (p.specialPct) w('info', `משמרת מיוחדת: כל השעות ב־${p.specialPct}%, בלי חישוב של שעות נוספות, שבת או חג.`);
+  else if (!p.otOn) w('info', 'שעות נוספות כבויות בהגדרות של העבודה הזו, אז כל השעות בתעריף הרגיל.');
   else if (p.otHours - p.weeklyOT > 0.01) w('ot', `מעבר ל־${hm(p.threshold)} ש׳ ביום${kind} משלמים שעות נוספות.`);
   else if (p.hours > 0 && p.otHours < 0.01) w('info', `שעות נוספות מתחילות רק אחרי ${hm(p.threshold)} ש׳ ביום${kind}, גם אם עבדת יותר ממה שתוכנן לך.`);
-  if (p.weeklyOT > 0.01) w('ot', `עברת ${job.weeklyLimit} שעות רגילות השבוע, אז ${hm(p.weeklyOT)} ש׳ מהמשמרת נספרו כשעות נוספות.`);
+  if (p.weeklyOT > 0.01 && !p.specialPct) w('ot', `עברת ${job.weeklyLimit} שעות רגילות השבוע, אז ${hm(p.weeklyOT)} ש׳ מהמשמרת נספרו כשעות נוספות.`);
   if (+sh.breakMin > 0) w('coffee', `הפסקה של ${sh.breakMin} דק׳ לא נספרת בשעות.`);
   else if (p.hours >= 6) w('coffee', 'במשמרת ארוכה מגיעה הפסקה. הפסקה שבה מותר לצאת לא בתשלום, אז אם לקחת אחת כדאי לרשום אותה.');
   if (p.rate < MIN_WAGE_HOURLY) w('warn', `התעריף נמוך משכר המינימום (₪${MIN_WAGE_HOURLY} לשעה).`, true);
@@ -671,6 +675,13 @@ function openShiftSheet(sh, mode) {
   }
   openSheet(`
     <h2>${title}</h2>${sub ? `<p class="shsub">${sub}</p>` : ''}
+    ${mode !== 'end' ? `<div class="seg kinds" id="f-kind">${[['shift', 'משמרת'], ['special', 'מיוחדת'], ...(mode === 'new' ? [['vac', 'חופשה'], ['sick', 'מחלה']] : [])].map(([k, l]) => `<button type="button" data-k="${k}">${l}</button>`).join('')}</div>` : ''}
+    <div id="f-special" class="hidden">
+      <h3>תעריף לכל השעות</h3>
+      <div class="qchips" id="f-pq">${[125, 150, 175, 200, 250].map(v => `<button type="button" class="num" data-p="${v}">${v}%</button>`).join('')}
+        <input class="input num mini" type="number" inputmode="numeric" id="f-pct" value="${+sh.specialPct || 200}" aria-label="אחוז"></div>
+      <p class="hint">כל שעה במשמרת הזו משולמת באחוז הזה מהתעריף, בלי שעות נוספות ובלי תוספת שבת. למשל משמרת של 3 שעות שכולה ב־200%.</p>
+    </div>
     ${S.jobs.length > 1 ? `<div class="chips" id="f-jobs">${S.jobs.map(j => `<button type="button" class="chip" data-j="${j.id}"><span class="dot" style="background:${j.color}"></span>${nm(j.name)}</button>`).join('')}</div>` : ''}
     <h3>יום</h3>
     <div class="daystrip" id="f-days">${days}</div>
@@ -702,7 +713,7 @@ function openShiftSheet(sh, mode) {
       ${mode === 'end' ? `<button class="btn soft" id="f-cont">חזרה, המשמרת ממשיכה</button><button class="btn danger" id="f-discard">${I.trash}מחיקת המשמרת</button><p class="hint" style="text-align:center">מחיקה: המשמרת לא נשמרת, כאילו לא נכנסת. אפשר לבטל מיד אחרי.</p>` : ''}
       ${mode === 'edit' ? `<button class="btn danger" id="f-del">${I.trash}מחיקה</button>` : ''}
     </div>`, root => {
-    let rest = sh.rest || 'auto', jobId = sh.jobId;
+    let rest = sh.rest || 'auto', jobId = sh.jobId, kind = +sh.specialPct > 0 ? 'special' : 'shift';
     const IH = 44, W = { sh: [T.s, 0], sm: [T.s, 1], eh: [T.e, 0], em: [T.e, 1] };
     const setWheel = (id, smooth) => { const w = $('#w-' + id, root), [arr, i] = W[id]; w.scrollTo({ top: Math.round(arr[i] / +w.dataset.step) * IH, behavior: smooth ? 'smooth' : 'auto' }); };
     const read = () => {
@@ -713,7 +724,8 @@ function openShiftSheet(sh, mode) {
         breakMin: Math.max(0, +$('#f-break', root).value || 0), bonus: +$('#f-bonus', root).value || 0,
         tips: jobById(jobId).tipsOn || +$('#f-tips', root).value ? Math.max(0, +$('#f-tips', root).value || 0) || undefined : undefined, note: $('#f-note', root).value.trim(), rest,
         travel: $('#f-travel', root).value === '' ? undefined : Math.max(0, +$('#f-travel', root).value || 0),
-        forceRest: rest === 'yes' ? true : rest === 'no' ? false : undefined };
+        forceRest: kind === 'special' ? undefined : rest === 'yes' ? true : rest === 'no' ? false : undefined,
+        specialPct: kind === 'special' ? Math.max(1, Math.min(1000, +$('#f-pct', root).value || 200)) : undefined };
     };
     const upd = () => {
       const s = read();
@@ -726,6 +738,10 @@ function openShiftSheet(sh, mode) {
       $$('#f-jobs .chip', root).forEach(b => b.classList.toggle('on', b.dataset.j === jobId));
       $('#f-tips-w', root).classList.toggle('hidden', !jobById(jobId).tipsOn && !+$('#f-tips', root).value);
       $$('#f-bq button', root).forEach(b => b.classList.toggle('on', +b.dataset.b === s.breakMin));
+      $$('#f-kind button', root).forEach(b => b.classList.toggle('on', b.dataset.k === kind));
+      $('#f-special', root).classList.toggle('hidden', kind !== 'special');
+      $$('#f-pq button', root).forEach(b => b.classList.toggle('on', +b.dataset.p === s.specialPct));
+      $('details.adv', root)?.classList.toggle('hidden', kind === 'special');
       const pre = `${pad(T.s[0])}:${pad(T.s[1])}–${pad(T.e[0])}:${pad(T.e[1])}`;
       $$('#f-pre button', root).forEach(b => b.classList.toggle('on', b.dataset.p === pre));
       const j = jobAt(jobById(jobId), s.start), p = shiftPay(s, j, place(), weekRegBefore(j, s.start));
@@ -746,6 +762,13 @@ function openShiftSheet(sh, mode) {
     $$('#f-jobs .chip', root).forEach(b => b.onclick = () => { jobId = b.dataset.j; upd(); });
     $$('#f-rest button', root).forEach(b => b.onclick = () => { rest = b.dataset.r; upd(); });
     $$('#f-bq button', root).forEach(b => b.onclick = () => { $('#f-break', root).value = b.dataset.b; upd(); });
+    $$('#f-pq button', root).forEach(b => b.onclick = () => { $('#f-pct', root).value = b.dataset.p; upd(); });
+    $$('#f-kind button', root).forEach(b => b.onclick = () => {
+      const k = b.dataset.k;
+      // a vacation or sick day isn't a shift: it opens its own short form, on the day chosen here
+      if (k === 'vac' || k === 'sick') { const dk = dateKey(T.date); closeSheet(); setTimeout(() => openLeaveSheet({ kind: k, date: dk, jobId }), 260); return; }
+      kind = k; upd();
+    });
     $$('input', root).forEach(i => i.addEventListener('input', upd));
     upd();
     for (const id in W) setWheel(id, false);
@@ -851,16 +874,22 @@ function renderShifts() {
   list.sort(by[so]);
   const tot = list.reduce((a, s) => (a.h += PAY.get(s.id).hours, a.p += PAY.get(s.id).pay, a), { h: 0, p: 0 });
   let body = '';
-  if (!list.length) body = `<div class="card"><div class="empty"><div class="eic">${I.list}</div>${M.shifts.length ? 'אין משמרות שמתאימות לסינון' : 'אין משמרות בחודש הזה'}</div></div>`;
+  const abs = f === 'all' && (so === 'new' || so === 'old') ? M.absent : [];
+  const absRow = a => { const d = new Date(a.date + 'T12:00:00'), P = M.absPay.get(a.id), j = jobById(a.jobId);
+    return `<button class="srow" data-abs="${a.id}"><span class="kic k-${a.kind === 'sick' ? 'night' : 'morning'}">${a.kind === 'sick' ? I.info : I.coffee}</span>
+      <span class="mid"><span class="t1">${DAYS[d.getDay()]} ${dShort(d)}</span><span class="t2">${a.kind === 'sick' ? 'יום מחלה' : 'יום חופשה'}${a.kind === 'sick' && P ? ` · ${Math.round(P.share * 100)}%` : ''}${S.jobs.length > 1 ? ` · ${nm(j.name)}` : ''}</span></span>
+      <span class="end"><span class="amt num">${money(P?.pay || 0)}</span></span></button>`; };
+  if (!list.length && !abs.length) body = `<div class="card"><div class="empty"><div class="eic">${I.list}</div>${M.shifts.length ? 'אין משמרות שמתאימות לסינון' : 'אין משמרות בחודש הזה'}</div></div>`;
   else if (so === 'new' || so === 'old') {
-    const groups = new Map();
-    for (const s of list) { const k = +weekStart(s.start); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(s); }
+    const groups = new Map(), items = [...list.map(s => ({ t: +new Date(s.start), s })), ...abs.map(a => ({ t: +new Date(a.date + 'T12:00:00'), a }))];
+    items.sort((x, y) => so === 'new' ? y.t - x.t : x.t - y.t);
+    for (const it of items) { const k = +weekStart(it.t); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(it); }
     for (const [k, arr] of groups) {
       const ws = new Date(k), we = new Date(k + 6 * 864e5);
       let wh = 0; for (const s of inWeek(k)) wh += PAY.get(s.id).hours;
-      const lim = jobById(arr[0].jobId).weeklyLimit;
+      const lim = jobById((arr[0].s || arr[0].a).jobId).weeklyLimit;
       body += `<div class="week-h"><span>שבוע ${dShort(ws)}–${dShort(we)}</span><span class="wk num${wh > lim ? ' over' : ''}">${hm(wh)} ש׳ מתוך ${lim}</span></div>
-        <div class="card">${arr.map(shiftRow).join('')}</div>`;
+        <div class="card">${arr.map(it => it.s ? shiftRow(it.s) : absRow(it.a)).join('')}</div>`;
     }
   } else body = `<div class="card" style="margin-top:12px">${list.map(shiftRow).join('')}</div>`;
   el.innerHTML = `<h1 class="title">משמרות</h1>${monthBar()}
@@ -869,6 +898,14 @@ function renderShifts() {
       <button class="sortbtn" id="sortBtn">${I.sort}${SORTS.find(x => x[0] === so)[1]}</button></div>
     ${body}`;
   bindMonthBar(el); bindRows(el);
+  $$('[data-abs]', el).forEach(b => b.onclick = () => {
+    const a = S.absences.find(x => x.id === b.dataset.abs); if (!a) return;
+    openSheet(`<h2>${a.kind === 'sick' ? 'יום מחלה' : 'יום חופשה'}</h2><p class="shsub">${DAYS[new Date(a.date + 'T12:00:00').getDay()]} ${dFull(a.date + 'T12:00:00')}</p>
+      <div class="btnrow"><button class="btn danger" id="ab-del">${I.trash}מחיקה</button><button class="btn soft" id="ab-no">סגירה</button></div>`, root => {
+      $('#ab-no', root).onclick = closeSheet;
+      $('#ab-del', root).onclick = () => { const was = a; S.absences = S.absences.filter(x => x.id !== a.id); closeSheet(); commit(); toast('נמחק', '', { label: 'ביטול', fn: () => { S.absences.push(was); commit(); } }); };
+    });
+  });
   $$('#fchips .chip', el).forEach(c => c.onclick = () => { S.ui.filter = c.dataset.f; persist(); renderShifts(); });
   $('#sortBtn', el).onclick = () => openSheet(`<h2>מיון</h2><div class="card" style="margin-top:12px">${SORTS.map(([k, n]) =>
     `<button class="cell" data-s="${k}"><span class="grow">${n}</span>${so === k ? `<span style="width:20px;color:var(--accent)">${I.check}</span>` : ''}</button>`).join('')}</div>`, root =>
@@ -967,10 +1004,10 @@ function bindLeave(root) {
     toast('נמחק', '', { label: 'ביטול', fn: () => { S.absences.push(was); commit(); } });
   });
 }
-function openLeaveSheet() {
-  let kind = 'sick', jobId = S.settings.lastJob && S.jobs.some(j => j.id === S.settings.lastJob) ? S.settings.lastJob : S.jobs[0].id;
+function openLeaveSheet(pre = {}) {
+  let kind = pre.kind || 'sick', jobId = pre.jobId || (S.settings.lastJob && S.jobs.some(j => j.id === S.settings.lastJob) ? S.settings.lastJob : S.jobs[0].id);
   const today = new Date(), inView = viewY === today.getFullYear() && viewM === today.getMonth();
-  const d0 = dateKey(inView ? today : new Date(viewY, viewM, 1));
+  const d0 = pre.date || dateKey(inView ? today : new Date(viewY, viewM, 1));
   openSheet(`<h2>יום מחלה או חופשה</h2><p class="shsub">ימים שלא עבדת ושמשלמים עליהם. התשלום לפי שכר יום עבודה רגיל שלך בשלושת החודשים שלפני.</p>
     ${S.jobs.length > 1 ? `<div class="chips" id="lv-jobs" style="margin-top:14px">${S.jobs.map(j => `<button type="button" class="chip" data-j="${j.id}"><span class="dot" style="background:${j.color}"></span>${nm(j.name)}</button>`).join('')}</div>` : ''}
     <div class="seg" id="lv-kind" style="margin-top:14px"><button type="button" data-k="sick">מחלה</button><button type="button" data-k="vac">חופשה</button></div>
@@ -1096,7 +1133,7 @@ function agg(list) {
   const A = { h: [0, 0, 0], m: [0, 0, 0], hours: 0, gross: 0, count: 0 };
   for (const s of list) {
     const p = PAY.get(s.id); if (!p) continue;
-    for (const k of TIERS) { const g = /^(rest|chag|elect)/.test(k) ? 2 : /^ot/.test(k) ? 1 : 0; A.h[g] += p.b[k]; A.m[g] += p.money[k]; }
+    for (const k of TIERS) { const g = /^(rest|chag|elect)/.test(k) ? 2 : /^ot|special/.test(k) ? 1 : 0; A.h[g] += p.b[k]; A.m[g] += p.money[k]; }
     A.m[0] += p.travel + p.bonus; A.hours += p.hours; A.gross += p.pay; A.count++;
   }
   return A;
@@ -1652,7 +1689,7 @@ function toCSV(rows) {
 }
 const n2 = x => (Math.round(x * 100) / 100).toFixed(2);
 /* translations: skip-start (CSV file contents are Hebrew by design) */
-const CSV_TIER = { reg: 'שעות רגילות', ot1: 'שעות נוספות א׳', ot2: 'שעות נוספות ב׳', rest: 'שעות שבת', restOt1: 'שבת נוספות א׳', restOt2: 'שבת נוספות ב׳', chag: 'שעות חג', chagOt1: 'חג נוספות א׳', chagOt2: 'חג נוספות ב׳' , elect: 'שעות יום בחירות', electOt1: 'יום בחירות נוספות א׳', electOt2: 'יום בחירות נוספות ב׳' };
+const CSV_TIER = { reg: 'שעות רגילות', ot1: 'שעות נוספות א׳', ot2: 'שעות נוספות ב׳', rest: 'שעות שבת', restOt1: 'שבת נוספות א׳', restOt2: 'שבת נוספות ב׳', chag: 'שעות חג', chagOt1: 'חג נוספות א׳', chagOt2: 'חג נוספות ב׳' , elect: 'שעות יום בחירות', electOt1: 'יום בחירות נוספות א׳', electOt2: 'יום בחירות נוספות ב׳', special: 'שעות בתעריף מיוחד' };
 function shiftsCSV(list) {
   const head = ['תאריך', 'יום', 'מקום עבודה', 'סוג משמרת', 'כניסה', 'יציאה', 'תאריך יציאה', 'הפסקה (דקות)', 'שעות לתשלום',
     ...TIERS.map(k => CSV_TIER[k]), 'מתוכן נוספות שבועיות', 'שבת/חג (שם)', 'תעריף לשעה', 'שכר על שעות', 'נסיעות', 'בונוס', 'טיפים', 'סה״כ ברוטו', 'הערה'];

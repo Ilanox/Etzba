@@ -308,6 +308,14 @@ export default {
     'אחת מהן בשבת או חג': 'One of them on Shabbat or a holiday',
     'רק בתוספת': 'all with the premium',
     'לא נשארו שבתות או חגים החודש.': 'No Shabbat or holidays left this month.',
+    'תעריף לכל השעות': 'Rate for every hour',
+    'אחוז': 'Percent',
+    'כל שעה במשמרת הזו משולמת באחוז הזה מהתעריף, בלי שעות נוספות ובלי תוספת שבת. למשל משמרת של 3 שעות שכולה ב־200%.': 'Every hour of this shift is paid at this percent of the rate, with no overtime or Shabbat premium. For example a 3-hour shift all at 200%.',
+    'סגירה': 'Close',
+    'תעריף מיוחד': 'Special rate',
+    'מיוחדת': 'Special',
+    'משמרת': 'Shift',
+    'שעות בתעריף מיוחד': 'Special-rate hours',
   },
   templates: [
     ['· ₪{} לשעה', '· ₪{1} an hour'],
@@ -439,6 +447,9 @@ export default {
   ['משמרת שבת או חג שלך שווה בערך {}.', 'A Shabbat or holiday shift of yours pays about {1}.'],
   ['כדי להגיע ליעד: כ־{} ליום עד סוף החודש.', 'To reach the goal: about {1} a day until the end of the month.'],
   ['שבת {}', 'Shabbat {1}'],
+  ['משמרת מיוחדת: כל השעות ב־{}%, בלי חישוב של שעות נוספות, שבת או חג.', 'Special shift: every hour at {1}%, with no overtime, Shabbat or holiday rules.'],
+  ['תעריף מיוחד {}%', 'Special rate {1}%'],
+  ['{} · {}%', '{1} · {2}%'],
 ],
 
   words: {

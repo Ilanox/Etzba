@@ -67,3 +67,10 @@ test('used days come off the balance', () => {
   assert.equal(b.vac.used, 1); assert.equal(b.sick.used, 1);
   near(b.vac.left, b.vac.accrued - 1, 'vacation left');
 });
+
+test('a special shift: every hour at its own rate, no overtime or Shabbat', () => {
+  const p = shiftPay(at('2026-11-21T09:00:00+02:00', 3, { specialPct: 200 }), job(), place);   // Saturday
+  near(p.b.special, 3, 'special hours'); near(p.pay, 3 * 40 * 2, 'pay'); near(p.restHours, 0, 'no Shabbat');
+  const q = shiftPay(at('2026-11-17T08:00:00+02:00', 12, { specialPct: 150 }), job(), place);
+  near(q.otHours, 0, 'no overtime'); near(q.pay, 12 * 40 * 1.5, 'long special shift');
+});

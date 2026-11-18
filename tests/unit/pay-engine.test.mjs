@@ -79,7 +79,7 @@ test('rate changes timeline: Friday 09:00 reaches Shabbat, then Shabbat overtime
 });
 
 const sumB = p => Object.values(p.b).reduce((a, x) => a + x, 0);
-const expectMoney = (p, job) => Object.entries(p.b).reduce((a, [k, h]) => a + h * job.rate * job.r[k] / 100, 0);
+const expectMoney = (p, job) => Object.entries(p.b).reduce((a, [k, h]) => a + h * job.rate * (k === 'special' ? p.specialPct : job.r[k]) / 100, 0);
 
 test('a break is not work time: overtime starts after 8.6 worked hours', () => {
   const p = shiftPay({ ...at('2026-11-17T08:00:00+02:00', 9.5), breakMin: 30 }, job(), place);

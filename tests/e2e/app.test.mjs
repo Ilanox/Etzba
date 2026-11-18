@@ -302,3 +302,19 @@ test('a goal for the month: progress bar and shifts still needed, not counting S
   assert.match(await page.locator('#sheet').innerText(), /רק משמרות רגילות/, 'the plan in the goal sheet');
   assert.deepEqual(errors, []); await ctx.close();
 });
+
+test('adding by hand: a special shift at 200%, and a vacation day from the same form', async () => {
+  const { page, ctx, errors, state } = await open();
+  await page.click('[data-v=shifts]'); await wait(page);
+  await page.click('#fab'); await wait(page, 500);
+  await page.click('#f-kind [data-k=special]'); await page.click('#f-pq [data-p="200"]'); await page.click('#f-save'); await wait(page, 500);
+  let st = await state();
+  assert.equal(st.shifts.length, 1); assert.equal(st.shifts[0].specialPct, 200);
+  await page.click('#fab'); await wait(page, 500);
+  await page.click('#f-kind [data-k=vac]'); await wait(page, 600);
+  assert.ok(await page.locator('#lv-save').isVisible(), 'vacation form');
+  await page.click('#lv-save'); await wait(page, 500);
+  st = await state();
+  assert.equal(st.absences.length, 1); assert.equal(st.absences[0].kind, 'vac');
+  assert.deepEqual(errors, []); await ctx.close();
+});
