@@ -137,7 +137,7 @@ An Edvin Studios Project
 
 **Permissions you may be asked about:**
 - Notifications: shift notifications, can be turned off in Settings
-- Exact alarms (SCHEDULE_EXACT_ALARM): optional, so overtime and Shabbat notifications arrive to the minute; the app works without it. No declaration form is needed for this one (only USE_EXACT_ALARM needs one)
+- No exact-alarm permission: notifications use normal scheduling and arrive on time or within a minute or two.
 - No location (arrival detection is switched off in `features.json`)
 
 **Financial features declaration:** "My app doesn't provide any financial features" (it's a calculator: no payments, loans or accounts).

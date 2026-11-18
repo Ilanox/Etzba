@@ -378,6 +378,7 @@ export default {
     'מצב מפתח פעיל: הכול פתוח': 'Developer mode on: everything unlocked',
     'מפתח': 'Developer',
     'כל האפשרויות פתוחות במכשיר הזה': 'Everything is unlocked on this device',
+    'מאושרות. מגיעות גם כשהאפליקציה סגורה, לפעמים באיחור של דקה או שתיים.': 'Allowed. They arrive even when the app is closed, sometimes a minute or two late.',
   },
   templates: [
     ['· ₪{} לשעה', '· ₪{1} an hour'],

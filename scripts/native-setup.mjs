@@ -52,8 +52,11 @@ ${plugins.map(p => `        registerPlugin(${p}.class);`).join('\n')}
     if (!on && has) x = x.replace(new RegExp(`\\s*<uses-permission android:name="android.permission.${p}"\\s*/>`), '');
   };
   setPerm('POST_NOTIFICATIONS', true);
-  // exact notification times when the person allows it (Android 14 asks); otherwise they arrive within minutes
-  setPerm('SCHEDULE_EXACT_ALARM', true);
+  // no exact alarms: notifications arrive on time or within a few minutes, which is fine for a pay app, and
+  // Google Play keeps that permission for alarm and calendar apps. Removed even if a library asks for it.
+  setPerm('SCHEDULE_EXACT_ALARM', false);
+  if (!x.includes('xmlns:tools=')) x = x.replace(/<manifest\b/, '<manifest xmlns:tools="http://schemas.android.com/tools"');
+  if (!x.includes('SCHEDULE_EXACT_ALARM" tools:node="remove"')) x = x.replace(/<application/, '<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />\n    <application');
   // backups: shifts and settings are kept by Google backup and phone-to-phone transfer (res/xml/*_rules.xml)
   if (!x.includes('dataExtractionRules')) x = x.replace(/<application\b/, '<application android:dataExtractionRules="@xml/data_extraction_rules" android:fullBackupContent="@xml/backup_rules"');
   // workplace arrival needs location all the time, and re-arming after a reboot

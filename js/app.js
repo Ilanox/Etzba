@@ -2087,14 +2087,13 @@ async function drawNotifStatus() {
   const row = (icon, text, btn) => `<div class="cell flat nrow">${icon}<span class="grow sub">${text}</span>${btn ? `<button class="btn soft mini" type="button" data-n="${btn[0]}">${btn[1]}</button>` : ''}</div>`;
   box.innerHTML = st.display === 'denied' ? row(I.bellOff, 'חסומות בהגדרות הטלפון, אז לא יגיעו.', ['open', 'לאפשר'])
     : st.display !== 'granted' ? row(I.bell, 'הטלפון יבקש אישור בפעם הבאה שנכנסים למשמרת.')
-    : st.exact === false ? row(I.bell, 'מאושרות. הטלפון שולח אותן בערך בזמן, לפעמים באיחור של כמה דקות.', ['exact', 'בדיוק לדקה'])
-    : row(I.check, 'מאושרות, ויגיעו בזמן גם כשהאפליקציה סגורה.');
+    : row(I.check, 'מאושרות. מגיעות גם כשהאפליקציה סגורה, לפעמים באיחור של דקה או שתיים.');
 }
 function notifLine() {
   if (!native.NATIVE || !S.active) return '';
   if (NOTIF.state === 'denied') return `<button class="nstat warn" type="button" data-n="open">${I.bellOff}ההתראות חסומות בטלפון · לפתוח הגדרות</button>`;
   if (NOTIF.state === 'error') return `<span class="nstat warn">${I.bellOff}לא הצלחתי לקבוע התראות</span>`;
-  if (NOTIF.state === 'ok' && NOTIF.next) return `<span class="nstat">${I.bell}${NOTIF.exact === false ? 'התראה הבאה בסביבות ' : 'התראה הבאה ב־'}${tm(NOTIF.next.at)}</span>`;
+  if (NOTIF.state === 'ok' && NOTIF.next) return `<span class="nstat">${I.bell}${'התראה הבאה בסביבות '}${tm(NOTIF.next.at)}</span>`;
   return '';
 }
 function planNotifications(ask = false) {
@@ -2110,7 +2109,7 @@ function planNotifications(ask = false) {
       const items = [...(a ? buildNotifications(a, N) : []), ...ahead].filter(x => +x.at > Date.now() + 5000).sort((x, y) => x.at - y.at);
       const n = await native.scheduleNotifications(items.map(x => ({ ...x, title: tr(x.title), body: tr(x.body) })));
       NOTIF = { state: 'ok', next: items[0] || null, exact: st.exact, count: n };
-      dbg.log('info', `notifications: ${n} scheduled${st.exact === false ? ' (approximate times)' : ''}`);
+      dbg.log('info', `notifications: ${n} scheduled`);
     } catch (e) {
       NOTIF = { state: 'error', next: null, exact: null };
       dbg.log('error', 'notifications: ' + (e?.message || e));
@@ -2612,8 +2611,8 @@ step('notifications', () => {
   planNotifications();
   document.addEventListener('click', e => {
     if (e.target.closest('[data-legal]')) return openLegal();
-    const b = e.target.closest('[data-n="open"], [data-n="exact"]'); if (!b) return;
-    (b.dataset.n === 'open' ? native.openNotificationSettings() : native.openExactSettings());
+    const b = e.target.closest('[data-n="open"]'); if (!b) return;
+    native.openNotificationSettings();
   });
 });
 step('rules', () => {

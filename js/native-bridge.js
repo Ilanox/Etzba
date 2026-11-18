@@ -110,8 +110,6 @@ export async function notifyAllowed(ask = false) {
     return s.display === 'granted';
   }).catch(e => { warn('notify permission')(e); return false; });
 }
-/** Opens the phone's setting for exact notification times. */
-export function openExactSettings() { return withP('LocalNotifications', n => n.changeExactNotificationSetting()).catch(warn('exact settings')); }
 /** Opens the app's notification settings (to turn them back on). */
 export function openNotificationSettings() { return withP('AppActions', a => a.openNotificationSettings()).catch(warn('notification settings')); }
 
@@ -125,7 +123,7 @@ export async function scheduleNotifications(items) {
     const now = Date.now() + 5000;
     const list = items.filter(x => +x.at > now).slice(0, 30).map((x, i) => ({
       id: 100 + i, title: x.title, body: x.body,
-      // allowWhileIdle: delivered even in battery saving / Doze. Exact when the phone allows it, else within minutes.
+      // allowWhileIdle: delivered even in battery saving / Doze, on time or within a few minutes (no exact-alarm permission)
       schedule: { at: x.at, allowWhileIdle: true },
       smallIcon: 'ic_stat_etzba', iconColor: '#FF6A3D',
     }));
