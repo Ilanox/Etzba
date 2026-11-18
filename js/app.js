@@ -6,6 +6,7 @@ import { rowsToShifts, guessYear } from './shift-import.js';
 import { CITIES, nextRest, restWindows, holidaysOfGregorianYear } from './hebrew-calendar.js';
 import { I, mark, ridges, handAngles } from './svg-icons.js';
 import { loadRules, checkForUpdates, rules } from './rules.js';
+import { preferPack, checkPack } from './remote-packs.js';
 import { usePack, startTranslating, stopTranslating, tr } from './translate.js';
 import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
@@ -1863,7 +1864,7 @@ function selfTest(out) {
 /** Switch language in place: load its pack, set direction, day/month names, and translate what's on screen. */
 async function setLang(l, save = true) {
   const info = langInfo(l);
-  const pack = await loadPack(info.code).catch(() => null);
+  const pack = preferPack(info.code, await loadPack(info.code).catch(() => null));   // built in, or a newer downloaded copy
   LANG = info.code; EN = LANG !== 'he'; PACK = pack;
   document.documentElement.lang = LANG; document.documentElement.dir = info.dir;
   DAYS = pack?.days || HE_DAYS; MONTHS = pack?.months || HE_MONTHS; DAY_SHORT = pack?.daysShort || HE_DAY_SHORT;
@@ -1998,8 +1999,11 @@ step('notifications', () => {
 step('rules', () => {
   // newer yearly figures from the internet (once a day at most); everything works without them
   const changed = () => { recompute(); render(); toast('עודכנו נתוני השכר והחגים', 'ok'); };
-  checkForUpdates(changed);
-  addEventListener('online', () => checkForUpdates(changed));
+  // and the language pack: fixed translations arrive without a new app release
+  const packChanged = () => { if (LANG !== 'he') setLang(LANG, false); };
+  const both = () => { checkForUpdates(changed); checkPack(LANG, packChanged); };
+  both();
+  addEventListener('online', both);
 });
 step('geo', () => { syncGeo(true); native.appActions.onAction(appAction); syncWidget(); });
 step('meter', () => { try { if (localStorage.getItem('etzba.meter') === '1') dbg.setMeter(true); } catch {} });

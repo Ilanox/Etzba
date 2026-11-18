@@ -19,7 +19,8 @@
     "test:e2e": "node scripts/test.mjs e2e",
     "release": "node scripts/build-apk.mjs release",
     "install-release": "node scripts/install-apk.mjs release",
-    "logs": "node scripts/logs.mjs"
+    "logs": "node scripts/logs.mjs",
+    "data": "node scripts/build-data.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

@@ -1,4 +1,5 @@
 // Copies the web app into www/ for the native apps, with the Heebo font bundled so nothing loads from the internet.
+import { spawnSync } from 'node:child_process';
 import { cpSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +10,9 @@ const WEB = ['index.html', 'style.css', 'manifest.webmanifest', 'js', 'languages
 // build switches → js/features.js (the app reads them from there)
 { const f = JSON.parse(readFileSync(join(root, 'features.json'), 'utf8'));
   writeFileSync(join(root, 'js/features.js'), `// Generated from features.json by scripts/build-www.mjs: edit features.json, not this.\nexport default ${JSON.stringify(Object.fromEntries(Object.entries(f).filter(([k]) => !k.startsWith('_'))))};\n`); }
+
+// language packs → data/lang/*.json (what phones download) and the built-in versions
+spawnSync(process.execPath, [join(root, 'scripts/build-data.mjs')], { stdio: 'inherit' });
 
 rmSync(out, { recursive: true, force: true }); mkdirSync(join(out, 'fonts'), { recursive: true });
 for (const f of WEB) cpSync(join(root, f), join(out, f), { recursive: true });
