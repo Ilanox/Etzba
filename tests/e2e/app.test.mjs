@@ -354,6 +354,8 @@ test('the year in Etzba: early for supporters, stories, and a picture to share',
     for (let m = 0; m < 3; m++) for (let d = 2; d < 20; d += 3) { const st = new Date(y, m, d, 9); s.shifts.push({ id: crypto.randomUUID(), jobId: j.id, start: st.toISOString(), end: new Date(+st + 8 * 36e5).toISOString(), breakMin: 0, bonus: 0, note: '', rest: 'auto' }); }
     s.settings.supported = true; s.ui = { ...(s.ui || {}), sumView: 'year' }; localStorage.setItem('etzba.v1', JSON.stringify(s)); });
   await page.reload(); await wait(page, 700);
+  assert.ok(await page.locator('#en-later').isVisible(), 'was waiting for it, now a supporter: told once');
+  await page.click('#en-later'); await wait(page, 300);
   await page.click('[data-v=sum]'); await wait(page, 500);
   assert.ok(await page.locator('#openRecap').isVisible(), 'a recap button in the year view');
   await page.click('#openRecap'); await wait(page, 600);

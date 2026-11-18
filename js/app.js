@@ -1321,13 +1321,23 @@ async function openSupport() {
 const EARLY_URL = 'https://etzba.ilanox.dev/data/early.json';
 let EARLY = (() => { try { return JSON.parse(localStorage.getItem('etzba.early') || 'null'); } catch { return null; } })();
 const earlyDates = () => EARLY || rules().early || {};
-const earlyDate = name => earlyDates()[name];
-const earlyOpen = name => { const d = earlyDate(name); return !d || dateKey(new Date()) >= d; };
-const earlyLater = name => (earlyDate(name) || '') >= '2090';   // "off": supporters only, no date yet
-const earlyWhen = name => earlyLater(name) ? 'בינתיים לתומכים בלבד' : `ייפתח לכולם ב־${dFull(earlyDate(name) + 'T12:00:00')} · לתומכים כבר עכשיו`;
-// what to say when a feature opens to everyone
+// a feature's dates: "2026-12-07" (everyone; supporters right away) or { supporters: "2026-12-01", all: "2026-12-07" }
+const earlyEntry = name => { const v = earlyDates()[name]; return v && typeof v === 'object' ? v : { all: v }; };
+const earlyDate = (name, who = 'all') => earlyEntry(name)[who];
+const isDate = d => typeof d === 'string' && /^\d{4}-\d\d-\d\d$/.test(d);
+const earlyOpen = (name, who = 'all') => { const d = earlyDate(name, who); return !d || dateKey(new Date()) >= d; };
+const earlyLater = (name, who = 'all') => (earlyDate(name, who) || '') >= '2090';   // "off": no date yet
+/** Open for this person: supporters by their date (if any), everyone else by the date for all. */
+const openForMe = name => isSup() ? earlyOpen(name, 'supporters') || earlyOpen(name) : earlyOpen(name);
+const earlyWhen = name => {
+  const all = earlyLater(name) ? null : earlyDate(name), sup = earlyDate(name, 'supporters'), supOpen = earlyOpen(name, 'supporters');
+  if (isSup()) return sup && !earlyLater(name, 'supporters') ? `ייפתח לך ב־${dShort(sup)}, לפני כולם` : 'עוד לא נקבע מתי ייפתח';
+  if (!all) return supOpen ? 'בינתיים לתומכים בלבד' : sup && !earlyLater(name, 'supporters') ? `לתומכים מ־${dShort(sup)}` : 'עוד לא נקבע מתי ייפתח';
+  return supOpen ? `ייפתח לכולם ב־${dShort(all)} · לתומכים כבר עכשיו` : sup ? `ייפתח לכולם ב־${dShort(all)} · לתומכים כבר ב־${dShort(sup)}` : `ייפתח לכולם ב־${dShort(all)}`;
+};
+// what to say when a feature opens: to everyone, or to supporters first
 const EARLY_NEWS = {
-  recap: { title: 'השנה שלך באצבע פתוחה לכולם', body: 'סיכום השנה שלך כמו סטורי, עם תמונה לשיתוף.', btn: 'לסיכום השנה', go: () => openRecap(new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear()) },
+  recap: { title: 'השנה שלך באצבע פתוחה לכולם', supTitle: 'השנה שלך באצבע כאן, לפני כולם', body: 'סיכום השנה שלך כמו סטורי, עם תמונה לשיתוף.', btn: 'לסיכום השנה', go: () => openRecap(new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear()) },
 };
 let earlyChecked = 0;
 async function checkEarly() {
@@ -1338,7 +1348,7 @@ async function checkEarly() {
     const res = await fetch(EARLY_URL + '?t=' + Date.now(), { cache: 'no-store', signal: ctl.signal }); clearTimeout(t);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const e = await res.json();
-    if (!e || typeof e !== 'object' || !Object.values(e).every(d => /^\d{4}-\d\d-\d\d$/.test(d))) throw new Error('bad file');
+    if (!e || typeof e !== 'object' || !Object.values(e).every(v => isDate(v) || (v && typeof v === 'object' && Object.values(v).every(isDate)))) throw new Error('bad file');
     if (JSON.stringify(e) !== JSON.stringify(EARLY)) { EARLY = e; try { localStorage.setItem('etzba.early', JSON.stringify(e)); } catch {} render(); }
   } catch (err) { dbg.log('info', 'early: ' + err.message); }
   announceEarly();
@@ -1347,14 +1357,14 @@ async function checkEarly() {
 function announceEarly() {
   let locked; try { locked = new Set(JSON.parse(localStorage.getItem('etzba.early.locked') || '[]')); } catch { locked = new Set(); }
   let news = null;
+  const who = isSup() ? 'supporters' : 'all', newsFor = n => ({ ...EARLY_NEWS[n], title: isSup() ? EARLY_NEWS[n].supTitle : EARLY_NEWS[n].title });
   for (const name of Object.keys(EARLY_NEWS)) {
-    if (isSup()) { locked.delete(name); continue; }
-    if (!earlyOpen(name)) locked.add(name);
-    else if (locked.has(name) && !news && !pop.classList.contains('on') && !sheet.classList.contains('on')) { locked.delete(name); news = EARLY_NEWS[name]; }
+    if (!openForMe(name)) locked.add(name);
+    else if (locked.has(name) && !news && !pop.classList.contains('on') && !sheet.classList.contains('on')) { locked.delete(name); news = newsFor(name); }
   }
   try { localStorage.setItem('etzba.early.locked', JSON.stringify([...locked])); } catch {}
   // with the app closed: the phone checks twice a day and sends a notification when one opens
-  const watch = [...locked].filter(n => EARLY_NEWS[n]).map(n => ({ name: n, title: tr(EARLY_NEWS[n].title), body: tr(EARLY_NEWS[n].body) })), wsig = JSON.stringify(watch);
+  const watch = [...locked].filter(n => EARLY_NEWS[n]).map(n => ({ name: n, group: who, title: tr(newsFor(n).title), body: tr(newsFor(n).body) })), wsig = JSON.stringify(watch);
   if (wsig !== announceEarly.watched) { announceEarly.watched = wsig; native.watchEarly(EARLY_URL, watch); }
   if (!news) return;
   pop.innerHTML = `<div class="pop-ic">${I.cal}</div>
@@ -1368,12 +1378,12 @@ function announceEarly() {
   $('#en-go', pop).onclick = () => { closePop(); news.go(); };
   $('#en-later', pop).onclick = closePop;
 }
-const recapOpen = () => isSup() || earlyOpen('recap');
+const recapOpen = () => openForMe('recap');
 /** Under the header while the year's recap is open: November to January (or right after it opens), until seen or closed. */
 function recapBanner() {
   const el = $('#rcBanner'); if (!el) return;
   const now = new Date(), y = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-  const d = earlyDate('recap'), justOpened = d && !earlyLater('recap') && (now - new Date(d + 'T00:00:00')) / 864e5 < 60 && earlyOpen('recap');
+  const d = (isSup() && earlyDate('recap', 'supporters')) || earlyDate('recap'), justOpened = d && d < '2090' && (now - new Date(d + 'T00:00:00')) / 864e5 < 60 && recapOpen();
   const show = recapOpen() && (now.getMonth() >= 10 || now.getMonth() === 0 || justOpened) && S.ui?.rcBanner !== y
     && S.shifts.some(s => new Date(s.start).getFullYear() === y);
   if (!show) { el.hidden = true; el.innerHTML = ''; return; }
@@ -1609,7 +1619,7 @@ function sumYear(el) {
     : `<div class="card" style="margin-top:12px"><div class="empty"><div class="eic">${I.receipt}</div>אין משמרות ב־${viewY}</div></div>`}
     <p class="fine">הנטו השנתי הוא סכום ההערכות החודשיות. החישוב הסופי נעשה בתיאום מס שנתי.</p>`;
   $$('[data-yn]', el).forEach(b => b.onclick = () => { viewY += +b.dataset.yn; renderSum(); });
-  $('#openRecap', el) && ($('#openRecap', el).onclick = () => recapOpen() ? openRecap(viewY) : (native.billing.available() ? openSupport() : toast(earlyLater('recap') ? 'בינתיים לתומכים בלבד' : `ייפתח ב־${dFull(earlyDate('recap') + 'T12:00:00')}`)));
+  $('#openRecap', el) && ($('#openRecap', el).onclick = () => recapOpen() ? openRecap(viewY) : (native.billing.available() && !isSup() ? openSupport() : toast(earlyWhen('recap'))));
   if (!T.count) return;
   mountChart($('#yrChart', el), items, viewY === new Date().getFullYear() ? new Date().getMonth() : undefined); bindMetric(el);
   $$('[data-gm]', el).forEach(b => b.onclick = () => { viewM = +b.dataset.gm; S.ui.sumView = 'month'; persist(); renderSum(); scrollTo(0, 0); });

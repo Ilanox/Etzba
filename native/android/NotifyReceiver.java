@@ -106,7 +106,15 @@ public class NotifyReceiver extends BroadcastReceiver {
             JSONArray still = new JSONArray();
             for (int i = 0; i < wait.length(); i++) {
                 JSONObject x = wait.getJSONObject(i);
-                String d = dates.optString(x.optString("name"), "");
+                // "2026-12-07", or { "supporters": "2026-12-01", "all": "2026-12-07" }
+                Object v = dates.opt(x.optString("name"));
+                String d = "";
+                if (v instanceof JSONObject) {
+                    JSONObject o = (JSONObject) v;
+                    d = o.optString("all", "");
+                    String sd = o.optString("supporters", "");
+                    if ("supporters".equals(x.optString("group")) && !sd.isEmpty() && (d.isEmpty() || sd.compareTo(d) < 0)) d = sd;
+                } else if (v instanceof String) d = (String) v;
                 if (!d.isEmpty() && d.compareTo(today) <= 0) show(ctx, 950 + i, x.optString("title"), x.optString("body"));
                 else still.put(x);
             }
