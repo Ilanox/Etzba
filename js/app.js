@@ -11,7 +11,7 @@ import { usePack, startTranslating, stopTranslating, tr } from './translate.js';
 import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
-import { balances, dayValue, sickShares, dateKey } from './leave.js';
+import { balances, dayValue, sickShares, runStarts, dateKey } from './leave.js';
 import { drawReport, pagesToPDF } from './report.js';
 import FEATURES from './features.js';
 
@@ -209,7 +209,8 @@ function monthCalcRaw(y, m) {
     const job0 = S.jobs.find(j => j.id === a.jobId); if (!job0) continue;
     const job = jobAt(job0, a.date), J = per.get(job0.id) || J0(jobAt(job0, monthEnd));
     const share = a.kind === 'sick' ? sickShares(S.absences.filter(x => x.jobId === a.jobId))[a.id] ?? 0 : 1;
-    const v = dayValue(job, workedFor(a.jobId, a.date), a.date) * share;
+    const from = runStarts(S.absences.filter(x => x.jobId === a.jobId))[a.id] || a.date;
+    const v = dayValue(jobAt(job0, from), workedFor(a.jobId, from), from) * share;
     if (a.kind === 'sick') { J.sick += v; J.sickDays++; } else { J.vac += v; J.vacDays++; }
     absPay.set(a.id, { pay: v, share });
     per.set(job0.id, J); gross += v;

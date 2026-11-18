@@ -74,3 +74,9 @@ test('a special shift: every hour at its own rate, no overtime or Shabbat', () =
   const q = shiftPay(at('2026-11-17T08:00:00+02:00', 12, { specialPct: 150 }), job(), place);
   near(q.otHours, 0, 'no overtime'); near(q.pay, 12 * 40 * 1.5, 'long special shift');
 });
+
+test('one vacation is one run: a weekend in the middle keeps it together, a longer gap starts a new one', async () => {
+  const { runStarts } = await import('../../js/leave.js');
+  const ab = ['2026-11-18', '2026-11-19', '2026-11-22', '2026-11-23', '2026-12-10'].map((date, i) => ({ id: 'v' + i, kind: 'vac', date }));
+  assert.deepEqual(Object.values(runStarts(ab)), ['2026-11-18', '2026-11-18', '2026-11-18', '2026-11-18', '2026-12-10']);
+});

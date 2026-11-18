@@ -29,6 +29,24 @@ export function sickShares(absences) {
   return out;
 }
 
+/**
+ * The day each absence takes its pay from: the first day of its run. One vacation (or one illness)
+ * is paid at one daily rate, worked out from the three months before it began, so its days don't
+ * drift apart as old shifts fall out of the window. A weekend in the middle doesn't end a run.
+ */
+export function runStarts(absences) {
+  const out = {};
+  for (const kind of ['sick', 'vac']) {
+    const list = absences.filter(a => a.kind === kind).sort((a, b) => a.date < b.date ? -1 : 1);
+    let start = null, prev = null;
+    for (const a of list) {
+      if (!prev || Math.round((fromKey(a.date) - fromKey(prev)) / DAY) > 3) start = a.date;
+      out[a.id] = start; prev = a.date;
+    }
+  }
+  return out;
+}
+
 /** Average pay (hours only: no travel, tips or bonus) per day worked in the 90 days before `date`. */
 export function dayValue(job, worked, date) {
   const t = +fromKey(date), from = t - 90 * DAY, days = new Map();
