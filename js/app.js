@@ -1406,16 +1406,18 @@ function openRecap(y) {
   if (!R) return toast(`אין משמרות ב־${y}`);
   const days = Math.floor(R.hours / 24), maxM = Math.max(...R.months, 1);
   const cnt = (v, f = 'int') => `<b class="num rc-count" data-to="${v}" data-f="${f}">${f === 'money' ? money(v) : f === 'hrs' ? hrs(v) : Math.round(v).toLocaleString('he-IL')}</b>`;
-  // the longest shift on a 24-hour line
-  const ls = new Date(R.longest.s.start), le = new Date(R.longest.s.end), f0 = (ls.getHours() + ls.getMinutes() / 60) / 24, len = Math.min(1, R.longest.p.hours / 24);
-  const segs = f0 + len > 1 ? [[f0, 1 - f0], [0, f0 + len - 1]] : [[f0, len]];
-  // the day runs the same way as the stories: right to left in Hebrew
-  const line = `<div class="rc-day">${segs.map(([a, w]) => `<i style="inset-inline-start:${a * 100}%;width:${w * 100}%"></i>`).join('')}${['00', '06', '12', '18', '24'].map((t, k) => `<span class="num" style="inset-inline-start:${k * 25}%">${t}</span>`).join('')}</div>`;
+  // the longest shift on a 24-hour dial, like the app's clock: midnight at the top
+  const ls = new Date(R.longest.s.start), le = new Date(R.longest.s.end), h0 = ls.getHours() + ls.getMinutes() / 60, len = Math.min(23.9, R.longest.p.hours);
+  const line = `<div class="rc-dial"><svg viewBox="0 0 200 200" aria-hidden="true">
+      <circle class="tr" cx="100" cy="100" r="78" />
+      ${Array.from({ length: 24 }, (_, k) => { const a = k / 24 * 2 * Math.PI, r0 = k % 6 ? 92 : 89; return `<line x1="${100 + Math.sin(a) * r0}" y1="${100 - Math.cos(a) * r0}" x2="${100 + Math.sin(a) * 96}" y2="${100 - Math.cos(a) * 96}"${k % 6 ? '' : ' class="big"'}/>`; }).join('')}
+      <circle class="arc" cx="100" cy="100" r="78" pathLength="24" style="--len:${len};transform:rotate(${h0 * 15 - 90}deg)" />
+    </svg><div class="rc-dial-in num" dir="ltr"><b>${tm(ls)}</b><i></i><b>${tm(le)}</b></div></div>`;
   const kindsTot = Object.values(R.kinds).reduce((a, b) => a + b, 0) || 1;
   const slides = [
     `<small>השנה שלך באצבע</small><h1 class="num rc-year">${y}</h1><p>בוא נראה מה עשית השנה.</p>`,
     `<small>שעות עבודה</small><h1>${cnt(R.hours)}</h1><p>${days ? `יותר מ־${days} ימים שלמים בלי הפסקה, ב־${R.count} משמרות.` : `ב־${R.count} משמרות.`}</p>`,
-    `<small>המשמרת הכי ארוכה</small><h1>${cnt(R.longest.p.hours, 'hrs')}<em>שעות</em></h1>${line}<p>${DAYS[ls.getDay()]} ${dFull(R.longest.s.start)}, <span dir="ltr" class="num">${tm(ls)}–${tm(le)}</span>.</p>`,
+    `<small>המשמרת הכי ארוכה</small><h1>${cnt(R.longest.p.hours, 'hrs')}<em>שעות</em></h1><div class="rc-dial-row">${line}<p>${DAYS[ls.getDay()]}<br>${dFull(R.longest.s.start)}${sameDay(R.longest.s.start, R.longest.s.end) ? '' : '<br><span class="rc-dim">עד למחרת</span>'}</p></div>`,
     `<small>הרווחת השנה</small><h1>${cnt(R.gross, 'money')}</h1><p>ברוטו, כ־${money(R.net)} נטו. בממוצע ${money2(R.perHour)} לשעה.</p>`,
     `<small>החודש הכי חזק</small><h1>${MONTHS[R.best.m]}</h1><p class="num">${money(R.best.gross)} ברוטו</p><div class="rc-bars">${R.months.map((g, m) => `<i style="--h:${Math.max(3, g / maxM * 100)}%;--d:${m * 45}ms"${m === R.best.m ? ' class="on"' : ''}><em>${MONTHS[m].slice(0, 3)}</em></i>`).join('')}</div>`,
     `<small>הסגנון שלך</small><h1 class="rc-word">${KIND_LINE[R.daily][0]}</h1><p>${KIND_LINE[R.daily][1]} היום הכי עמוס שלך: ${DAYS[R.topDay]}.</p>

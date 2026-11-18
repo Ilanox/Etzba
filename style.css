@@ -1049,11 +1049,18 @@ html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;an
 @keyframes rcin{from{opacity:0;transform:translateY(26px)}}
 .rc-hint{position:absolute!important;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);inset-inline:0;text-align:center;font-size:.8rem;opacity:0;transition:opacity .4s;pointer-events:none}
 .recap.first .rc-hint{opacity:.6}
-.rc-day{position:relative;height:12px;border-radius:6px;background:color-mix(in srgb,var(--rc-fg) 18%,transparent);margin:6px 0 22px}
-.rc-day i{position:absolute;top:0;bottom:0;border-radius:6px;background:var(--rc-fg);transform-origin:left;animation:rcgrow .9s .3s cubic-bezier(.2,.8,.2,1) both}
-.rc-day span{position:absolute;top:18px;transform:translateX(-50%);font-size:.75rem;opacity:.65;font-variant-numeric:tabular-nums}
+.rc-dial-row{display:flex;align-items:center;gap:22px;margin:4px 0}
+.rc-dial-row p{font-size:1.1rem;line-height:1.5;margin:0}.rc-dim{opacity:.7}
+.rc-dial{position:relative;width:150px;height:150px;flex:none}
+.rc-dial svg{width:100%;height:100%;overflow:visible}
+.rc-dial .tr{fill:none;stroke:color-mix(in srgb,var(--rc-fg) 16%,transparent);stroke-width:14}
+.rc-dial line{stroke:color-mix(in srgb,var(--rc-fg) 40%,transparent);stroke-width:1.5;stroke-linecap:round}.rc-dial line.big{stroke:var(--rc-fg);stroke-width:2.5}
+.rc-dial .arc{fill:none;stroke:var(--rc-fg);stroke-width:14;stroke-linecap:round;stroke-dasharray:var(--len) 24;transform-origin:100px 100px;animation:rcarc 1.1s .25s cubic-bezier(.2,.8,.2,1) both}
+@keyframes rcarc{from{stroke-dasharray:0 24}}
+.rc-dial-in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+.rc-dial-in b{font-size:1.05rem;font-weight:800}.rc-dial-in i{width:14px;height:2px;border-radius:1px;background:currentColor;opacity:.5}
 @keyframes rcgrow{from{transform:scaleX(0)}}
-[dir=rtl] .rc-day i{transform-origin:right}[dir=rtl] .rc-day span{transform:translateX(50%)}
+
 .rc-bars{display:flex;align-items:flex-end;gap:5px;height:150px;margin-top:8px}
 .rc-bars i{flex:1;height:var(--h);position:relative;background:color-mix(in srgb,var(--rc-fg) 30%,transparent);border-radius:4px 4px 1px 1px;transform-origin:bottom;animation:rcup .8s var(--d) cubic-bezier(.2,.8,.2,1) both}
 .rc-bars i.on{background:var(--rc-fg)}
@@ -1074,7 +1081,7 @@ html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;an
 .rc-grid b{display:block;font-size:1.55rem;font-weight:800;line-height:1.15}.rc-grid span{font-size:.85rem;opacity:.75}
 .rc-share{margin-top:18px;display:flex;align-items:center;justify-content:center;gap:8px;height:54px;border-radius:14px;background:var(--rc-fg);color:var(--rc-bg);font-weight:800;font-size:1rem}
 .rc-share svg{width:20px;height:20px}
-@media (prefers-reduced-motion:reduce){.rc-slide.in > *,.rc-day i,.rc-bars i,.rc-kinds i::after{animation:none}.rc-prog i.now b{animation:none;width:100%}.rc-print{transition:none}}
+@media (prefers-reduced-motion:reduce){.rc-slide.in > *,.rc-dial .arc,.rc-bars i,.rc-kinds i::after{animation:none}.rc-prog i.now b{animation:none;width:100%}.rc-print{transition:none}}
 
 /* supporters: rings ripple from the dial on clock-in; confetti on the month's goal */
 .punch-btn .ripple{position:absolute;inset:0;border-radius:50%;border:3px solid var(--ring-a,var(--g-acc-a));pointer-events:none;animation:ripple 1.2s cubic-bezier(.2,.8,.2,1) both}
