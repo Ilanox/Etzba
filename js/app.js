@@ -1302,8 +1302,55 @@ async function openSupport() {
 }
 
 /* ================= the year in Etzba (a Wrapped-style recap) ================= */
-// Early access: supporters get it right away, everyone else from the date in the yearly rules file.
-const earlyOpen = name => { const d = rules().early?.[name]; return !d || dateKey(new Date()) >= d; };
+// Early access: supporters get it right away, everyone else from a date the server sends
+// (etzba.ilanox.dev/data/early.json, set with `npm run early`). Offline: the last one received, else the rules file.
+const EARLY_URL = 'https://etzba.ilanox.dev/data/early.json';
+let EARLY = (() => { try { return JSON.parse(localStorage.getItem('etzba.early') || 'null'); } catch { return null; } })();
+const earlyDates = () => EARLY || rules().early || {};
+const earlyDate = name => earlyDates()[name];
+const earlyOpen = name => { const d = earlyDate(name); return !d || dateKey(new Date()) >= d; };
+const earlyLater = name => (earlyDate(name) || '') >= '2090';   // "off": supporters only, no date yet
+const earlyWhen = name => earlyLater(name) ? 'בינתיים לתומכים בלבד' : `ייפתח לכולם ב־${dFull(earlyDate(name) + 'T12:00:00')} · לתומכים כבר עכשיו`;
+// what to say when a feature opens to everyone
+const EARLY_NEWS = {
+  recap: { title: 'השנה שלך באצבע פתוחה לכולם', body: 'סיכום השנה שלך כמו סטורי, עם תמונה לשיתוף.', btn: 'לסיכום השנה', go: () => openRecap(new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear()) },
+};
+let earlyChecked = 0;
+async function checkEarly() {
+  if (!navigator.onLine || Date.now() - earlyChecked < 5 * 60e3) return announceEarly();
+  earlyChecked = Date.now();
+  try {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 6000);
+    const res = await fetch(EARLY_URL + '?t=' + Date.now(), { cache: 'no-store', signal: ctl.signal }); clearTimeout(t);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const e = await res.json();
+    if (!e || typeof e !== 'object' || !Object.values(e).every(d => /^\d{4}-\d\d-\d\d$/.test(d))) throw new Error('bad file');
+    if (JSON.stringify(e) !== JSON.stringify(EARLY)) { EARLY = e; try { localStorage.setItem('etzba.early', JSON.stringify(e)); } catch {} render(); }
+  } catch (err) { dbg.log('info', 'early: ' + err.message); }
+  announceEarly();
+}
+/** A feature this person saw locked has opened to everyone: tell them once. */
+function announceEarly() {
+  let locked; try { locked = new Set(JSON.parse(localStorage.getItem('etzba.early.locked') || '[]')); } catch { locked = new Set(); }
+  let news = null;
+  for (const name of Object.keys(EARLY_NEWS)) {
+    if (S.settings.supported) { locked.delete(name); continue; }
+    if (!earlyOpen(name)) locked.add(name);
+    else if (locked.has(name) && !news && !pop.classList.contains('on') && !sheet.classList.contains('on')) { locked.delete(name); news = EARLY_NEWS[name]; }
+  }
+  try { localStorage.setItem('etzba.early.locked', JSON.stringify([...locked])); } catch {}
+  if (!news) return;
+  pop.innerHTML = `<div class="pop-ic">${I.cal}</div>
+    <h2 id="pop-h">${news.title}</h2>
+    <p class="pop-sub">${news.body}</p>
+    <div class="pop-btns">
+      <button class="btn primary" id="en-go">${news.btn}</button>
+      <button class="btn ghost" id="en-later">אחר כך</button>
+    </div>`;
+  scrim.classList.add('on'); void pop.offsetWidth; pop.classList.add('on');
+  $('#en-go', pop).onclick = () => { closePop(); news.go(); };
+  $('#en-later', pop).onclick = closePop;
+}
 const recapOpen = () => !!S.settings.supported || earlyOpen('recap');
 function recapStats(y) {
   const list = S.shifts.filter(s => new Date(s.start).getFullYear() === y).map(s => ({ s, p: PAY.get(s.id) })).filter(x => x.p);
@@ -1453,7 +1500,7 @@ function sumYear(el) {
   const H = items.reduce((a, x) => (a[0] += x.h[0], a[1] += x.h[1], a[2] += x.h[2], a), [0, 0, 0]);
   const k = (l, v, s = '') => `<div class="kpi"><small>${l}</small><b class="num">${v}</b>${s ? `<em>${s}</em>` : ''}</div>`;
   el.innerHTML = `<div class="monthbar"><button class="ibtn" data-yn="-1" aria-label="שנה קודמת">${I.chevR}</button><b class="num">${viewY}</b><button class="ibtn" data-yn="1" aria-label="שנה הבאה">${I.chevL}</button></div>
-    ${T.count ? `<button class="recap-btn${recapOpen() ? '' : ' locked'}" id="openRecap"><span class="grow"><b>השנה שלך באצבע</b><small>${recapOpen() ? 'סיכום השנה כמו סטורי, עם תמונה לשיתוף' : `ייפתח לכולם ב־${dFull(rules().early.recap + 'T12:00:00')} · לתומכים כבר עכשיו`}</small></span>${recapOpen() ? I.chevL : I.lock}</button>` : ''}
+    ${T.count ? `<button class="recap-btn${recapOpen() ? '' : ' locked'}" id="openRecap"><span class="grow"><b>השנה שלך באצבע</b><small>${recapOpen() ? 'סיכום השנה כמו סטורי, עם תמונה לשיתוף' : earlyWhen('recap')}</small></span>${recapOpen() ? I.chevL : I.lock}</button>` : ''}
     ${T.count ? `<div class="kpis" style="margin-top:12px">
       ${k('ברוטו שנתי', money(T.gross))}${k('נטו משוער', money(T.net), `מס הכנסה ${money(T.tax)}`)}
       ${k('שעות', hm(T.hours), `${T.count} משמרות`)}${k('ממוצע לשעה', money2(T.hours ? T.gross / T.hours : 0), 'כולל תוספות')}
@@ -1469,7 +1516,7 @@ function sumYear(el) {
     : `<div class="card" style="margin-top:12px"><div class="empty"><div class="eic">${I.receipt}</div>אין משמרות ב־${viewY}</div></div>`}
     <p class="fine">הנטו השנתי הוא סכום ההערכות החודשיות. החישוב הסופי נעשה בתיאום מס שנתי.</p>`;
   $$('[data-yn]', el).forEach(b => b.onclick = () => { viewY += +b.dataset.yn; renderSum(); });
-  $('#openRecap', el) && ($('#openRecap', el).onclick = () => recapOpen() ? openRecap(viewY) : (native.billing.available() ? openSupport() : toast(`ייפתח ב־${dFull(rules().early.recap + 'T12:00:00')}`)));
+  $('#openRecap', el) && ($('#openRecap', el).onclick = () => recapOpen() ? openRecap(viewY) : (native.billing.available() ? openSupport() : toast(earlyLater('recap') ? 'בינתיים לתומכים בלבד' : `ייפתח ב־${dFull(earlyDate('recap') + 'T12:00:00')}`)));
   if (!T.count) return;
   mountChart($('#yrChart', el), items, viewY === new Date().getFullYear() ? new Date().getMonth() : undefined); bindMetric(el);
   $$('[data-gm]', el).forEach(b => b.onclick = () => { viewM = +b.dataset.gm; S.ui.sumView = 'month'; persist(); renderSum(); scrollTo(0, 0); });
@@ -2754,14 +2801,14 @@ step('rules', () => {
   // and the language pack: fixed translations arrive without a new app release
   const packChanged = () => { if (LANG !== 'he') setLang(LANG, false); };
   const both = () => { checkForUpdates(changed); checkPack(LANG, packChanged); };
-  both();
-  addEventListener('online', both);
+  both(); checkEarly();
+  addEventListener('online', () => { both(); checkEarly(); });
 });
 step('geo', () => { syncGeo(true); native.appActions.onAction(appAction); syncWidget(); });
 step('meter', () => { try { if (localStorage.getItem('etzba.meter') === '1') dbg.setMeter(true); } catch {} });
 step('backupDot', updateBackupDot);
 setInterval(() => { tickHome(false); if (new Date().getSeconds() === 0) { renderRestCard(); $('#brandMark').innerHTML = mark({ t: new Date(), sw: 5.4 }); } }, 1000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) { render(); planNotifications(); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { render(); planNotifications(); checkEarly(); } });
 
 /* Offline cache for the website version. Inside an embedded frame service workers aren't allowed,
    so any old one is removed there instead. The Android app has everything built in and needs none. */
