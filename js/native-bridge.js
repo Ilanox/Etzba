@@ -32,7 +32,11 @@ const withP = (name, fn) => loaded.then(() => { const p = P(name); return p ? fn
 /* ---- files out: write to the app's cache, then open the system share sheet (Save to Files, Drive, WhatsApp…) ---- */
 export async function saveFile(name, text) {
   await loaded;
-  const { uri } = await P('Filesystem').writeFile({ path: name, data: text, directory: 'CACHE', encoding: 'utf8' });
+  // text is written as UTF-8; bytes (a PDF) as base64
+  const bin = text instanceof Uint8Array;
+  let data = text;
+  if (bin) { let s = ''; for (let i = 0; i < text.length; i += 0x8000) s += String.fromCharCode.apply(null, text.subarray(i, i + 0x8000)); data = btoa(s); }
+  const { uri } = await P('Filesystem').writeFile({ path: name, data, directory: 'CACHE', ...(bin ? {} : { encoding: 'utf8' }) });
   try { await P('Share').share({ title: name, files: [uri], dialogTitle: name }); }
   catch (e) { if (!/cancel/i.test(e?.message || '')) throw e; return false; }
   return true;

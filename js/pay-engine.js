@@ -30,7 +30,13 @@ export function defaultJob(name = 'עבודה') {
     holidayPay: false,
     holidayPayHours: 8,
     travel: 0,
+    travelMode: 'day',        // 'day': once per work day (by law) | 'shift': every shift
+    travelMonthCap: 0,        // monthly pass price; travel for the month never goes above it (0 = none)
     breakMin: 0,
+    tipsOn: false,            // show a tips field on shifts
+    tipsMode: 'own',          // 'own': tips are yours, on top of pay | 'wage': through the employer, topped up to the hourly rate
+    startDate: '',            // first day at this job (YYYY-MM-DD), for sick and vacation days; empty = first shift
+    vacDays: 0,               // vacation days for a full year; 0 = by law for the work week
   };
 }
 
@@ -128,10 +134,15 @@ export function shiftPay(sh, job, place, weekRegBefore = 0) {
   const rate = +(sh.rate ?? job.rate);
   const money = {}; let base = 0;
   for (const k of TIERS) { money[k] = b[k] * rate * job.r[k] / 100; base += money[k]; }
-  const travel = +(sh.travel ?? job.travel) || 0, bonus = +sh.bonus || 0;
+  const travel = +(sh.travel ?? job.travel) || 0, bonus = +sh.bonus || 0, tips = Math.max(0, +sh.tips || 0);
+  // tips through the employer count towards the hourly pay, which tops them up when they fall short;
+  // tips of your own come on top and aren't part of the pay
+  const tipsInPay = tips > 0 && job.tipsMode === 'wage';
+  const topUp = tipsInPay ? Math.max(0, base - tips) : 0;
+  const wage = tipsInPay ? Math.max(base, tips) : base;
   const sum = ks => ks.reduce((a, k) => a + b[k], 0);
   return {
-    hours: paid / 60, total: total / 60, b, money, base, travel, bonus, pay: base + travel + bonus, rate,
+    hours: paid / 60, total: total / 60, b, money, base, travel, bonus, tips, tipsInPay, topUp, pay: wage + travel + bonus, rate,
     isNight, isShort, threshold, weeklyOT, regUsed: wk / 60 - weekRegBefore, lastKey, otOn,
     names: [...names], restStart,
     otHours: sum(['ot1', 'ot2', 'restOt1', 'restOt2', 'chagOt1', 'chagOt2', 'electOt1', 'electOt2']),
@@ -144,7 +155,7 @@ export function shiftPay(sh, job, place, weekRegBefore = 0) {
    [{ until: ISO, rules: {...} }] — a shift that starts before `until` uses those rules
    (the earliest version whose `until` is still after the shift). */
 export const RULE_KEYS = ['election', 'rate', 'weekDays', 'regHours', 'shortDay', 'shortHours', 'weeklyRule', 'weeklyLimit', 'nightRule', 'nightRegHours',
-  'ot1Hours', 'r', 'restMode', 'fixedStart', 'fixedEnd', 'chag', 'shabbatOn', 'otOn', 'holidayPay', 'holidayPayHours', 'travel'];
+  'ot1Hours', 'r', 'restMode', 'fixedStart', 'fixedEnd', 'chag', 'shabbatOn', 'otOn', 'holidayPay', 'holidayPayHours', 'travel', 'travelMode', 'travelMonthCap', 'tipsMode'];
 export const rulesOf = job => JSON.parse(JSON.stringify(Object.fromEntries(RULE_KEYS.map(k => [k, job[k]]))));
 export function jobAt(job, when) {
   const vs = job.versions; if (!vs || !vs.length) return job;
@@ -196,11 +207,16 @@ export function computeAll(shifts, jobById, place) {
     return r.job;
   };
   function week(w) {
-    const g = weeks.get(w).sort((a, b) => a[0] - b[0]), reg = new Map();
-    for (const [, s] of g) {
+    const g = weeks.get(w).sort((a, b) => a[0] - b[0]), reg = new Map(), travelDays = new Set();
+    for (let [, s] of g) {
       const job = at(jobById(s.jobId), s.start);
+      // travel is paid once per work day: a second shift the same day doesn't get it again
+      if (job.travelMode !== 'shift' && s.travel == null) {
+        const dk = job.id + '|' + new Date(s.start).toDateString();
+        if (travelDays.has(dk)) s = { ...s, travel: 0 }; else travelDays.add(dk);
+      }
       const before = reg.get(job.id) || 0;
-      const ck = s.start + '|' + s.end + '|' + s.breakMin + '|' + s.bonus + '|' + s.rate + '|' + s.travel + '|' + s.forceRest + '|' + before + '|' + pk + '|' + jobKey(job);
+      const ck = s.start + '|' + s.end + '|' + s.breakMin + '|' + s.bonus + '|' + s.tips + '|' + s.rate + '|' + s.travel + '|' + s.forceRest + '|' + before + '|' + pk + '|' + jobKey(job);
       let p = PAY_CACHE.get(ck);
       if (!p) { p = shiftPay(s, job, place, before); if (PAY_CACHE.size > 50000) PAY_CACHE.clear(); PAY_CACHE.set(ck, p); }
       reg.set(job.id, before + p.regUsed);

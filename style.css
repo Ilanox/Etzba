@@ -247,6 +247,18 @@ details.adv[open] summary svg{transform:rotate(180deg)}
 .sheet .shsub{color:var(--ink3);font-size:.88rem;margin:0 2px}
 .sheet h3{font-size:.8rem;font-weight:700;color:var(--ink3);margin:22px 2px 0}
 
+.pop{position:fixed;left:50%;top:50%;z-index:52;width:min(360px,calc(100vw - 32px));max-height:88dvh;overflow-y:auto;background:var(--bg);border-radius:var(--r-lg);
+  padding:24px 20px 18px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.28);opacity:0;pointer-events:none;transform:translate(-50%,-46%) scale(.96);transition:opacity .2s,transform .26s cubic-bezier(.2,.8,.2,1)}
+.pop.on{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
+.pop-ic{width:46px;height:46px;border-radius:50%;margin:0 auto 10px;display:grid;place-items:center;background:var(--money-soft,var(--surface2));color:var(--money,var(--ink))}
+.pop-ic svg{width:24px;height:24px}
+.pop h2{font-size:1.1rem;font-weight:700;margin:0;color:var(--ink2)}
+.pop-pay{font-size:2.4rem;font-weight:800;margin:4px 0 2px;color:var(--ink);letter-spacing:-.02em}
+.pop-sub{margin:0;color:var(--ink3);font-size:.9rem}
+.pop-tips{margin-top:16px;text-align:start}
+.pop-btns{display:grid;gap:8px;margin-top:18px}
+.pop-btns .btn{height:48px}
+.btn.ghost{background:none;color:var(--ink3);font-weight:600;height:40px!important}
 .toast{position:fixed;left:50%;bottom:calc(var(--tab-h) + 24px + var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)));transform:translate(-50%,20px);z-index:60;background:var(--ink);color:var(--bg);
   padding:12px 18px;border-radius:14px;font-weight:600;font-size:.92rem;opacity:0;pointer-events:none;transition:.25s;max-width:90vw;text-align:center}
 .toast.on{opacity:1;transform:translate(-50%,0)}
@@ -788,3 +800,8 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
 .c-plot{padding:0 0 22px 0;padding-inline-start:38px}
 .c-grid{inset:0 0 22px 0;inset-inline-start:38px}
 .c-grid em{left:auto;inset-inline-start:-38px;text-align:end}
+
+/* sick and vacation list */
+.iconbtn{width:36px;height:36px;display:grid;place-items:center;border-radius:10px;color:var(--ink3);margin:-6px 0}
+.iconbtn svg{width:18px;height:18px}
+.iconbtn:active{background:var(--surface2)}

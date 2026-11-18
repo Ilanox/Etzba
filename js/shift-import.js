@@ -11,7 +11,8 @@ const H = {
   rate: ['שכר לשעה', 'תעריף לשעה', 'תעריף', 'rate', 'hourly rate'],
   travel: ['נסיעות ליום', 'נסיעות', 'travel'],
   deduct: ['הורדות', 'ניכויים', 'deductions'],
-  bonus: ['תוספות', 'טיפים/בונוס', 'טיפים', 'בונוס', 'bonus', 'tips'],
+  bonus: ['תוספות', 'טיפים/בונוס', 'בונוס', 'bonus'],
+  tips: ['טיפים', 'טיפ', 'tips'],
   breakMin: ['הפסקה (דקות)', 'הפסקה', 'break'],
   note: ['הערות', 'הערה', 'note', 'notes'],
 };
@@ -90,7 +91,7 @@ function readSummary(rows, from) {
 }
 
 /**
- * rows → { shifts:[{start,end,breakMin,rate?,travel?,bonus,note}], skippedEmpty, skippedBad:[{row,why}], years, needsYear, summary, map }
+ * rows → { shifts:[{start,end,breakMin,rate?,travel?,bonus,tips?,note}], skippedEmpty, skippedBad:[{row,why}], years, needsYear, summary, map }
  * opts: { year } used when dates have no year; months running backwards roll the year forward.
  */
 export function rowsToShifts(rows, opts = {}) {
@@ -123,6 +124,7 @@ export function rowsToShifts(rows, opts = {}) {
     const sh = { start, end, breakMin, bonus: (num(cell('bonus')) ?? 0) - (num(cell('deduct')) ?? 0), note: (() => { const n = String(cell('note') ?? '').trim(); return n === '-' ? '' : n; })() };
     const rate = num(cell('rate')); if (rate != null) sh.rate = rate;
     if (map.travel != null) sh.travel = num(cell('travel')) ?? 0;
+    if (map.tips != null) { const t = num(cell('tips')); if (t) sh.tips = t; }
     sh.fileHours = hrs;
     shifts.push(sh);
   }

@@ -72,21 +72,37 @@ test('first launch, offline: welcome, set up a job, no errors', async () => {
   assert.deepEqual(errors, []); await ctx.close();
 });
 
-test('clock in, clock out, the shift is saved', async () => {
+test('clock in, clock out: saved at once, with a popup to edit or undo', async () => {
   const { page, ctx, errors, state } = await open();
   await page.click('#punchBtn'); await wait(page);
   assert.ok((await state()).active, 'running');
   await startedAgo(page, 3);
   await page.click('#punchBtn'); await wait(page, 500);
-  await page.click('#f-save'); await wait(page, 500);
-  const st = await state();
-  assert.ok(!st.active); assert.equal(st.shifts.length, 1);
+  let st = await state();
+  assert.ok(!st.active, 'clocked out'); assert.equal(st.shifts.length, 1, 'saved without a form');
+  assert.ok(await page.locator('#pop.on').isVisible(), 'popup');
+  assert.equal(await page.locator('#sheet.on').count(), 0, 'no full form');
+  await page.click('#pd-ok'); await wait(page, 400);
+  assert.equal(await page.locator('#pop.on').count(), 0, 'closed');
+  assert.deepEqual(errors, []); await ctx.close();
+});
+
+test('the popup after clock-out: undo carries the shift on, edit opens the form', async () => {
+  const { page, ctx, errors, state } = await open();
+  await startedAgo(page, 3); await page.click('#punchBtn'); await wait(page, 500);
+  await page.click('#pd-undo'); await wait(page, 400);
+  let st = await state();
+  assert.ok(st.active, 'running again'); assert.equal(st.shifts.length, 0, 'not saved');
+  await page.click('#punchBtn'); await wait(page, 500);
+  await page.click('#pd-edit'); await wait(page, 500);
+  assert.ok(await page.locator('#sheet.on #f-save').isVisible(), 'edit form');
+  assert.equal(await page.locator('#f-del').count(), 1, 'editing the saved shift');
   assert.deepEqual(errors, []); await ctx.close();
 });
 
 test('delete a shift, then undo', async () => {
   const { page, ctx, errors, state } = await open();
-  await startedAgo(page, 3); await page.click('#punchBtn'); await wait(page, 500); await page.click('#f-save'); await wait(page, 500);
+  await startedAgo(page, 3); await page.click('#punchBtn'); await wait(page, 500); await page.click('#pd-ok'); await wait(page, 500);
   await page.click('[data-v=shifts]'); await wait(page);
   await page.locator('#v-shifts .srow').first().click(); await wait(page);
   await page.click('#f-del'); await wait(page);
@@ -141,7 +157,7 @@ test('Android: tapping the widget clocks in, and asks before clocking out', asyn
   await page.evaluate(() => { window.__pending = { action: 'toggle' }; __fire('AppActions', 'action', {}); }); await wait(page);
   assert.ok((await state()).active, 'not ended without asking');
   await page.click('#wa-end'); await wait(page, 500);
-  assert.equal(await page.locator('#f-save').count(), 1, 'end-shift screen');
+  assert.ok(!(await state()).active, 'ended'); assert.ok(await page.locator('#pop.on').isVisible(), 'saved popup');
   assert.deepEqual(errors, []); await ctx.close();
 });
 
@@ -233,5 +249,32 @@ test('Android: switching to English updates every widget text', async () => {
   assert.equal(w.rtl, false);
   const texts = [w.extra.month.name, ...w.segs.map(s => s[2]), ...Object.values(w.labels)].join(' ');
   assert.doesNotMatch(texts, /[֐-׿]/, texts);
+  assert.deepEqual(errors, []); await ctx.close();
+});
+
+test('a sick day from the summary, and the monthly report as a PDF', async () => {
+  const { page, ctx, errors, state } = await open();
+  await startedAgo(page, 4); await page.click('#punchBtn'); await wait(page, 500); await page.click('#pd-ok'); await wait(page, 400);
+  await page.click('[data-v=sum]'); await wait(page);
+  await page.click('#addLeave'); await wait(page);
+  await page.click('#lv-kind [data-k=sick]'); await page.fill('#lv-n', '2'); await page.click('#lv-save'); await wait(page, 500);
+  const st = await state();
+  assert.equal(st.absences.length, 2); assert.ok(st.absences.every(a => a.kind === 'sick'));
+  assert.equal(await page.locator('#leave [data-ab]').count() >= 1, true, 'listed this month');
+  await page.click('#xReport'); await wait(page);
+  const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.click('#rp-go')]);
+  const buf = Buffer.from(await (await dl.createReadStream()).toArray().then(c => Buffer.concat(c)));
+  assert.equal(buf.subarray(0, 5).toString(), '%PDF-', 'a PDF'); assert.ok(buf.length > 20000, 'with a page image');
+  assert.deepEqual(errors, []); await ctx.close();
+});
+
+test('tips: the field shows for a job with tips, and own tips stay out of gross', async () => {
+  const { page, ctx, errors, state } = await open();
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('etzba.v1')); s.jobs[0].tipsOn = true; localStorage.setItem('etzba.v1', JSON.stringify(s)); });
+  await startedAgo(page, 4); await page.click('#punchBtn'); await wait(page, 500);
+  await page.fill('#pd-tips', '150'); await page.click('#pd-ok'); await wait(page, 500);
+  assert.equal((await state()).shifts[0].tips, 150, 'saved from the popup');
+  await page.click('[data-v=sum]'); await wait(page);
+  assert.match(await page.locator('#v-sum').innerText(), /טיפים שלך/);
   assert.deepEqual(errors, []); await ctx.close();
 });

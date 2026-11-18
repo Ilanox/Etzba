@@ -14,6 +14,7 @@ export const BUILT_IN = {
   version: 1,
   minWage: [{ from: '2025-04-01', hourly: 34.32 }, { from: '2026-04-01', hourly: 35.40 }],
   elections: [{ date: '2026-10-27', name: 'בחירות לכנסת' }],
+  travelMaxDaily: 22.6,
   tax: {
     2026: {
       brackets: [[7010, .10], [10060, .14], [19000, .20], [25100, .31], [46690, .35], [null, .47]],
