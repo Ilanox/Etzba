@@ -298,5 +298,7 @@ test('a goal for the month: progress bar and shifts still needed, not counting S
   const m = /עוד כ־(\d+)/.exec(txt); assert.ok(m, txt);
   assert.ok(+m[1] >= Math.floor((99999 - 4000) / 400) && +m[1] <= Math.ceil(99999 / 400), 'shifts at ₪400: ' + m[1]);
   assert.ok(await page.locator('.goal-bar i').count());
+  await page.click('#goal'); await wait(page);
+  assert.match(await page.locator('#sheet').innerText(), /רק משמרות רגילות/, 'the plan in the goal sheet');
   assert.deepEqual(errors, []); await ctx.close();
 });

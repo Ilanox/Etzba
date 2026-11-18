@@ -487,28 +487,83 @@ function typicalShift(now = new Date()) {
   if (!list.length) return null;
   return list.reduce((a, b) => a + b, 0) / list.length;
 }
+/** Shabbat, holiday and election days still ahead this month (from tomorrow, or today if nothing worked yet). */
+function restDaysLeft(now = new Date()) {
+  const y = now.getFullYear(), m = now.getMonth(), last = new Date(y, m + 1, 0).getDate();
+  const workedToday = S.shifts.some(s => sameDay(s.start, now)) || S.active;
+  const first = now.getDate() + (workedToday ? 1 : 0), out = [];
+  const hol = new Map(holidaysOfGregorianYear(y).filter(h => h.date.getMonth() === m).map(h => [h.date.getDate(), h.name]));
+  for (const e of rules().elections || []) { const [ey, em, ed] = e.date.split('-').map(Number); if (ey === y && em - 1 === m) hol.set(ed, 'יום הבחירות'); }
+  for (let d = first; d <= last; d++) {
+    const dt = new Date(y, m, d);
+    if (hol.has(d)) out.push({ date: dt, name: hol.get(d) }); else if (dt.getDay() === 6) out.push({ date: dt, name: 'שבת' });
+  }
+  return { list: out, daysLeft: last - first + 1 };
+}
+/** What a Shabbat or holiday shift pays: the average of such shifts in the last 90 days, or else
+    an ordinary shift at the job's Shabbat rate. Null when the job doesn't pay extra on Shabbat. */
+function typicalRestShift(avg, now = new Date()) {
+  const job = jobById(S.settings.lastJob);
+  if (job.shabbatOn === false && job.chag === false) return null;
+  const from = +now - 90 * 864e5, list = [];
+  for (const s of S.shifts) {
+    const t = +new Date(s.start); if (t < from || t > +now) continue;
+    const p = PAY.get(s.id); if (p && p.restHours > 0.01) list.push(p.pay);
+  }
+  if (list.length) return { pay: list.reduce((a, b) => a + b, 0) / list.length, guessed: false };
+  return avg ? { pay: avg * (job.r.rest || 150) / 100, guessed: true } : null;
+}
 function goalState(M) {
   const g = S.settings.goal; if (!g || !(+g.amount > 0)) return null;
   const st = S.settings, opts = { points: +st.sex + +st.extraPts, pension: st.pension, pEmp: +st.pEmp, pEr: +st.pEr, sev: +st.sev, hish: st.hish }, T = taxFor(M.y);
-  const net = g.kind === 'gross' ? null : x => grossToNet(x, opts, T).net;
-  const have = net ? M.net.net : M.gross, goal = +g.amount, left = Math.max(0, goal - have);
-  const avg = typicalShift();
-  let shifts = null;
+  const isNet = g.kind !== 'gross', value = gross => isNet ? grossToNet(gross, opts, T).net : gross;
+  const have = isNet ? M.net.net : M.gross, goal = +g.amount, left = Math.max(0, goal - have);
+  const avg = typicalShift(), now = new Date(), R = restDaysLeft(now), rest = typicalRestShift(avg, now);
+  // fewest ordinary shifts that reach the goal on top of k Shabbat/holiday shifts
+  const ordinaryWith = k => {
+    if (!avg) return null;
+    for (let r = 0; r <= 500; r++) if (value(M.gross + r * avg + k * (rest?.pay || 0)) >= goal) return r;
+    return null;
+  };
+  let shifts = null; const options = [];
   if (left > 0 && avg > 0) {
-    if (!net) shifts = Math.ceil(left / avg);
-    else for (let k = 1; k <= 99; k++) if (net(M.gross + k * avg) >= goal) { shifts = k; break; }
+    shifts = ordinaryWith(0);
+    if (rest && rest.pay > avg * 1.02) for (let k = 1; k <= R.list.length; k++) {
+      const r = ordinaryWith(k); if (r == null) break;
+      options.push({ k, ordinary: r, total: r + k });
+      if (r === 0) break;   // the goal is reached with Shabbat shifts alone; more add nothing
+    }
   }
-  return { goal, have, left, avg, shifts, kind: net ? 'net' : 'gross', pct: Math.min(1, have / goal) };
+  const best = options.reduce((b, o) => !b || o.total < b.total ? o : b, null);
+  return { goal, have, left, avg, shifts, kind: isNet ? 'net' : 'gross', pct: Math.min(1, have / goal),
+    rest, restLeft: R.list, daysLeft: R.daysLeft, options, best: best && shifts != null && best.total < shifts ? best : null,
+    perDay: left > 0 && R.daysLeft > 0 ? left / R.daysLeft : 0, tight: shifts != null && (best ? best.total : shifts) > R.daysLeft };
 }
+const nShifts = n => `${n} ${n === 1 ? 'משמרת' : 'משמרות'}`;
+const restWord = list => list.every(d => d.name === 'שבת') ? (list.length === 1 ? 'שבת' : 'שבתות') : 'שבת וחג';
 function goalCell(M) {
   const G = goalState(M);
   if (!G) return `<button class="goal empty-goal" id="goal">${I.plus}<span>הצבת יעד לחודש</span></button>`;
   const done = G.left <= 0;
+  let tip = '';
+  if (!done && G.tight) tip = `נשארו בחודש ${G.daysLeft} ימים, פחות מהמשמרות שצריך. אפשר לשקול יעד נמוך יותר או משמרות ארוכות.`;
+  else if (!done && G.best) tip = `או ${nShifts(G.best.total)} אם ${G.best.k === 1 ? 'אחת מהן' : G.best.k + ' מהן'} ב${restWord(G.restLeft)} (נשארו ${G.restLeft.length} החודש)`;
   return `<button class="goal${done ? ' done' : ''}" id="goal">
     <div class="goal-h"><b>יעד ${G.kind === 'net' ? 'נטו' : 'ברוטו'}</b><span class="num"><b>${money(G.have)}</b> מתוך ${money(G.goal)}</span></div>
     <div class="goal-bar"><i style="width:${(G.pct * 100).toFixed(1)}%"></i></div>
-    <div class="goal-sub num">${done ? 'הגעת ליעד של החודש' : `נשארו ${money(G.left)}${G.shifts ? ` · עוד כ־${G.shifts} ${G.shifts === 1 ? 'משמרת' : 'משמרות'}` : ''}`}</div>
+    <div class="goal-sub num">${done ? 'הגעת ליעד של החודש' : `נשארו ${money(G.left)}${G.shifts ? ` · עוד כ־${nShifts(G.shifts)}` : ''}`}</div>
+    ${tip ? `<div class="goal-tip${G.tight ? ' warn' : ''}">${G.tight ? I.warn : I.shabbat}<span>${tip}</span></div>` : ''}
   </button>`;
+}
+/** The plan behind the goal: every way to get there with the Shabbat and holiday days left. */
+function goalPlan(G) {
+  if (!G || G.left <= 0 || !G.avg) return '';
+  const L = (l, v, sub = '') => `<div class="ln"><span class="l">${l}${sub ? `<small>${sub}</small>` : ''}</span><span class="v num">${v}</span></div>`;
+  const rows = [L('רק משמרות רגילות', nShifts(G.shifts ?? 0), `כ־${money(G.avg)} ברוטו כל אחת`)];
+  for (const o of G.options) rows.push(L(o.k === 1 ? 'אחת מהן בשבת או חג' : `${o.k} מהן בשבת או חג`, nShifts(o.total), o.ordinary ? `${o.ordinary} רגילות + ${o.k} בתוספת` : 'רק בתוספת'));
+  const days = G.restLeft.map(d => `${d.name === 'שבת' ? 'שבת' : d.name} ${dShort(d.date)}`).join(' · ');
+  return `<div class="card" style="margin-top:14px">${rows.join('')}</div>
+    <p class="hint"><span>${G.restLeft.length ? `נשארו החודש: ${days}.` : 'לא נשארו שבתות או חגים החודש.'}</span> <span>${G.rest ? (G.rest.guessed ? `משמרת בשבת לפי ${jobById(S.settings.lastJob).r.rest}% מהתעריף: כ־${money(G.rest.pay)}.` : `משמרת שבת או חג שלך שווה בערך ${money(G.rest.pay)}.`) : ''}</span> <span>${G.daysLeft > 0 ? `כדי להגיע ליעד: כ־${money(G.perDay)} ליום עד סוף החודש.` : ''}</span></p>`;
 }
 function openGoal() {
   const g = S.settings.goal || { amount: '', kind: 'net' };
@@ -518,6 +573,7 @@ function openGoal() {
     <div class="seg" id="g-kind" style="margin-top:14px"><button type="button" data-k="net">נטו</button><button type="button" data-k="gross">ברוטו</button></div>
     <label class="field"><span>היעד (₪)</span><input class="input num" type="number" inputmode="numeric" id="g-amt" value="${+g.amount || ''}" placeholder="5000"></label>
     <p class="hint">${avg ? `משמרת רגילה שלך שווה בערך ${money(avg)} ברוטו (ממוצע 8 השבועות האחרונים, בלי שבתות וחגים).` : 'אחרי כמה משמרות נדע להגיד כמה משמרות עוד צריך.'}</p>
+    ${goalPlan(goalState(withLive(monthCalc(new Date().getFullYear(), new Date().getMonth()))))}
     <div class="btnrow"><button class="btn primary" id="g-save">${I.check}שמירה</button>${+g.amount ? `<button class="btn soft" id="g-del">הסרת היעד</button>` : ''}</div>`, root => {
     const ui = () => $$('#g-kind button', root).forEach(b => b.classList.toggle('on', b.dataset.k === kind));
     $$('#g-kind button', root).forEach(b => b.onclick = () => { kind = b.dataset.k; ui(); }); ui();

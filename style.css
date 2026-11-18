@@ -816,3 +816,6 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
 .goal-sub{font-size:.78rem;color:var(--ink3);margin-top:8px}
 .empty-goal{display:flex;align-items:center;gap:8px;color:var(--ink3);font-size:.88rem;font-weight:600}
 .empty-goal svg{width:18px;height:18px}
+.goal-tip{display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:.8rem;color:var(--ink2);line-height:1.45}
+.goal-tip svg{width:16px;height:16px;flex:none;margin-top:1px;color:var(--gold-ink,var(--gold))}
+.goal-tip.warn svg{color:var(--danger)}
