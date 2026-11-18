@@ -1362,6 +1362,22 @@ function announceEarly() {
   $('#en-later', pop).onclick = closePop;
 }
 const recapOpen = () => !!S.settings.supported || earlyOpen('recap');
+/** Under the header while the year's recap is open: November to January (or right after it opens), until seen or closed. */
+function recapBanner() {
+  const el = $('#rcBanner'); if (!el) return;
+  const now = new Date(), y = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  const d = earlyDate('recap'), justOpened = d && !earlyLater('recap') && (now - new Date(d + 'T00:00:00')) / 864e5 < 60 && earlyOpen('recap');
+  const show = recapOpen() && (now.getMonth() >= 10 || now.getMonth() === 0 || justOpened) && S.ui?.rcBanner !== y
+    && S.shifts.some(s => new Date(s.start).getFullYear() === y);
+  if (!show) { el.hidden = true; el.innerHTML = ''; return; }
+  if (el.dataset.y === String(y) && !el.hidden) return;
+  el.dataset.y = y; el.hidden = false;
+  el.innerHTML = `<button class="rcb-go" type="button"><span class="rcb-ic">${mark({ ink: '#fff', accent: '#FFD9C7' })}</span><span class="grow"><b>השנה שלך באצבע כאן</b><small>${y} כמו סטורי, עם תמונה לשיתוף</small></span>${I.chevL}</button>
+    <button class="rcb-x" type="button" aria-label="סגירה">${I.x}</button>`;
+  const seen = () => { S.ui = { ...(S.ui || {}), rcBanner: y }; persist(); el.hidden = true; };
+  $('.rcb-go', el).onclick = () => { seen(); openRecap(y); };
+  $('.rcb-x', el).onclick = seen;
+}
 function recapStats(y) {
   const list = S.shifts.filter(s => new Date(s.start).getFullYear() === y).map(s => ({ s, p: PAY.get(s.id) })).filter(x => x.p);
   if (!list.length) return null;
@@ -2788,6 +2804,7 @@ function render() {
     const now = new Date(), M = withLive(monthCalc(now.getFullYear(), now.getMonth()));
     countUp($('#barNet'), M.net.net);
     $('#brandMark').innerHTML = mark({ t: now, sw: 5.4 });
+    recapBanner();
   } catch (e) { report(e); }
 }
 
