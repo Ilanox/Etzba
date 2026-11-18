@@ -159,6 +159,8 @@ export const billing = {
   products: ids => withP('Billing', b => b.products({ ids })).then(r => r?.products || []),
   /** { ok, cancelled } */
   buy: id => withP('Billing', b => b.buy({ id })),
+  /** A supporter's app icon: 'default' | 'gold' | 'night' | 'paper'. */
+  setIcon: name => withP('Billing', b => b.setIcon({ name })),
 };
 
 /* ---- workplace arrival / departure (Android geofencing; see native/android/GeoPlugin.java) ---- */

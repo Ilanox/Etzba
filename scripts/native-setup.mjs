@@ -76,6 +76,17 @@ ${plugins.map(p => `        registerPlugin(${p}.class);`).join('\n')}
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/etzba_widget_info" />
         </receiver>`, WIDGET);
+  // supporters can pick another app icon: the launcher entry moves to aliases, one per icon, only one enabled
+  x = x.replace(/(<intent-filter>\s*<action android:name="android.intent.action.MAIN" \/>)(\s*<category android:name="android.intent.category.LAUNCHER" \/>)?/,
+    (m, a) => SUPPORT ? a : `${a}\n                <category android:name="android.intent.category.LAUNCHER" />`);
+  const alias = (n, icon, on) => `        <activity-alias android:name=".Icon${n}" android:enabled="${on}" android:exported="true" android:label="@string/app_name"
+            android:icon="@mipmap/${icon}" android:roundIcon="@mipmap/${icon}_round" android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>`;
+  block('icons', [alias('Default', 'ic_launcher', true), alias('Gold', 'ic_launcher_gold', false), alias('Night', 'ic_launcher_night', false), alias('Paper', 'ic_launcher_paper', false)].join('\n'), SUPPORT);
   writeFileSync(mf, x);
   if (!x.includes('etzba-share-in')) {
     const data = MIMES.map(m => `                <data android:mimeType="${m}" />`).join('\n');

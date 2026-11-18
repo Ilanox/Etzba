@@ -870,3 +870,41 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
 .sp-other{margin-top:14px}
 .sp-other summary{cursor:pointer;text-align:center;color:var(--ink2);font-weight:600;font-size:.9rem;list-style:none;padding:8px}
 .sp-other .qchips{justify-content:center;margin-top:8px}
+
+/* ================= supporter themes: gold, night, sunset ================= */
+:root[data-theme=gold]{
+  --bg:#15130E;--surface:#1F1C15;--surface2:#2B271D;--ink:#F3EBD8;--ink2:#C9BC9C;--ink3:#8E8366;--line:#3A3426;
+  --accent:#E2B65A;--accent-soft:#3A3020;--money:#F3EBD8;--money-soft:#2B271D;--danger:#F2826B;--pen:#E2B65A;--gold:#E2B65A;
+  --g-acc-a:#B98A2A;--g-acc-b:#E8C26C;--g-money-a:#B98A2A;--g-money-b:#E8C26C;--g-ot-a:#C9692A;--g-ot-b:#F09A55;--g-hot-a:#A8402A;--g-hot-b:#E0664E;
+  --k-morning:#C9BC9C;--k-noon:#C9BC9C;--k-evening:#C9BC9C;--k-night:#F3EBD8;--k-shabbat:#E2B65A;--k-chag:#E2B65A;
+  --c1:#E2B65A;--c2:#C9692A;--c3:#8FB0D8;--ink3:#9A8E70;--pen-ink:#E8C26C;--gold-ink:#E8C26C;--accent-ink:#E8C26C;--shadow:none}
+:root[data-theme=night]{
+  --bg:#0C1322;--surface:#131C30;--surface2:#1C2740;--ink:#E6ECF8;--ink2:#AEBBD6;--ink3:#7484A6;--line:#26324D;
+  --accent:#8DB8FF;--accent-soft:#1F2E52;--money:#E6ECF8;--money-soft:#1C2740;--danger:#FF8A8A;--pen:#8DB8FF;--gold:#E8C873;
+  --g-acc-a:#4D7FD6;--g-acc-b:#8DB8FF;--g-money-a:#4D7FD6;--g-money-b:#8DB8FF;--g-ot-a:#C98A3A;--g-ot-b:#F2B866;--g-hot-a:#C0505A;--g-hot-b:#F0808A;
+  --k-morning:#AEBBD6;--k-noon:#AEBBD6;--k-evening:#AEBBD6;--k-night:#E6ECF8;--k-shabbat:#E8C873;--k-chag:#E8C873;
+  --c1:#8DB8FF;--c2:#F2B866;--c3:#E8C873;--pen-ink:#8DB8FF;--gold-ink:#E8C873;--accent-ink:#8DB8FF;--shadow:none}
+:root[data-theme=sunset]{
+  --bg:#F7EEE8;--surface:#FFFAF6;--surface2:#EFE1D8;--ink:#2B1D20;--ink2:#6B5357;--ink3:#97807F;--line:#E5D3C8;
+  --accent:#D2486A;--accent-soft:#F7DCE2;--money:#2B1D20;--money-soft:#EFE1D8;--danger:#B8323F;--pen:#7A4FD0;--gold:#C9832A;
+  --g-acc-a:#C23A5E;--g-acc-b:#EF7A6A;--g-money-a:#7A4FD0;--g-money-b:#A98AF0;--g-ot-a:#D06A2A;--g-ot-b:#F0A060;--g-hot-a:#A0283E;--g-hot-b:#D2486A;
+  --k-morning:#6B5357;--k-noon:#6B5357;--k-evening:#6B5357;--k-night:#2B1D20;--k-shabbat:#C9832A;--k-chag:#C9832A;
+  --c1:#7A4FD0;--c2:#D2486A;--c3:#C9832A;--pen-ink:#7A4FD0;--gold-ink:#9A5F12;--accent-ink:#C23A5E;--shadow:none}
+:root[data-theme=gold] .hero,:root[data-theme=night] .hero{background:linear-gradient(180deg,color-mix(in srgb,var(--surface2) 70%,var(--bg)),var(--surface))}
+:root[data-theme=gold] .k-night.kic,:root[data-theme=night] .k-night.kic{background:var(--ink);color:var(--bg)}
+.themes{grid-template-columns:repeat(4,1fr)}
+.themes button{position:relative}
+.themes button.locked i{filter:saturate(.55) brightness(.92)}
+.themes .lk{position:absolute;top:6px;inset-inline-end:6px;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:var(--surface);color:var(--ink2)}
+.themes .lk svg{width:11px;height:11px}
+.themes-h{font-size:.78rem;color:var(--ink3);margin:14px 0 8px;display:flex;align-items:center;gap:6px}
+.themes-h svg{width:14px;height:14px;color:#D9534F}
+/* supporters: a thin gold ring around the dial */
+html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;animation:none;border:0;z-index:1;position:absolute;inset:-7px;border-radius:50%;pointer-events:none;
+  background:conic-gradient(from 210deg,#B98A2A,#F3D27A,#C9932E,#F6DE98,#B98A2A);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px))}
+.icons{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.icons button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 4px;border-radius:6px;border:2px solid transparent;font-size:.75rem;font-weight:600;color:var(--ink2);background:var(--surface2)}
+.icons button.on{border-color:var(--g-acc-a);color:var(--ink)}
+.icons img{width:46px;height:46px;border-radius:12px}
+.sp-thanks{display:flex;align-items:center;gap:10px;padding:12px 14px}

@@ -1,5 +1,8 @@
 package com.edvinstudios.etzba;
 
+import android.content.ComponentName;
+import android.content.pm.PackageManager;
+
 import androidx.annotation.NonNull;
 
 import com.android.billingclient.api.BillingClient;
@@ -105,6 +108,25 @@ public class BillingPlugin extends Plugin implements PurchasesUpdatedListener {
             BillingResult r = client.launchBillingFlow(getActivity(), BillingFlowParams.newBuilder().setProductDetailsParamsList(ps).build());
             if (r.getResponseCode() != BillingClient.BillingResponseCode.OK) finish(false, false, "launch " + r.getResponseCode() + " " + r.getDebugMessage());
         }, call::reject);
+    }
+
+    /**
+     * A supporter's app icon: 'default', 'gold', 'night' or 'paper'. Each is an activity-alias in the
+     * manifest (scripts/native-setup.mjs); the chosen one is switched on first, so there's always one.
+     */
+    @PluginMethod
+    public void setIcon(PluginCall call) {
+        String want = call.getString("name", "default");
+        String[] all = { "Default", "Gold", "Night", "Paper" };
+        PackageManager pm = getContext().getPackageManager();
+        String pkg = getContext().getPackageName();
+        try {
+            for (String n : all) if (n.equalsIgnoreCase(want))
+                pm.setComponentEnabledSetting(new ComponentName(pkg, pkg + ".Icon" + n), PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP);
+            for (String n : all) if (!n.equalsIgnoreCase(want))
+                pm.setComponentEnabledSetting(new ComponentName(pkg, pkg + ".Icon" + n), PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP);
+            call.resolve();
+        } catch (Exception e) { call.reject("icon: " + e.getMessage()); }
     }
 
     @Override

@@ -358,6 +358,17 @@ export default {
     'התשלום ממתין לאישור. תודה!': 'The payment is waiting for approval. Thank you!',
     'התשלום לא עבר. אפשר לנסות שוב': 'The payment didn\'t go through. You can try again',
     'לא הצלחתי לפתוח את Google Play': 'Couldn\'t open Google Play',
+    'זהב': 'Gold',
+    'שקיעה': 'Sunset',
+    'נייר': 'Paper',
+    'בתודה על התמיכה': 'Thanks for your support',
+    'לתומכים באצבע': 'For Etzba supporters',
+    'אייקון האפליקציה': 'App icon',
+    'האייקון יתחלף בעוד רגע במסך הבית': 'The icon will change on your home screen in a moment',
+    'לא הצלחתי להחליף את האייקון': 'Couldn\'t change the icon',
+    'תומך/ת באצבע': 'Etzba supporter',
+    'האפליקציה חינמית ובלי פרסומות. תומכים מקבלים ערכות צבע ואייקונים': 'The app is free and has no ads. Supporters get color themes and icons',
+    'בתודה: שלוש ערכות צבע מיוחדות, אייקונים אחרים לאפליקציה וטבעת זהב סביב החוגה. רק המראה משתנה: כל החישובים והזכויות זמינים לכולם.': 'As a thank-you: three special color themes, other app icons and a gold ring around the dial. Only the look changes: every calculation and right is there for everyone.',
   },
   templates: [
     ['· ₪{} לשעה', '· ₪{1} an hour'],
@@ -500,6 +511,7 @@ export default {
   ['בערך {}', 'about {1}'],
   ['נשמרה משמרת מתוכננת ל{} · תזכורת שעה לפני', 'Planned shift saved for {1} · reminder an hour before'],
   ['~{}', '~{1}'],
+  ['מאז {} · תודה! אפשר לתמוך שוב מתי שרוצים', 'Since {1} · thank you! You can support again any time'],
 ],
 
   words: {

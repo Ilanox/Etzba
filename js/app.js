@@ -80,9 +80,10 @@ const darkMQ = matchMedia('(prefers-color-scheme: dark)');
 function applyTheme() {
   const t = S.settings.theme || 'auto', r = t === 'auto' ? (darkMQ.matches ? 'dark' : 'light') : t;
   document.documentElement.dataset.theme = r;
-  const bg = { light: '#F1EEE6', dark: '#141518', blurple: '#1E1F22' }[r];
+  const bg = { light: '#F1EEE6', dark: '#141518', blurple: '#1E1F22', gold: '#15130E', night: '#0C1322', sunset: '#F7EEE8' }[r];
   document.querySelectorAll('meta[name=theme-color]').forEach(m => { m.removeAttribute('media'); m.content = bg; });
-  native.setBars(r !== 'light');
+  document.documentElement.classList.toggle('supporter', !!S.settings.supported);
+  native.setBars(r !== 'light' && r !== 'sunset');
   try { syncWidget(); } catch {}
 }
 applyTheme(); darkMQ.addEventListener?.('change', applyTheme);
@@ -1240,7 +1241,8 @@ async function openSupport() {
     try {
       const r = await native.billing.buy(id);
       if (r?.ok) {
-        S.settings.supported = true; S.settings.supportCount = (S.settings.supportCount || 0) + 1; persist();
+        if (!S.settings.supported) S.settings.supportedAt = new Date().toISOString();
+        S.settings.supported = true; S.settings.supportCount = (S.settings.supportCount || 0) + 1; persist(); applyTheme();
         closeSheet(); buzz(40); toast('תודה רבה! זה עוזר להמשיך לפתח את אצבע', 'ok'); if (view === 'set') renderSet();
       } else if (r?.why === 'pending') toast('התשלום ממתין לאישור. תודה!', 'ok');
       else if (!r?.cancelled) toast('התשלום לא עבר. אפשר לנסות שוב', 'err');
@@ -1248,7 +1250,8 @@ async function openSupport() {
     finally { $$('[data-id]', sheet).forEach(b => b.disabled = false); }
   };
   openSheet(`<div class="sp-ic">${I.heart}</div><h2 style="text-align:center">תמיכה באצבע</h2>
-    <p class="shsub" style="text-align:center">אצבע חינמית, בלי פרסומות, והנתונים שלך נשארים בטלפון. אם היא עוזרת לך, אפשר לתמוך בפיתוח בתשלום חד־פעמי. שום דבר לא ננעל או נפתח בגלל זה.</p>
+    <p class="shsub" style="text-align:center">אצבע חינמית, בלי פרסומות, והנתונים שלך נשארים בטלפון. אם היא עוזרת לך, אפשר לתמוך בפיתוח בתשלום חד־פעמי.</p>
+    <div class="note info" style="margin-top:12px">${I.heart}<span>בתודה: שלוש ערכות צבע מיוחדות, אייקונים אחרים לאפליקציה וטבעת זהב סביב החוגה. רק המראה משתנה: כל החישובים והזכויות זמינים לכולם.</span></div>
     <div class="sp-main" id="sp-main"></div>
     <details class="sp-other"><summary>סכום אחר</summary><div class="qchips" id="sp-more"></div></details>
     <p class="hint" style="text-align:center">התשלום דרך Google Play. אפשר לתמוך כמה פעמים שרוצים.</p>`, root => {
@@ -1438,6 +1441,12 @@ function rightsEN(y, low, w, qa) {
 }
 
 /* ================= SETTINGS ================= */
+const THEMES = [['auto', 'אוטומטי', 'linear-gradient(90deg,#F1EEE6 50%,#141518 50%)'], ['light', 'בהיר', '#F1EEE6'], ['dark', 'כהה', '#141518'], ['blurple', 'בלרפל', 'linear-gradient(90deg,#1E1F22 60%,#5865F2 60%)']];
+// for supporters, as a thank-you: looks only, never anything that changes pay
+const THEMES_SUPPORT = [['gold', 'זהב', 'linear-gradient(135deg,#15130E 55%,#E2B65A 55%)'], ['night', 'לילה', 'linear-gradient(135deg,#0C1322 55%,#8DB8FF 55%)'], ['sunset', 'שקיעה', 'linear-gradient(135deg,#F7EEE8 55%,#D2486A 55%)']];
+const ICONS = [['default', 'רגיל', 'app-default.png'], ['gold', 'זהב', 'app-gold.png'], ['night', 'לילה', 'app-night.png'], ['paper', 'נייר', 'app-paper.png']];
+const themeBtn = ([k, n, bg]) => { const locked = THEMES_SUPPORT.some(t => t[0] === k) && !S.settings.supported;
+  return `<button data-t="${k}" class="${(S.settings.theme || 'auto') === k ? 'on' : ''}${locked ? ' locked' : ''}"><i style="background:${bg}"></i>${n}${locked ? `<span class="lk">${I.lock}</span>` : ''}</button>`; };
 // a small colored icon before a section title; the same colors as the rows below it
 const secIc = (i, t) => `<i class="sec-ic t-${t}">${I[i]}</i>`;
 function renderSet() {
@@ -1450,7 +1459,9 @@ function renderSet() {
       <button class="cell" id="addJob"><span class="cell-ic">${I.plus}</span><span class="grow" style="color:var(--accent);font-weight:600">הוספת מקום עבודה</span></button></div>
 
     <div class="sec"><span>${secIc('noon', 'gold')}מראה</span></div>
-    <div class="card pad"><div class="themes" id="s-theme">${[['auto', 'אוטומטי', 'linear-gradient(90deg,#F1EEE6 50%,#141518 50%)'], ['light', 'בהיר', '#F1EEE6'], ['dark', 'כהה', '#141518'], ['blurple', 'בלרפל', 'linear-gradient(90deg,#1E1F22 60%,#5865F2 60%)']].map(([k, n, bg]) => `<button data-t="${k}" class="${(st.theme || 'auto') === k ? 'on' : ''}"><i style="background:${bg}"></i>${n}</button>`).join('')}</div>
+    <div class="card pad"><div class="themes" id="s-theme">${THEMES.map(themeBtn).join('')}</div>
+      ${native.billing.available() || st.supported ? `<div class="themes-h">${I.heart}${st.supported ? 'בתודה על התמיכה' : 'לתומכים באצבע'}</div><div class="themes" id="s-theme2">${THEMES_SUPPORT.map(themeBtn).join('')}</div>` : ''}
+      ${st.supported && native.billing.available() ? `<div class="themes-h">אייקון האפליקציה</div><div class="icons" id="s-icon">${ICONS.map(([k, n, f]) => `<button data-ic="${k}" class="${(st.icon || 'default') === k ? 'on' : ''}"><img src="icons/${f}" alt="">${n}</button>`).join('')}</div>` : ''}
       <div class="field"><span>שפה</span><div class="seg" id="s-lang">${LANGS.map(l => `<button data-l="${l.code}" class="${l.code === LANG ? 'on' : ''}" data-keep>${l.name}</button>`).join('')}</div></div></div>
 
     <div class="sec"><span>${secIc('shabbat', 'gold')}זמני שבת וחג</span></div>
@@ -1490,9 +1501,9 @@ function renderSet() {
     ${native.NATIVE ? `<div class="card" style="margin-top:12px"><label class="cell"><span class="cell-ic t-orange">${I.bell}</span><span class="grow">התראות במשמרת<div class="sub">כשמתחילות שעות נוספות, בכניסת שבת וחג, ואם שכחת לצאת</div></span><span class="switch"><input type="checkbox" id="s-notif"${notifOn() ? ' checked' : ''}><i></i></span></label><div id="s-nstat"></div></div>` : ''}
     ${FEATURES.devTools ? `<div class="card" style="margin-top:12px"><button class="cell" id="s-debug"><span class="cell-ic t-violet">${I.info}</span><span class="grow">אבחון ותקלות<div class="sub">${dbg.lastCrash() ? 'האפליקציה נסגרה בפעם הקודמת · פרטים כאן' : 'מידע טכני לשליחה כשמשהו לא עובד'}</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
     ${FEATURES.devTools && S.settings.dev ? `<div class="card" style="margin-top:12px" data-keep><button class="cell" id="s-dev"><span class="cell-ic t-gray">${I.gear}</span><span class="grow">כלי פיתוח<div class="sub">בדיקת התראות, משמרות לדוגמה ועוד</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
-    ${native.billing.available() ? `<div class="card" style="margin-top:12px"><button class="cell" id="s-support"><span class="cell-ic t-red">${I.heart}</span><span class="grow">תמיכה באצבע<div class="sub">${S.settings.supported ? 'תודה שתמכת! אפשר לתמוך שוב מתי שרוצים' : 'האפליקציה חינמית ובלי פרסומות'}</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
+    ${native.billing.available() ? `<div class="card" style="margin-top:12px"><button class="cell" id="s-support"><span class="cell-ic t-red">${I.heart}</span><span class="grow">${S.settings.supported ? 'תומך/ת באצבע' : 'תמיכה באצבע'}<div class="sub">${S.settings.supported ? `מאז ${dFull(S.settings.supportedAt || S.updatedAt)} · תודה! אפשר לתמוך שוב מתי שרוצים` : 'האפליקציה חינמית ובלי פרסומות. תומכים מקבלים ערכות צבע ואייקונים'}</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
     <div class="card" style="margin-top:12px"><button class="cell" id="s-legal"><span class="cell-ic t-gray">${I.lock}</span><span class="grow">פרטיות ומשפטי<div class="sub">מה נשמר, ומה החישוב כן ולא</div></span><span class="chev">${I.chevL}</span></button></div>
-    <p class="fine" id="s-ver"><b>אצבע</b> · גרסה ${VERSION}<br>An Edvin Studios Project</p>`;
+    <p class="fine" id="s-ver"><b>אצבע</b> · גרסה ${VERSION}${S.settings.supported ? ' <span style="color:#D9534F">♥</span>' : ''}<br>An Edvin Studios Project</p>`;
   $$('[data-job]', el).forEach(b => b.onclick = () => openJobSheet(jobById(b.dataset.job), false));
   $('#addJob', el).onclick = () => { const j = defaultJob('עבודה ' + (S.jobs.length + 1)); j.color = COLORS[S.jobs.length % COLORS.length]; openJobSheet(j, true); };
   const set = (k, v) => { S.settings[k] = v; commit(); };
@@ -1500,7 +1511,14 @@ function renderSet() {
   for (const k of ['candleMin', 'havdalahMin', 'extraPts', 'pEmp', 'pEr', 'sev']) $('#s-' + k, el).onchange = e => set(k, +e.target.value || 0);
   for (const k of ['pension', 'hish']) $('#s-' + k, el).onchange = e => set(k, e.target.checked);
   $$('#s-sex button', el).forEach(b => { b.classList.toggle('on', +b.dataset.v === +st.sex); b.onclick = () => set('sex', +b.dataset.v); });
-  $$('#s-theme button', el).forEach(b => b.onclick = () => { S.settings.theme = b.dataset.t; applyTheme(); commit(); });
+  $$('#s-theme button, #s-theme2 button', el).forEach(b => b.onclick = () => {
+    if (THEMES_SUPPORT.some(t => t[0] === b.dataset.t) && !S.settings.supported) return openSupport();
+    S.settings.theme = b.dataset.t; applyTheme(); commit();
+  });
+  $$('#s-icon button', el).forEach(b => b.onclick = async () => {
+    try { await native.billing.setIcon(b.dataset.ic); S.settings.icon = b.dataset.ic; persist(); renderSet(); toast('האייקון יתחלף בעוד רגע במסך הבית', 'ok'); }
+    catch (e) { report(e); toast('לא הצלחתי להחליף את האייקון', 'err'); }
+  });
   $$('#s-lang button', el).forEach(b => b.onclick = () => {
     if (b.dataset.l === LANG) return;
     try { localStorage.setItem('etzba.langBoot', b.dataset.l); } catch {}
@@ -2161,7 +2179,7 @@ function syncWidget() {
     ['rega', '--g-money-a'], ['regb', '--g-money-b'], ['ot1a', '--g-ot-a'], ['ot1b', '--g-ot-b'], ['ot2a', '--g-hot-a'], ['ot2b', '--g-hot-b'], ['hub', '--g-acc-a']]
     .map(([k, v]) => [k, cssHex(v)]));
   const state = { active: !!a, start: a ? +new Date(a.start) : 0, job: job?.name || '', rate: +job?.rate || 0, rtl: document.documentElement.dir === 'rtl', segs,
-    extra: { thr, ot1: job?.ot1Hours ?? 2, otOn: job?.otOn !== false, theme, month: { name: MONTHS[now.getMonth()], gross: money(M.gross), count: M.shifts.length } },
+    extra: { thr, ot1: job?.ot1Hours ?? 2, otOn: job?.otOn !== false, theme: S.settings.supported ? { ...theme, ring: '#D9A93F' } : theme, month: { name: MONTHS[now.getMonth()], gross: money(M.gross), count: M.shifts.length } },
     labels: EN
       ? { idle: 'Not on shift', starts: 'Starts ', since: 'since ', perHour: 'per hour', toOt: 'Overtime in {t}', now: 'Now: ', shortReg: 'regular', shortOt: 'overtime',
           tapStart: 'Tap the dial to clock in', tapShort: 'Tap to start', gross: 'gross', shifts: 'shifts' }
