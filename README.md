@@ -24,30 +24,32 @@
 
 ---
 
-## Features
+## What it does
 
-- **Live shift clock.** One tap to start, pay adds up as you work, and the start time can be fixed afterwards.
-- **Pay by the law.** 125% and 150% overtime (daily and weekly, adjustable limit), short days, night shifts, unpaid breaks, Shabbat and holidays by candle-lighting and havdalah times per city, election day at 200%.
-- **Gross to net.** Income tax with credit points, National Insurance, health tax and pension, by week, month and year.
+- **Live shift clock.** One tap to start, pay adds up as you work. After clocking out you can add tips, edit or undo.
+- **Pay by the law.** 125% and 150% overtime, night shifts, unpaid breaks, Shabbat and holidays by your city's times, election day, and special shifts at one rate.
+- **Gross to net.** Income tax with credit points, National Insurance, health tax and pension.
+- **Tips, travel and leave.** Tips your way, travel paid once a day, sick days, vacation and recuperation pay (דמי הבראה), with balances.
+- **Pay goals.** Set a monthly target and see how many shifts are left to reach it, including Shabbat and holiday shifts.
+- **Planned shifts.** Add upcoming shifts and get a reminder before they start.
+- **Monthly report.** A PDF with every shift and the pay breakdown, ready to compare with your payslip.
+- **Your year in אצבע.** A yearly recap with an image to share.
 - **Several jobs.** Each with its own pay, travel and rules.
-- **Import and export.** Excel and CSV files, including straight from Android's share menu; CSV export and full backups.
+- **Import and export.** Excel and CSV files, and full backups.
 - **Know your rights.** What hourly workers are owed, in plain words.
-- **Home-screen widget.** Three sizes, with the dial as a clock-in button, the running time, pay so far and progress to overtime.
-- **Notifications during a shift.** When overtime or Shabbat starts, and if you forgot to clock out.
-- **Hebrew and English.** Right-to-left throughout, with a translation system for more languages.
+- **Home-screen widget.** Three sizes and styles; clock in straight from it.
+- **Hebrew and English.** Right-to-left throughout.
 
-## Principles
+## Private
 
-- **Private.** No account, no server, no ads, no analytics. Everything is stored on the phone.
-- **Offline first.** Holidays and Shabbat times are calculated on the device; all yearly figures are built in.
-- **Updatable without a release.** Yearly figures and translations are refreshed once a day from the website when online, and only used if newer and valid.
+No account, no ads, no analytics. Everything stays on your phone and works offline.
 
 ## Get it
 
 - **On the web:** [etzba.ilanox.dev/app](https://etzba.ilanox.dev/app/). It installs to the home screen and works offline.
 - **Android:** coming soon to Google Play.
 
-Free, with no account and no ads.
+Free, with no account and no ads. If it helps you, you can support it from inside the app and get extra themes, icons and early access to new features.
 
 ## Good to know
 
