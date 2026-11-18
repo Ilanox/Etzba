@@ -398,7 +398,7 @@ function renderHome() {
     </div>
     <div class="tiles" id="tiles"></div>
     <div class="card rest-card" id="restCard" style="margin-top:12px"></div>
-    <div class="sec"><span>משמרות אחרונות</span><button id="seeAll">לכל המשמרות</button></div>
+    <div class="sec"><span>${secIc('list', 'blue')}משמרות אחרונות</span><button id="seeAll">לכל המשמרות</button></div>
     <div class="card" id="recent"></div>`;
   ridgeLens = null;
   $('#punchBtn').onclick = onPunch;
@@ -1004,9 +1004,9 @@ function sumMonth(el) {
       ${M.gross ? `<div class="stack">${parts.map(([v, c]) => `<span style="flex:${v};background:${c}"></span>`).join('')}</div>
       <div class="legend">${parts.map(([, c, l]) => `<span><i style="background:${c}"></i>${l}</span>`).join('')}</div>` : ''}</div>
     ${M.gross ? `
-    <div class="sec"><span>לפי ימים</span></div>
+    <div class="sec"><span>${secIc('cal', 'blue')}לפי ימים</span></div>
     <div class="card pad">${metricSeg()}<div id="dayChart"></div></div>
-    <div class="sec"><span>איך זה מחושב</span></div>
+    <div class="sec"><span>${secIc('receipt', 'green')}איך זה מחושב</span></div>
     <div class="card steps">
       ${L('עבדת', hm(M.hours) + ' ש׳')}
       ${L('הרווחת ברוטו', money(M.gross), '', 'לפני ניכויים, כולל שעות נוספות, תוספות ונסיעות')}
@@ -1016,7 +1016,7 @@ function sumMonth(el) {
       ${L('נכנס לחשבון', money(n.net), 'tot money')}
       ${M.tipsOwn ? L('טיפים שלך', '+' + money(M.tipsOwn), '', 'במזומן או מהלקוחות, לא בתלוש') + L('סה״כ בכיס', money(n.net + M.tipsOwn), 'tot') : ''}
     </div>
-    <div class="sec"><span>פירוט שעות ותוספות</span></div>
+    <div class="sec"><span>${secIc('ot', 'orange')}פירוט שעות ותוספות</span></div>
     ${M.perJob.map(J => `<div class="card">
       ${S.jobs.length > 1 ? `<div class="ln"><span class="l" style="color:${J.job.color};font-weight:700">${nm(J.job.name)}</span><span class="v num mutedv">₪${J.job.rate} לשעה</span></div>` : ''}
       ${TIERS.filter(k => J.b[k] > 0.004).map(k => L(tierLabel(k, J.job), money2(J.money[k]), '', `${hm(J.b[k])} ש׳`)).join('')}
@@ -1028,20 +1028,20 @@ function sumMonth(el) {
       ${J.havraa ? L('דמי הבראה', money2(J.havraa), '', 'חלק חודשי') : ''}
       ${J.holiday ? L('דמי חגים', money2(J.holiday), '', J.holDays.map(h => h.name).join(', ')) : ''}
       ${L('סה״כ ברוטו', money2(J.total), 'tot')}</div>`).join('')}
-    <div class="sec"><span>מה המעסיק מפריש בנוסף</span></div>
+    <div class="sec"><span>${secIc('coins', 'green')}מה המעסיק מפריש בנוסף</span></div>
     <div class="card">
       ${n.employer.pension ? L('פנסיה (מעסיק)', money(n.employer.pension)) + L('פיצויים', money(n.employer.severance)) : ''}
       ${n.employer.hish ? L('קרן השתלמות (מעסיק)', money(n.employer.hish)) : ''}
       ${L('ביטוח לאומי (מעסיק)', money(n.employer.bl))}
       ${L('עלות המעסיק בסה״כ', money(n.cost), 'tot')}</div>` : `<div class="card" style="margin-top:12px"><div class="empty"><div class="eic">${I.receipt}</div>אין משמרות בחודש הזה</div></div>`}
-    <div class="sec"><span>מחלה, חופשה והבראה</span></div>
+    <div class="sec"><span>${secIc('vac', 'teal')}מחלה, חופשה והבראה</span></div>
     <div class="card" id="leave">${leaveCard(M)}</div>
-    ${hol.length ? `<div class="sec"><span>חגים החודש</span></div><div class="card">${hol.map(h => L(h.name, `${DAYS[h.dow]} ${dShort(h.date)}`, '', h.dow === 6 ? 'חל בשבת' : '')).join('')}</div>` : ''}
-    <div class="sec"><span>ייצוא</span></div>
+    ${hol.length ? `<div class="sec"><span>${secIc('chag', 'gold')}חגים החודש</span></div><div class="card">${hol.map(h => L(h.name, `${DAYS[h.dow]} ${dShort(h.date)}`, '', h.dow === 6 ? 'חל בשבת' : '')).join('')}</div>` : ''}
+    <div class="sec"><span>${secIc('share', 'blue')}ייצוא</span></div>
     <div class="card">
-      <button class="cell" id="xReport"><span class="cell-ic">${I.receipt}</span><span class="grow">דוח חודשי (PDF)<div class="sub">שעות ושכר של ${MONTHS[viewM]}, לשליחה למעסיק</div></span><span class="chev">${I.chevL}</span></button>
-      <button class="cell" id="xMonth"><span class="cell-ic">${I.file}</span><span class="grow">משמרות ${MONTHS[viewM]} (CSV)<div class="sub">נפתח באקסל ובגוגל שיטס</div></span><span class="chev">${I.chevL}</span></button>
-      <button class="cell" id="xMore"><span class="cell-ic">${I.download}</span><span class="grow">עוד אפשרויות ייצוא</span><span class="chev">${I.chevL}</span></button>
+      <button class="cell" id="xReport"><span class="cell-ic t-green">${I.receipt}</span><span class="grow">דוח חודשי (PDF)<div class="sub">שעות ושכר של ${MONTHS[viewM]}, לשליחה למעסיק</div></span><span class="chev">${I.chevL}</span></button>
+      <button class="cell" id="xMonth"><span class="cell-ic t-blue">${I.file}</span><span class="grow">משמרות ${MONTHS[viewM]} (CSV)<div class="sub">נפתח באקסל ובגוגל שיטס</div></span><span class="chev">${I.chevL}</span></button>
+      <button class="cell" id="xMore"><span class="cell-ic t-blue">${I.download}</span><span class="grow">עוד אפשרויות ייצוא</span><span class="chev">${I.chevL}</span></button>
     </div>
     <p class="fine">הערכה לפי מדרגות מס וביטוח לאומי 2026. התלוש בפועל יכול להיות שונה (הטבות, זקיפות, הסכמים).</p>`;
   bindMonthBar(el);
@@ -1271,9 +1271,9 @@ function sumWeeks(el) {
   }
   const worked = items.filter(x => x.count), avgH = worked.length ? worked.reduce((a, x) => a + x.hours, 0) / worked.length : 0, avgG = worked.length ? worked.reduce((a, x) => a + x.gross, 0) / worked.length : 0;
   el.innerHTML = `<div class="kpis"><div class="kpi"><small>ממוצע שעות לשבוע</small><b class="num">${hm(avgH)}</b></div><div class="kpi"><small>ממוצע ברוטו לשבוע</small><b class="num">${money(avgG)}</b></div></div>
-    <div class="sec"><span>${N} שבועות אחרונים</span></div>
+    <div class="sec"><span>${secIc('cal', 'blue')}${N} שבועות אחרונים</span></div>
     <div class="card pad">${metricSeg()}<div id="wkChart"></div></div>
-    <div class="sec"><span>פירוט</span></div>
+    <div class="sec"><span>${secIc('receipt', 'green')}פירוט</span></div>
     <div class="card">${[...items].reverse().map(x => `<div class="ln"><span class="l" style="color:var(--ink)">${x.title}<small>${x.count ? x.count + ' משמרות' : 'בלי משמרות'}${x.hours > x.lim ? ` · מעל ${x.lim} ש׳` : ''}</small></span><span class="v num">${hm(x.hours)} ש׳<small style="display:block;font-weight:400;color:var(--ink3)">${money(x.gross)}</small></span></div>`).join('')}</div>`;
   mountChart($('#wkChart', el), items); bindMetric(el);
 }
@@ -1289,14 +1289,14 @@ function sumYear(el) {
       ${k('ברוטו שנתי', money(T.gross))}${k('נטו משוער', money(T.net), `מס הכנסה ${money(T.tax)}`)}
       ${k('שעות', hm(T.hours), `${T.count} משמרות`)}${k('ממוצע לשעה', money2(T.hours ? T.gross / T.hours : 0), 'כולל תוספות')}
       ${k('ממוצע לחודש', money(act ? T.gross / act : 0), `${act} חודשי עבודה`)}${k('חודש שיא', MONTHS[best.m], money(best.gross))}</div>
-    <div class="sec"><span>לפי חודשים</span></div>
+    <div class="sec"><span>${secIc('cal', 'blue')}לפי חודשים</span></div>
     <div class="card pad">${metricSeg()}<div id="yrChart"></div></div>
-    <div class="sec"><span>חלוקת השעות בשנה</span></div>
+    <div class="sec"><span>${secIc('ot', 'orange')}חלוקת השעות בשנה</span></div>
     <div class="card pad"><div class="split">${H.map((v, j) => v > 0.004 ? `<i class="cg${j}" style="flex:${v}"></i>` : '').join('')}</div>
       ${GROUPS.map((g, j) => `<div class="ln flat"><span class="l"><i class="dotc cg${j}"></i>${g}</span><span class="v num">${hm(H[j])} ש׳ · ${T.hours ? Math.round(H[j] / T.hours * 100) : 0}%</span></div>`).join('')}</div>
-    <div class="sec"><span>חודשים</span></div>
+    <div class="sec"><span>${secIc('cal', 'blue')}חודשים</span></div>
     <div class="card">${Ms.map((M, m) => M.shifts.length || M.gross ? `<button class="cell" data-gm="${m}"><span class="grow">${MONTHS[m]}<div class="sub num">${M.shifts.length} משמרות · ${hm(M.hours)} ש׳</div></span><span class="val num" style="text-align:end;color:var(--ink)"><b>${money(M.gross)}</b><div class="sub">נטו ${money(M.net.net)}</div></span><span class="chev">${I.chevL}</span></button>` : '').join('')}</div>
-    <div class="card" style="margin-top:12px"><button class="cell" id="xYear"><span class="cell-ic">${I.file}</span><span class="grow">ייצוא סיכום חודשי (CSV)</span><span class="chev">${I.chevL}</span></button></div>`
+    <div class="card" style="margin-top:12px"><button class="cell" id="xYear"><span class="cell-ic t-blue">${I.file}</span><span class="grow">ייצוא סיכום חודשי (CSV)</span><span class="chev">${I.chevL}</span></button></div>`
     : `<div class="card" style="margin-top:12px"><div class="empty"><div class="eic">${I.receipt}</div>אין משמרות ב־${viewY}</div></div>`}
     <p class="fine">הנטו השנתי הוא סכום ההערכות החודשיות. החישוב הסופי נעשה בתיאום מס שנתי.</p>`;
   $$('[data-yn]', el).forEach(b => b.onclick = () => { viewY += +b.dataset.yn; renderSum(); });
@@ -1399,57 +1399,59 @@ function rightsEN(y, low, w, qa) {
 }
 
 /* ================= SETTINGS ================= */
+// a small colored icon before a section title; the same colors as the rows below it
+const secIc = (i, t) => `<i class="sec-ic t-${t}">${I[i]}</i>`;
 function renderSet() {
   const el = $('#v-set'), st = S.settings;
   const sw = (id, on) => `<span class="switch"><input type="checkbox" id="${id}"${on ? ' checked' : ''}><i></i></span>`;
   el.innerHTML = `<h1 class="title">הגדרות</h1>
-    <div class="sec"><span>מקומות עבודה</span></div>
+    <div class="sec"><span>${secIc('briefcase', 'blue')}מקומות עבודה</span></div>
     <div class="card">${S.jobs.map(j => `<button class="cell" data-job="${j.id}"><span class="cell-ic" style="color:${j.color}">${I.briefcase}</span>
       <span class="grow">${nm(j.name)}<div class="sub num">₪${j.rate} לשעה · שבוע של ${j.weekDays} ימים${j.restMode === 'fixed' ? ' · שבת לפי חוזה' : ''}</div></span><span class="chev">${I.chevL}</span></button>`).join('')}
       <button class="cell" id="addJob"><span class="cell-ic">${I.plus}</span><span class="grow" style="color:var(--accent);font-weight:600">הוספת מקום עבודה</span></button></div>
 
-    <div class="sec"><span>מראה</span></div>
+    <div class="sec"><span>${secIc('noon', 'gold')}מראה</span></div>
     <div class="card pad"><div class="themes" id="s-theme">${[['auto', 'אוטומטי', 'linear-gradient(90deg,#F1EEE6 50%,#141518 50%)'], ['light', 'בהיר', '#F1EEE6'], ['dark', 'כהה', '#141518'], ['blurple', 'בלרפל', 'linear-gradient(90deg,#1E1F22 60%,#5865F2 60%)']].map(([k, n, bg]) => `<button data-t="${k}" class="${(st.theme || 'auto') === k ? 'on' : ''}"><i style="background:${bg}"></i>${n}</button>`).join('')}</div>
       <div class="field"><span>שפה</span><div class="seg" id="s-lang">${LANGS.map(l => `<button data-l="${l.code}" class="${l.code === LANG ? 'on' : ''}" data-keep>${l.name}</button>`).join('')}</div></div></div>
 
-    <div class="sec"><span>זמני שבת וחג</span></div>
+    <div class="sec"><span>${secIc('shabbat', 'gold')}זמני שבת וחג</span></div>
     <div class="card">
-      <label class="cell"><span class="cell-ic">${I.pin}</span><span class="grow">עיר</span>
+      <label class="cell"><span class="cell-ic t-orange">${I.pin}</span><span class="grow">עיר</span>
         <select class="val" id="s-city" style="border:0;background:none;text-align:end;font-weight:600">${Object.keys(CITIES).map(c => `<option value="${c}"${c === st.city ? ' selected' : ''}>${c}</option>`).join('')}</select></label>
-      <label class="cell"><span class="cell-ic">${I.shabbat}</span><span class="grow">הדלקת נרות<div class="sub">דקות לפני השקיעה</div></span>
+      <label class="cell"><span class="cell-ic t-gold">${I.shabbat}</span><span class="grow">הדלקת נרות<div class="sub">דקות לפני השקיעה</div></span>
         <input class="input num" style="width:76px;height:44px;text-align:center" type="number" id="s-candleMin" value="${st.candleMin}"></label>
-      <label class="cell"><span class="cell-ic">${I.night}</span><span class="grow">צאת שבת<div class="sub">דקות אחרי השקיעה</div></span>
+      <label class="cell"><span class="cell-ic t-indigo">${I.night}</span><span class="grow">צאת שבת<div class="sub">דקות אחרי השקיעה</div></span>
         <input class="input num" style="width:76px;height:44px;text-align:center" type="number" id="s-havdalahMin" value="${st.havdalahMin}"></label>
     </div>
 
-    <div class="sec"><span>מס ונטו</span></div>
+    <div class="sec"><span>${secIc('coins', 'green')}מס ונטו</span></div>
     <div class="card pad">
       <div class="seg" id="s-sex"><button data-v="2.25">גבר · 2.25 נק׳</button><button data-v="2.75">אישה · 2.75 נק׳</button></div>
       <label class="field"><span>נקודות זיכוי נוספות</span><input class="input num" type="number" step="0.25" inputmode="decimal" id="s-extraPts" value="${st.extraPts}">
         <p class="hint">למשל: ילדים, תואר אקדמי, חייל/ת משוחרר/ת, צעירים עד גיל 23. אפשר לבדוק בטופס 101.</p></label>
     </div>
     <div class="card">
-      <label class="cell"><span class="grow">פנסיה<div class="sub">לעובד שעתי בדרך כלל אחרי 6 חודשים</div></span>${sw('s-pension', st.pension)}</label>
+      <label class="cell"><span class="cell-ic t-green">${I.coins}</span><span class="grow">פנסיה<div class="sub">לעובד שעתי בדרך כלל אחרי 6 חודשים</div></span>${sw('s-pension', st.pension)}</label>
       <div class="cell ${st.pension ? '' : 'hidden'}" id="penRow"><span class="grow">עובד / מעסיק / פיצויים %</span>
         <input class="input num" style="width:64px;height:44px;text-align:center;padding:0 4px" type="number" step="0.5" id="s-pEmp" value="${st.pEmp}">
         <input class="input num" style="width:64px;height:44px;text-align:center;padding:0 4px" type="number" step="0.5" id="s-pEr" value="${st.pEr}">
         <select class="input num" style="width:76px;height:44px" id="s-sev"><option${+st.sev === 8.33 ? ' selected' : ''}>8.33</option><option${+st.sev === 6 ? ' selected' : ''}>6</option></select></div>
-      <label class="cell"><span class="grow">קרן השתלמות<div class="sub">2.5% עובד · 7.5% מעסיק</div></span>${sw('s-hish', st.hish)}</label>
+      <label class="cell"><span class="cell-ic t-teal">${I.book}</span><span class="grow">קרן השתלמות<div class="sub">2.5% עובד · 7.5% מעסיק</div></span>${sw('s-hish', st.hish)}</label>
     </div>
 
-    <div class="sec"><span>נתונים וגיבוי</span></div>
+    <div class="sec"><span>${secIc('download', 'blue')}נתונים וגיבוי</span></div>
     ${backupDue() ? `<div class="note" style="margin-bottom:10px">${I.warn}<span>${S.settings.lastBackup ? `הגיבוי האחרון לפני ${Math.floor((Date.now() - new Date(S.settings.lastBackup)) / 864e5)} ימים.` : 'עוד לא גיבית.'} יש ${S.shifts.length} משמרות שקיימות רק בטלפון הזה.</span></div>` : ''}
     <div class="card">
-      <button class="cell" id="s-backup"><span class="cell-ic">${I.download}</span><span class="grow">גיבוי מלא עכשיו<div class="sub">${S.settings.lastBackup ? 'גיבוי אחרון: ' + dFull(S.settings.lastBackup) : 'עוד לא גיבית'}</div></span><span class="chev">${I.chevL}</span></button>
-      <button class="cell" id="s-import"><span class="cell-ic">${I.file}</span><span class="grow">שחזור או העברה מטלפון אחר<div class="sub">מציג מה בקובץ לפני שמשנים משהו</div></span><span class="chev">${I.chevL}</span></button>
-      <button class="cell" id="s-fimport"><span class="cell-ic">${I.list}</span><span class="grow">ייבוא משמרות מקובץ<div class="sub">Excel או CSV, גם מאפליקציות אחרות</div></span><span class="chev">${I.chevL}</span></button>
-      <button class="cell" id="s-export"><span class="cell-ic">${I.receipt}</span><span class="grow">ייצוא ל־CSV<div class="sub">לאקסל או לגוגל שיטס</div></span><span class="chev">${I.chevL}</span></button>
+      <button class="cell" id="s-backup"><span class="cell-ic t-blue">${I.download}</span><span class="grow">גיבוי מלא עכשיו<div class="sub">${S.settings.lastBackup ? 'גיבוי אחרון: ' + dFull(S.settings.lastBackup) : 'עוד לא גיבית'}</div></span><span class="chev">${I.chevL}</span></button>
+      <button class="cell" id="s-import"><span class="cell-ic t-blue">${I.file}</span><span class="grow">שחזור או העברה מטלפון אחר<div class="sub">מציג מה בקובץ לפני שמשנים משהו</div></span><span class="chev">${I.chevL}</span></button>
+      <button class="cell" id="s-fimport"><span class="cell-ic t-teal">${I.list}</span><span class="grow">ייבוא משמרות מקובץ<div class="sub">Excel או CSV, גם מאפליקציות אחרות</div></span><span class="chev">${I.chevL}</span></button>
+      <button class="cell" id="s-export"><span class="cell-ic t-green">${I.receipt}</span><span class="grow">ייצוא ל־CSV<div class="sub">לאקסל או לגוגל שיטס</div></span><span class="chev">${I.chevL}</span></button>
     </div>
     <div class="note info" style="margin-top:10px" id="storeNote">${storeNote()}</div>
-    ${native.NATIVE ? `<div class="card" style="margin-top:12px"><label class="cell"><span class="grow">התראות במשמרת<div class="sub">כשמתחילות שעות נוספות, בכניסת שבת וחג, ואם שכחת לצאת</div></span><span class="switch"><input type="checkbox" id="s-notif"${notifOn() ? ' checked' : ''}><i></i></span></label><div id="s-nstat"></div></div>` : ''}
-    ${FEATURES.devTools ? `<div class="card" style="margin-top:12px"><button class="cell" id="s-debug"><span class="cell-ic">${I.info}</span><span class="grow">אבחון ותקלות<div class="sub">${dbg.lastCrash() ? 'האפליקציה נסגרה בפעם הקודמת · פרטים כאן' : 'מידע טכני לשליחה כשמשהו לא עובד'}</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
-    ${FEATURES.devTools && S.settings.dev ? `<div class="card" style="margin-top:12px" data-keep><button class="cell" id="s-dev"><span class="cell-ic">${I.gear}</span><span class="grow">כלי פיתוח<div class="sub">בדיקת התראות, משמרות לדוגמה ועוד</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
-    <div class="card" style="margin-top:12px"><button class="cell" id="s-legal"><span class="cell-ic">${I.lock}</span><span class="grow">פרטיות ומשפטי<div class="sub">מה נשמר, ומה החישוב כן ולא</div></span><span class="chev">${I.chevL}</span></button></div>
+    ${native.NATIVE ? `<div class="card" style="margin-top:12px"><label class="cell"><span class="cell-ic t-orange">${I.bell}</span><span class="grow">התראות במשמרת<div class="sub">כשמתחילות שעות נוספות, בכניסת שבת וחג, ואם שכחת לצאת</div></span><span class="switch"><input type="checkbox" id="s-notif"${notifOn() ? ' checked' : ''}><i></i></span></label><div id="s-nstat"></div></div>` : ''}
+    ${FEATURES.devTools ? `<div class="card" style="margin-top:12px"><button class="cell" id="s-debug"><span class="cell-ic t-violet">${I.info}</span><span class="grow">אבחון ותקלות<div class="sub">${dbg.lastCrash() ? 'האפליקציה נסגרה בפעם הקודמת · פרטים כאן' : 'מידע טכני לשליחה כשמשהו לא עובד'}</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
+    ${FEATURES.devTools && S.settings.dev ? `<div class="card" style="margin-top:12px" data-keep><button class="cell" id="s-dev"><span class="cell-ic t-gray">${I.gear}</span><span class="grow">כלי פיתוח<div class="sub">בדיקת התראות, משמרות לדוגמה ועוד</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
+    <div class="card" style="margin-top:12px"><button class="cell" id="s-legal"><span class="cell-ic t-gray">${I.lock}</span><span class="grow">פרטיות ומשפטי<div class="sub">מה נשמר, ומה החישוב כן ולא</div></span><span class="chev">${I.chevL}</span></button></div>
     <p class="fine" id="s-ver"><b>אצבע</b> · גרסה ${VERSION}<br>An Edvin Studios Project</p>`;
   $$('[data-job]', el).forEach(b => b.onclick = () => openJobSheet(jobById(b.dataset.job), false));
   $('#addJob', el).onclick = () => { const j = defaultJob('עבודה ' + (S.jobs.length + 1)); j.color = COLORS[S.jobs.length % COLORS.length]; openJobSheet(j, true); };
@@ -1857,10 +1859,10 @@ function openExport() {
   openSheet(`<h2>ייצוא</h2><p class="shsub">קובצי CSV נפתחים באקסל ובגוגל שיטס, עם עברית תקינה וטור לכל סוג שעות.</p>
     <div class="seg" id="x-how" style="margin-top:14px"><button data-h="file" class="on">שיתוף / הורדה</button><button data-h="copy">העתקה</button></div>
     <div class="card" style="margin-top:12px">
-      <button class="cell" data-x="month"><span class="cell-ic">${I.file}</span><span class="grow">משמרות ${MONTHS[viewM]} ${viewY}<div class="sub">כל משמרת בשורה, עם שורת סיכום</div></span></button>
-      <button class="cell" data-x="all"><span class="cell-ic">${I.list}</span><span class="grow">כל המשמרות<div class="sub">${S.shifts.length} משמרות</div></span></button>
-      <button class="cell" data-x="sum"><span class="cell-ic">${I.receipt}</span><span class="grow">סיכום לפי חודשים<div class="sub">ברוטו, ניכויים ונטו לכל חודש</div></span></button>
-      <button class="cell" data-x="backup"><span class="cell-ic">${I.download}</span><span class="grow">גיבוי מלא (JSON)<div class="sub">להעברה לטלפון אחר</div></span></button>
+      <button class="cell" data-x="month"><span class="cell-ic t-blue">${I.file}</span><span class="grow">משמרות ${MONTHS[viewM]} ${viewY}<div class="sub">כל משמרת בשורה, עם שורת סיכום</div></span></button>
+      <button class="cell" data-x="all"><span class="cell-ic t-teal">${I.list}</span><span class="grow">כל המשמרות<div class="sub">${S.shifts.length} משמרות</div></span></button>
+      <button class="cell" data-x="sum"><span class="cell-ic t-green">${I.receipt}</span><span class="grow">סיכום לפי חודשים<div class="sub">ברוטו, ניכויים ונטו לכל חודש</div></span></button>
+      <button class="cell" data-x="backup"><span class="cell-ic t-blue">${I.download}</span><span class="grow">גיבוי מלא (JSON)<div class="sub">להעברה לטלפון אחר</div></span></button>
     </div>`, root => {
     $$('#x-how button', root).forEach(b => b.onclick = () => { how = b.dataset.h; $$('#x-how button', root).forEach(x => x.classList.toggle('on', x === b)); });
     $$('[data-x]', root).forEach(b => b.onclick = () => {
@@ -2069,7 +2071,7 @@ function drawPlace(root, j) {
     const q = $('#pl-addr', el).value.trim(); if (!q) return;
     $('#pl-res', el).innerHTML = '<p class="hint">מחפש…</p>';
     let res = []; try { res = await native.geo.geocode(q); } catch {}
-    $('#pl-res', el).innerHTML = res.length ? `<div class="card" style="margin-top:8px">${res.map((r, i) => `<button class="cell" type="button" data-i="${i}"><span class="cell-ic">${I.pin}</span><span class="grow">${esc(r.label)}</span></button>`).join('')}</div>`
+    $('#pl-res', el).innerHTML = res.length ? `<div class="card" style="margin-top:8px">${res.map((r, i) => `<button class="cell" type="button" data-i="${i}"><span class="cell-ic t-orange">${I.pin}</span><span class="grow">${esc(r.label)}</span></button>`).join('')}</div>`
       : '<p class="hint bad">לא נמצאה כתובת כזו (חיפוש כתובת צריך אינטרנט). אפשר גם "אני בעבודה עכשיו".</p>';
     $$('#pl-res [data-i]', el).forEach(b => b.onclick = () => { const r = res[+b.dataset.i]; set({ lat: r.lat, lng: r.lng, label: r.label, radius: 300, on: true }); });
   });
@@ -2266,7 +2268,7 @@ function openOnboarding() {
       <h1 id="ob-title">הכל מוכן</h1>
       <p class="ob-sub">${esc(d.name || 'העבודה שלי')} · ₪${d.rate} לשעה${d.travel ? ` · נסיעות ₪${d.travel}` : ''} · שבוע של ${d.weekDays} ימים</p>
       <div class="card" style="margin-top:18px">
-        <button class="cell" id="ob-import"><span class="cell-ic">${I.file}</span><span class="grow">יש לי משמרות מאפליקציה אחרת<div class="sub">ייבוא מקובץ Excel או CSV</div></span><span class="chev">${I.chevL}</span></button>
+        <button class="cell" id="ob-import"><span class="cell-ic t-blue">${I.file}</span><span class="grow">יש לי משמרות מאפליקציה אחרת<div class="sub">ייבוא מקובץ Excel או CSV</div></span><span class="chev">${I.chevL}</span></button>
       </div>
       <p class="ob-note">${I.info}<span>כל זה ניתן לשינוי בכל רגע: הגדרות ← מקום העבודה.</span></p>`,
   ];
@@ -2334,8 +2336,8 @@ function openDebug() {
     <p class="shsub">אם משהו נתקע או נסגר, להעתיק את הדוח ולשלוח אותו. אין בו משמרות, שכר או שמות, רק מידע טכני.</p>
     ${c ? `<div class="note" style="margin-top:12px">${I.warn}<span>בפעם הקודמת האפליקציה נסגרה באמצע: <b data-keep style="direction:ltr">${esc(c.step)}</b></span></div>` : ''}
     <div class="card" style="margin-top:12px">
-      <button class="cell" id="d-copy"><span class="cell-ic">${I.file}</span><span class="grow">העתקת דוח אבחון</span></button>
-      <button class="cell" id="d-save"><span class="cell-ic">${I.download}</span><span class="grow">שמירת הדוח כקובץ</span></button>
+      <button class="cell" id="d-copy"><span class="cell-ic t-blue">${I.file}</span><span class="grow">העתקת דוח אבחון</span></button>
+      <button class="cell" id="d-save"><span class="cell-ic t-blue">${I.download}</span><span class="grow">שמירת הדוח כקובץ</span></button>
     </div>
     <div class="sec"><span>המכשיר</span></div>
     <div class="card pad">${row('גרסה', VERSION)}${row('רץ ב־', e.where)}${row('דפדפן', e.webview)}${row('מסך', e.screen)}${row('זיכרון', e.deviceMemory + ' · ' + e.heap)}${row('אחסון בטלפון', e.localStorage)}${row('משמרות', S.shifts.length)}</div>
@@ -2344,7 +2346,7 @@ function openDebug() {
     <p class="fine" style="margin-top:6px">תצוגה קלה מכבה רקע זז, טשטוש ואנימציות. עוזרת בטלפונים חלשים.</p>
     <label class="cell" style="margin-top:8px"><span class="grow">מד ביצועים על המסך</span><input type="checkbox" id="d-meter" ${meterOn ? 'checked' : ''}></label>
     <div class="sec"><span>בדיקה עצמית</span></div>
-    <div class="card"><button class="cell" id="d-test"><span class="cell-ic">${I.check}</span><span class="grow">להריץ בדיקה<div class="sub" id="d-test-out">מצייר כל מסך ומחשב את כל המשמרות, ומודד זמנים</div></span></button></div>
+    <div class="card"><button class="cell" id="d-test"><span class="cell-ic t-green">${I.check}</span><span class="grow">להריץ בדיקה<div class="sub" id="d-test-out">מצייר כל מסך ומחשב את כל המשמרות, ומודד זמנים</div></span></button></div>
     <div class="sec"><span>זמנים (מ״ש, אחרון / הכי איטי)</span></div>
     <div class="card pad">${Object.keys(T).length ? Object.entries(T).map(([k, v]) => row(k, v.last + ' / ' + v.max)).join('') : row('—', '')}</div>
     <div class="sec"><span>יומן</span></div>

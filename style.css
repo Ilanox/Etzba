@@ -848,3 +848,10 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
 .plancell.missed{background:color-mix(in srgb,var(--c-plan) 7%,transparent)}
 .srow.planned{opacity:.78}
 .srow.planned .amt{color:var(--ink2)}
+
+/* color for each kind of setting or action (icon tones) */
+.t-blue{--tc:#3B7DD8}.t-green{--tc:#2E9E5B}.t-teal{--tc:#2A9D8F}.t-gold{--tc:#C99A2E}.t-orange{--tc:#E07A3A}.t-violet{--tc:#7B5CD6}.t-indigo{--tc:#5363C9}.t-red{--tc:#D9534F}.t-gray{--tc:var(--ink3)}
+.cell-ic[class*=" t-"]{color:var(--tc);background:color-mix(in srgb,var(--tc) 13%,transparent)}
+.sec span{display:inline-flex;align-items:center;gap:7px}
+.sec-ic{display:grid;place-items:center;color:var(--tc)}
+.sec-ic svg{width:15px;height:15px}
