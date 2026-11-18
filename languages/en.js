@@ -290,6 +290,19 @@ export default {
     'היתרה מופיעה אחרי המשמרת הראשונה.': 'Balances show up after your first shift.',
     'עוד {t} לשעות נוספות': '{t} more to overtime',
     ', עד': ', until',
+    // the month's goal
+    'יעד': 'Goal',
+    'הצבת יעד לחודש': 'Set a goal for the month',
+    'יעד נטו': 'Net goal',
+    'יעד ברוטו': 'Gross goal',
+    'הגעת ליעד של החודש': 'You reached this month\'s goal',
+    'יעד לחודש': 'Goal for the month',
+    'כמה רוצים להרוויח החודש. הפס בבית מראה כמה נשאר וכמה משמרות עוד צריך.': 'How much you want to earn this month. The bar on the home screen shows what\'s left and how many more shifts it takes.',
+    'היעד (₪)': 'Goal (₪)',
+    'אחרי כמה משמרות נדע להגיד כמה משמרות עוד צריך.': 'After a few shifts the app can tell how many more you need.',
+    'הסרת היעד': 'Remove the goal',
+    'צריך לכתוב סכום': 'Enter an amount',
+    'היעד נשמר': 'Goal saved',
   },
   templates: [
     ['· ₪{} לשעה', '· ₪{1} an hour'],
@@ -406,6 +419,10 @@ export default {
   ['המעסיק משלים {}', 'the employer adds {1}'],
   ['{} מעל השכר לשעות', '{1} above the pay for the hours'],
   ['נוספות {}', 'Overtime {1}'],
+  ['{} מתוך {}', '{1} of {2}'],
+  ['נשארו {} · עוד כ־{} משמרות', '{1} left · about {2} more shifts'],
+  ['נשארו {} · עוד כ־{} משמרת', '{1} left · about {2} more shift'],
+  ['משמרת רגילה שלך שווה בערך {} ברוטו (ממוצע 8 השבועות האחרונים, בלי שבתות וחגים).', 'An ordinary shift of yours pays about {1} gross (average of the last 8 weeks, not counting Shabbat and holidays).'],
 ],
 
   words: {

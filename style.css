@@ -805,3 +805,14 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
 .iconbtn{width:36px;height:36px;display:grid;place-items:center;border-radius:10px;color:var(--ink3);margin:-6px 0}
 .iconbtn svg{width:18px;height:18px}
 .iconbtn:active{background:var(--surface2)}
+
+/* the month's goal */
+.goal{grid-column:1/-1;border-top:1px solid var(--line);padding:14px;text-align:start;display:block;width:100%;background:none;font:inherit;color:inherit}
+.goal-h{display:flex;justify-content:space-between;align-items:baseline;font-size:.9rem}
+.goal-h span{color:var(--ink2)}.goal-h span b{color:var(--ink)}
+.goal-bar{height:10px;border-radius:5px;background:var(--surface2);margin-top:10px;overflow:hidden}
+.goal-bar i{display:block;height:100%;border-radius:5px;background:var(--pen);transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.goal.done .goal-bar i{background:var(--money,var(--pen))}
+.goal-sub{font-size:.78rem;color:var(--ink3);margin-top:8px}
+.empty-goal{display:flex;align-items:center;gap:8px;color:var(--ink3);font-size:.88rem;font-weight:600}
+.empty-goal svg{width:18px;height:18px}

@@ -278,3 +278,25 @@ test('tips: the field shows for a job with tips, and own tips stay out of gross'
   assert.match(await page.locator('#v-sum').innerText(), /טיפים שלך/);
   assert.deepEqual(errors, []); await ctx.close();
 });
+
+test('a goal for the month: progress bar and shifts still needed, not counting Shabbat shifts', async () => {
+  const { page, ctx, errors, state } = await open();
+  await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('etzba.v1')), j = s.jobs[0], now = new Date();
+    j.rate = 50; j.shabbatOn = true;
+    const mk = (daysAgo, h, sat) => { const d = new Date(now); d.setDate(d.getDate() - daysAgo); if (sat) d.setDate(d.getDate() - ((d.getDay() + 1) % 7)); d.setHours(9, 0, 0, 0); return { id: crypto.randomUUID(), jobId: j.id, start: d.toISOString(), end: new Date(+d + h * 36e5).toISOString(), breakMin: 0, bonus: 0, note: '', rest: 'auto' }; };
+    s.shifts = [mk(20, 8), mk(21, 8), mk(22, 8), mk(10, 8, true)];
+    localStorage.setItem('etzba.v1', JSON.stringify(s));
+  });
+  await page.reload(); await wait(page, 700);
+  await page.click('#goal'); await wait(page);
+  await page.click('#g-kind [data-k=gross]'); await page.fill('#g-amt', '99999'); await page.click('#g-save'); await wait(page, 500);
+  assert.deepEqual((await state()).settings.goal, { amount: 99999, kind: 'gross' });
+  const txt = await page.locator('#goal').innerText();
+  const have = (await page.evaluate(() => document.querySelector('#goal .goal-h b:last-child')?.textContent));
+  // an ordinary shift here pays 8 × ₪50 = ₪400 (the Shabbat shift is left out of the average)
+  const m = /עוד כ־(\d+)/.exec(txt); assert.ok(m, txt);
+  assert.ok(+m[1] >= Math.floor((99999 - 4000) / 400) && +m[1] <= Math.ceil(99999 / 400), 'shifts at ₪400: ' + m[1]);
+  assert.ok(await page.locator('.goal-bar i').count());
+  assert.deepEqual(errors, []); await ctx.close();
+});

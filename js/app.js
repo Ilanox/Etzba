@@ -468,8 +468,66 @@ function renderTiles(L) {
     <button class="monthcell" id="mcell"><small>${MONTHS[now.getMonth()]} · ברוטו</small><b class="num">${money(M.gross)}</b><span class="num">${M.shifts.length} משמרות</span></button>
     <div class="wkb"><div class="wkb-h"><b>השבוע</b><span class="num"><b>${hm(wH)}</b> מתוך ${lim} ש׳</span></div>
       <div class="wkb-days">${H.map((h, i) => `<div class="wkb-d${i === now.getDay() ? ' on' : ''}"><i style="height:${h / mx * 100}%"></i><em>${DAY_SHORT[i]}</em></div>`).join('')}</div>
-      <div class="wkb-sub num">${wH > lim ? `${hm(wH - lim)} מעל המכסה השבועית` : `נשארו ${hm(lim - wH)} עד המכסה השבועית`}</div></div>`;
+      <div class="wkb-sub num">${wH > lim ? `${hm(wH - lim)} מעל המכסה השבועית` : `נשארו ${hm(lim - wH)} עד המכסה השבועית`}</div></div>
+    ${goalCell(M)}`;
   $('#mcell', el).onclick = () => { viewY = now.getFullYear(); viewM = now.getMonth(); S.ui.sumView = 'month'; go('sum'); };
+  $('#goal', el).onclick = openGoal;
+}
+
+/* ================= the month's goal ================= */
+/** What an ordinary shift pays: the average of the last 8 weeks, leaving out Shabbat, holiday and
+    election-day shifts (they pay more and would make the count too hopeful). Hours, travel and bonus. */
+function typicalShift(now = new Date()) {
+  const from = +now - 56 * 864e5, list = [];
+  for (const s of S.shifts) {
+    const t = +new Date(s.start); if (t < from || t > +now) continue;
+    const p = PAY.get(s.id); if (!p || p.restHours > 0.01) continue;
+    list.push(p.pay);
+  }
+  if (!list.length) return null;
+  return list.reduce((a, b) => a + b, 0) / list.length;
+}
+function goalState(M) {
+  const g = S.settings.goal; if (!g || !(+g.amount > 0)) return null;
+  const st = S.settings, opts = { points: +st.sex + +st.extraPts, pension: st.pension, pEmp: +st.pEmp, pEr: +st.pEr, sev: +st.sev, hish: st.hish }, T = taxFor(M.y);
+  const net = g.kind === 'gross' ? null : x => grossToNet(x, opts, T).net;
+  const have = net ? M.net.net : M.gross, goal = +g.amount, left = Math.max(0, goal - have);
+  const avg = typicalShift();
+  let shifts = null;
+  if (left > 0 && avg > 0) {
+    if (!net) shifts = Math.ceil(left / avg);
+    else for (let k = 1; k <= 99; k++) if (net(M.gross + k * avg) >= goal) { shifts = k; break; }
+  }
+  return { goal, have, left, avg, shifts, kind: net ? 'net' : 'gross', pct: Math.min(1, have / goal) };
+}
+function goalCell(M) {
+  const G = goalState(M);
+  if (!G) return `<button class="goal empty-goal" id="goal">${I.plus}<span>הצבת יעד לחודש</span></button>`;
+  const done = G.left <= 0;
+  return `<button class="goal${done ? ' done' : ''}" id="goal">
+    <div class="goal-h"><b>יעד ${G.kind === 'net' ? 'נטו' : 'ברוטו'}</b><span class="num"><b>${money(G.have)}</b> מתוך ${money(G.goal)}</span></div>
+    <div class="goal-bar"><i style="width:${(G.pct * 100).toFixed(1)}%"></i></div>
+    <div class="goal-sub num">${done ? 'הגעת ליעד של החודש' : `נשארו ${money(G.left)}${G.shifts ? ` · עוד כ־${G.shifts} ${G.shifts === 1 ? 'משמרת' : 'משמרות'}` : ''}`}</div>
+  </button>`;
+}
+function openGoal() {
+  const g = S.settings.goal || { amount: '', kind: 'net' };
+  let kind = g.kind || 'net';
+  const avg = typicalShift();
+  openSheet(`<h2>יעד לחודש</h2><p class="shsub">כמה רוצים להרוויח החודש. הפס בבית מראה כמה נשאר וכמה משמרות עוד צריך.</p>
+    <div class="seg" id="g-kind" style="margin-top:14px"><button type="button" data-k="net">נטו</button><button type="button" data-k="gross">ברוטו</button></div>
+    <label class="field"><span>היעד (₪)</span><input class="input num" type="number" inputmode="numeric" id="g-amt" value="${+g.amount || ''}" placeholder="5000"></label>
+    <p class="hint">${avg ? `משמרת רגילה שלך שווה בערך ${money(avg)} ברוטו (ממוצע 8 השבועות האחרונים, בלי שבתות וחגים).` : 'אחרי כמה משמרות נדע להגיד כמה משמרות עוד צריך.'}</p>
+    <div class="btnrow"><button class="btn primary" id="g-save">${I.check}שמירה</button>${+g.amount ? `<button class="btn soft" id="g-del">הסרת היעד</button>` : ''}</div>`, root => {
+    const ui = () => $$('#g-kind button', root).forEach(b => b.classList.toggle('on', b.dataset.k === kind));
+    $$('#g-kind button', root).forEach(b => b.onclick = () => { kind = b.dataset.k; ui(); }); ui();
+    $('#g-save', root).onclick = () => {
+      const amount = Math.round(+$('#g-amt', root).value || 0);
+      if (!(amount > 0)) return toast('צריך לכתוב סכום', 'err');
+      S.settings.goal = { amount, kind }; closeSheet(); commit(); toast('היעד נשמר', 'ok');
+    };
+    $('#g-del', root) && ($('#g-del', root).onclick = () => { S.settings.goal = null; closeSheet(); commit(); });
+  });
 }
 function onPunch() {
   const btn = $('#punchBtn');
