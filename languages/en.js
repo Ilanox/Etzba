@@ -401,6 +401,7 @@ export default {
     'רוב המשמרות שלך היו בלילה.': 'Most of your shifts were at night.',
     'השנה שלך באצבע': 'Your year in Etzba',
     'למחרת': 'Next day',
+    'סיכום השנה כמו סטורי, עם תמונה לשיתוף': 'Your year as a story, with an image to share',
     "בערך": "About",
     "מהן בשבת או חג": "of them on Shabbat or a holiday",
     "תמיכה ב־": "Support with",
