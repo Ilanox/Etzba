@@ -1,6 +1,6 @@
 {
-  "version": 3,
-  "updated": "2026-11-17",
+  "version": 4,
+  "updated": "2026-11-18",
   "note": "Yearly figures for אצבע. The app ships with this file built in and works offline; when online it fetches the newest copy from GitHub Pages. Edit, bump version, push.",
   "minWage": [
     { "from": "2025-04-01", "hourly": 34.32 },
@@ -10,7 +10,7 @@
     { "date": "2026-10-27", "name": "בחירות לכנסת" }
   ],
   "travelMaxDaily": 22.6,
-  "early": { "recap": "2026-12-20" },
+  "early": { "recap": "2099-12-31" },
   "havraa": { "2025": 418, "2026": 451.5 },
   "havraaDays": [5, 6, 6, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 9, 9, 9, 9, 10],
   "tax": {
