@@ -188,8 +188,9 @@ public class EtzbaWidget extends AppWidgetProvider {
         int ink = s.ink(), muted = s.muted(), pc = s.phaseText();
         if (s.style.equals("accent")) { ink = s.c("bg", 0xFF141518); muted = (ink & 0x00FFFFFF) | 0xB3000000; pc = ink; }
         if (s.style.equals("bold")) {
-            v.setTextViewTextSize(timer, android.util.TypedValue.COMPLEX_UNIT_SP, size == Size.SMALL ? 30 : 42);
-            if (size != Size.SMALL) v.setTextViewTextSize(amt, android.util.TypedValue.COMPLEX_UNIT_SP, 24);
+            // a little bigger than each layout's own sizes (small 21, standard 32/19, large 46/24), so nothing is cut off
+            v.setTextViewTextSize(timer, android.util.TypedValue.COMPLEX_UNIT_SP, size == Size.SMALL ? 24 : size == Size.LARGE ? 54 : 36);
+            if (size != Size.SMALL) v.setTextViewTextSize(amt, android.util.TypedValue.COMPLEX_UNIT_SP, size == Size.LARGE ? 28 : 21);
         }
         v.setTextColor(timer, ink);
         v.setTextColor(title, ink);

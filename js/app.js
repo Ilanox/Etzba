@@ -2212,7 +2212,8 @@ async function drawNotifStatus() {
   const box = $('#s-nstat'); if (!box || !native.NATIVE) return;
   if (!notifOn()) { box.innerHTML = ''; return; }
   const st = await native.notifyStatus();
-  const row = (icon, text, btn) => `<div class="cell flat nrow">${icon}<span class="grow sub">${text}</span>${btn ? `<button class="btn soft mini" type="button" data-n="${btn[0]}">${btn[1]}</button>` : ''}</div>`;
+  // a line under the switch, lined up with its title
+  const row = (icon, text, btn) => `<div class="nline${icon === I.check ? ' ok' : ''}">${icon}<span>${text}</span>${btn ? `<button class="btn soft mini" type="button" data-n="${btn[0]}">${btn[1]}</button>` : ''}</div>`;
   box.innerHTML = st.display === 'denied' ? row(I.bellOff, 'חסומות בהגדרות הטלפון, אז לא יגיעו.', ['open', 'לאפשר'])
     : st.display !== 'granted' ? row(I.bell, 'הטלפון יבקש אישור בפעם הבאה שנכנסים למשמרת.')
     : row(I.check, 'מאושרות. מגיעות גם כשהאפליקציה סגורה, לפעמים באיחור של דקה או שתיים.');
