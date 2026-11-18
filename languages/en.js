@@ -417,6 +417,8 @@ export default {
     'מספרים גדולים': 'Big numbers',
     'צבעוני': 'Colorful',
     'שעות עבודה': 'Hours worked',
+    'מעברי צבע': 'Gradients',
+    'גדול': 'Big',
   },
   templates: [
     ['· ₪{} לשעה', '· ₪{1} an hour'],

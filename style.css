@@ -1041,3 +1041,7 @@ html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;an
 .punch-btn .ripple{position:absolute;inset:0;border-radius:50%;border:3px solid var(--ring-a,var(--g-acc-a));pointer-events:none;animation:ripple 1.2s cubic-bezier(.2,.8,.2,1) both}
 @keyframes ripple{from{transform:scale(.92);opacity:.9}to{transform:scale(1.45);opacity:0}}
 .confetti{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:80}
+
+/* theme swatches: a clean split, no colour bleeding under the border */
+.themes i{border:0!important;box-shadow:inset 0 0 0 1px var(--line);background-clip:padding-box}
+.themes-h.dev svg{color:var(--accent)}

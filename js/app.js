@@ -1587,16 +1587,17 @@ async function devUnlock(sig) {
 }
 const THEMES = [['auto', 'אוטומטי', 'linear-gradient(90deg,#F1EEE6 50%,#141518 50%)'], ['light', 'בהיר', '#F1EEE6'], ['dark', 'כהה', '#141518'], ['blurple', 'בלרפל', 'linear-gradient(90deg,#1E1F22 60%,#5865F2 60%)']];
 // for supporters, as a thank-you: looks only, never anything that changes pay
-const THEMES_SUPPORT = [['gold', 'זהב', 'linear-gradient(135deg,#15130E 55%,#E2B65A 55%)'], ['night', 'לילה', 'linear-gradient(135deg,#0C1322 55%,#8DB8FF 55%)'], ['sunset', 'שקיעה', 'linear-gradient(135deg,#F7EEE8 55%,#D2486A 55%)'], ['forest', 'יער', 'linear-gradient(135deg,#0F1712 55%,#7FD6A0 55%)'],
-  ['ocean', 'ים', 'linear-gradient(135deg,#0B1A1E 55%,#5FD3D0 55%)'], ['plum', 'שזיף', 'linear-gradient(135deg,#171021 55%,#C49BFF 55%)'],
-  ['ember', 'גחלים', 'linear-gradient(135deg,#1A100C 55%,#FF8A4C 55%)'], ['sand', 'חול', 'linear-gradient(135deg,#F2EDDF 55%,#6E7F2E 55%)'],
-  ['aurora', 'זוהר', 'linear-gradient(160deg,#2A1650,#0F3F55)'], ['dawn', 'שחר', 'linear-gradient(165deg,#FFE9DD,#FBE1EA,#E7E3FB)'],
-  ['neon', 'ניאון', 'linear-gradient(135deg,#4A0F5E,#0A0712 55%,#0F2E6B)'], ['rosegold', 'רוז גולד', 'linear-gradient(150deg,#F9EFE9,#EBD3C2)']];
+const THEMES_SUPPORT = [['gold', 'זהב', 'linear-gradient(135deg,#15130E 50%,#E2B65A 50%)'], ['night', 'לילה', 'linear-gradient(135deg,#0C1322 50%,#8DB8FF 50%)'], ['sunset', 'שקיעה', 'linear-gradient(135deg,#F7EEE8 50%,#D2486A 50%)'], ['forest', 'יער', 'linear-gradient(135deg,#0F1712 50%,#7FD6A0 50%)'],
+  ['ocean', 'ים', 'linear-gradient(135deg,#0B1A1E 50%,#5FD3D0 50%)'], ['plum', 'שזיף', 'linear-gradient(135deg,#171021 50%,#C49BFF 50%)'],
+  ['ember', 'גחלים', 'linear-gradient(135deg,#1A100C 50%,#FF8A4C 50%)'], ['sand', 'חול', 'linear-gradient(135deg,#F2EDDF 50%,#6E7F2E 50%)'],
+];
+const THEMES_GRAD = [['aurora', 'זוהר', 'linear-gradient(135deg,#8B5CF6,#22D3EE)'], ['dawn', 'שחר', 'linear-gradient(135deg,#FFB199,#F0708A,#9B7BF0)'],
+  ['neon', 'ניאון', 'linear-gradient(135deg,#FF2EC4,#4D7CFF)'], ['rosegold', 'רוז גולד', 'linear-gradient(135deg,#B76E79,#E8C3A8)']];
 // only on the developer's own phone
-const THEME_DEV = ['dev', 'מפתח', 'linear-gradient(135deg,#07090B 55%,#39D98A 55%)'];
+const THEME_DEV = ['dev', 'מפתח', 'linear-gradient(135deg,#07090B 50%,#39D98A 50%)'];
 const ICONS = [['default', 'רגיל', 'app-default.png'], ['gold', 'זהב', 'app-gold.png'], ['night', 'לילה', 'app-night.png'], ['paper', 'נייר', 'app-paper.png'], ['forest', 'יער', 'app-forest.png'],
   ['sunset', 'שקיעה', 'app-sunset.png'], ['ocean', 'ים', 'app-ocean.png'], ['plum', 'שזיף', 'app-plum.png'], ['ember', 'גחלים', 'app-ember.png'], ['sand', 'חול', 'app-sand.png']];
-const themeBtn = ([k, n, bg]) => { const locked = THEMES_SUPPORT.some(t => t[0] === k) && !S.settings.supported;
+const themeBtn = ([k, n, bg]) => { const locked = [...THEMES_SUPPORT, ...THEMES_GRAD].some(t => t[0] === k) && !S.settings.supported;
   return `<button data-t="${k}" class="${(S.settings.theme || 'auto') === k ? 'on' : ''}${locked ? ' locked' : ''}"><i style="background:${bg}"></i>${n}${locked ? `<span class="lk">${I.lock}</span>` : ''}</button>`; };
 // a small colored icon before a section title; the same colors as the rows below it
 const secIc = (i, t) => `<i class="sec-ic t-${t}">${I[i]}</i>`;
@@ -1611,8 +1612,10 @@ function renderSet() {
 
     <div class="sec"><span>${secIc('noon', 'gold')}מראה</span></div>
     <div class="card pad"><div class="themes" id="s-theme">${THEMES.map(themeBtn).join('')}</div>
-      ${native.billing.available() || st.supported ? `<div class="themes-h">${st.owner ? `${I.gear}מצב מפתח` : `${I.heart}${st.supported ? 'בתודה על התמיכה' : 'לתומכים באצבע'}`}</div><div class="themes" id="s-theme2">${[...THEMES_SUPPORT, ...(st.owner ? [THEME_DEV] : [])].map(themeBtn).join('')}</div>` : ''}
-      ${st.supported && native.PLATFORM === 'android' ? `<div class="themes-h">סגנון הווידג׳ט</div><div class="seg" id="s-wstyle">${[['classic', 'רגיל'], ['glass', 'שקוף'], ['bold', 'מספרים גדולים'], ['accent', 'צבעוני']].map(([k, n]) => `<button data-w="${k}" class="${(st.widgetStyle || 'classic') === k ? 'on' : ''}">${n}</button>`).join('')}</div>` : ''}
+      ${native.billing.available() || st.supported ? `<div class="themes-h">${I.heart}${st.supported ? 'בתודה על התמיכה' : 'לתומכים באצבע'}</div><div class="themes" id="s-theme2">${THEMES_SUPPORT.map(themeBtn).join('')}</div>
+        <div class="themes-h">מעברי צבע</div><div class="themes" id="s-theme3">${THEMES_GRAD.map(themeBtn).join('')}</div>` : ''}
+      ${st.owner ? `<div class="themes-h dev">${I.gear}מצב מפתח</div><div class="themes" id="s-theme4">${themeBtn(THEME_DEV)}</div>` : ''}
+      ${st.supported && native.PLATFORM === 'android' ? `<div class="themes-h">סגנון הווידג׳ט</div><div class="seg" id="s-wstyle">${[['classic', 'רגיל'], ['glass', 'שקוף'], ['bold', 'גדול'], ['accent', 'צבעוני']].map(([k, n]) => `<button data-w="${k}" class="${(st.widgetStyle || 'classic') === k ? 'on' : ''}">${n}</button>`).join('')}</div>` : ''}
       ${st.supported && (native.billing.available() || native.PLATFORM === 'android') ? `<div class="themes-h">אייקון האפליקציה</div><div class="icons" id="s-icon">${ICONS.map(([k, n, f]) => `<button data-ic="${k}" class="${(st.icon || 'default') === k ? 'on' : ''}"><img src="icons/${f}" alt="">${n}</button>`).join('')}</div>` : ''}
       <div class="field"><span>שפה</span><div class="seg" id="s-lang">${LANGS.map(l => `<button data-l="${l.code}" class="${l.code === LANG ? 'on' : ''}" data-keep>${l.name}</button>`).join('')}</div></div></div>
 
@@ -1663,8 +1666,8 @@ function renderSet() {
   for (const k of ['candleMin', 'havdalahMin', 'extraPts', 'pEmp', 'pEr', 'sev']) $('#s-' + k, el).onchange = e => set(k, +e.target.value || 0);
   for (const k of ['pension', 'hish']) $('#s-' + k, el).onchange = e => set(k, e.target.checked);
   $$('#s-sex button', el).forEach(b => { b.classList.toggle('on', +b.dataset.v === +st.sex); b.onclick = () => set('sex', +b.dataset.v); });
-  $$('#s-theme button, #s-theme2 button', el).forEach(b => b.onclick = () => {
-    if (THEMES_SUPPORT.some(t => t[0] === b.dataset.t) && !S.settings.supported) return openSupport();
+  $$('#s-theme button, #s-theme2 button, #s-theme3 button, #s-theme4 button', el).forEach(b => b.onclick = () => {
+    if ([...THEMES_SUPPORT, ...THEMES_GRAD].some(t => t[0] === b.dataset.t) && !S.settings.supported) return openSupport();
     S.settings.theme = b.dataset.t; applyTheme(); commit();
   });
   $$('#s-wstyle button', el).forEach(b => b.onclick = () => { S.settings.widgetStyle = b.dataset.w; persist(); renderSet(); toast('הווידג׳ט יתעדכן בעוד רגע', 'ok'); });
