@@ -865,7 +865,7 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
 .sp-amt{display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 6px;border-radius:var(--r-lg,16px);background:var(--surface);border:1px solid var(--line);font:inherit;color:var(--ink)}
 .sp-amt b{font-size:1.35rem;font-weight:800}
 .sp-amt small{font-size:.72rem;color:var(--ink3);text-align:center;line-height:1.25}
-.sp-amt.mid{border-color:color-mix(in srgb,#D9534F 45%,var(--line));background:color-mix(in srgb,#D9534F 6%,var(--surface))}
+.sp-amt.on{border-color:#D9534F;background:color-mix(in srgb,#D9534F 8%,var(--surface));box-shadow:inset 0 0 0 1px #D9534F}
 .sp-amt:disabled{opacity:.5}
 .sp-other{margin-top:14px}
 .sp-other summary{cursor:pointer;text-align:center;color:var(--ink2);font-weight:600;font-size:.9rem;list-style:none;padding:8px}
@@ -916,3 +916,6 @@ html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;an
   --c1:#7FD6A0;--c2:#F2B866;--c3:#D9C27A;--pen-ink:#7FD6A0;--gold-ink:#D9C27A;--accent-ink:#7FD6A0;--shadow:none}
 :root[data-theme=forest] .hero{background:linear-gradient(180deg,color-mix(in srgb,var(--surface2) 70%,var(--bg)),var(--surface))}
 :root[data-theme=forest] .k-night.kic{background:var(--ink);color:var(--bg)}
+.sp-other .qchips button.on{background:#D9534F;color:#fff}
+.sp-pay{background:#D9534F!important;border-color:#D9534F!important;color:#fff!important}
+.sp-pay svg{fill:currentColor}

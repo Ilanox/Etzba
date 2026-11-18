@@ -1228,16 +1228,20 @@ const SUPPORT_MAIN = [['support_10', 10], ['support_20', 20], ['support_50', 50]
 const SUPPORT_MORE = [['support_5', 5], ['support_15', 15], ['support_30', 30], ['support_75', 75], ['support_100', 100], ['support_200', 200]];
 async function openSupport() {
   const all = [...SUPPORT_MAIN, ...SUPPORT_MORE];
-  let prices = new Map();
+  let prices = new Map(), chosen = 'support_20';
   const price = (id, n) => prices.get(id) || `₪${n}`;
+  const amountOf = id => all.find(x => x[0] === id);
   const draw = root => {
-    $('#sp-main', root).innerHTML = SUPPORT_MAIN.map(([id, n], i) => `<button type="button" class="sp-amt${i === 1 ? ' mid' : ''}" data-id="${id}"${prices.size && !prices.has(id) ? ' disabled' : ''}>
+    $('#sp-main', root).innerHTML = SUPPORT_MAIN.map(([id, n], i) => `<button type="button" class="sp-amt${chosen === id ? ' on' : ''}" data-id="${id}"${prices.size && !prices.has(id) ? ' disabled' : ''}>
       <b class="num">${price(id, n)}</b><small>${['קפה', 'ארוחה קלה', 'תמיכה גדולה'][i]}</small></button>`).join('');
-    $('#sp-more', root).innerHTML = SUPPORT_MORE.filter(([id]) => !prices.size || prices.has(id)).map(([id, n]) => `<button type="button" class="num" data-id="${id}">${price(id, n)}</button>`).join('');
-    $$('[data-id]', root).forEach(b => b.onclick = () => pay(b.dataset.id, b));
+    $('#sp-more', root).innerHTML = SUPPORT_MORE.filter(([id]) => !prices.size || prices.has(id)).map(([id, n]) => `<button type="button" class="num${chosen === id ? ' on' : ''}" data-id="${id}">${price(id, n)}</button>`).join('');
+    const [cid, cn] = amountOf(chosen);
+    $('#sp-pay', root).innerHTML = `${I.heart}תמיכה ב־${price(cid, cn)}`;
+    // choosing an amount only selects it; the button below pays
+    $$('[data-id]', root).forEach(b => b.onclick = () => { chosen = b.dataset.id; buzz(8); draw(root); });
   };
-  const pay = async (id, btn) => {
-    $$('[data-id]', sheet).forEach(b => b.disabled = true);
+  const pay = async id => {
+    $$('[data-id], #sp-pay', sheet).forEach(b => b.disabled = true);
     try {
       const r = await native.billing.buy(id);
       if (r?.ok) {
@@ -1247,15 +1251,17 @@ async function openSupport() {
       } else if (r?.why === 'pending') toast('התשלום ממתין לאישור. תודה!', 'ok');
       else if (!r?.cancelled) toast('התשלום לא עבר. אפשר לנסות שוב', 'err');
     } catch (e) { report(e); toast('לא הצלחתי לפתוח את Google Play', 'err'); }
-    finally { $$('[data-id]', sheet).forEach(b => b.disabled = false); }
+    finally { $$('[data-id], #sp-pay', sheet).forEach(b => b.disabled = false); }
   };
   openSheet(`<div class="sp-ic">${I.heart}</div><h2 style="text-align:center">תמיכה באצבע</h2>
     <p class="shsub" style="text-align:center">אצבע חינמית, בלי פרסומות, והנתונים שלך נשארים בטלפון. אם היא עוזרת לך, אפשר לתמוך בפיתוח בתשלום חד־פעמי.</p>
     <div class="note info" style="margin-top:12px">${I.heart}<span>בתודה: ארבע ערכות צבע מיוחדות, אייקונים אחרים לאפליקציה וטבעת זהב סביב החוגה. רק המראה משתנה: כל החישובים והזכויות זמינים לכולם.</span></div>
     <div class="sp-main" id="sp-main"></div>
-    <details class="sp-other"><summary>סכום אחר</summary><div class="qchips" id="sp-more"></div></details>
+    <details class="sp-other"${SUPPORT_MORE.some(x => x[0] === chosen) ? ' open' : ''}><summary>סכום אחר</summary><div class="qchips" id="sp-more"></div></details>
+    <div class="btnrow"><button class="btn primary sp-pay" id="sp-pay"></button></div>
     <p class="hint" style="text-align:center">התשלום דרך Google Play. אפשר לתמוך כמה פעמים שרוצים.</p>`, root => {
     draw(root);
+    $('#sp-pay', root).onclick = () => pay(chosen);
     native.billing.products(all.map(x => x[0])).then(list => {
       if (!list.length) return;
       prices = new Map(list.map(p => [p.id, p.price])); draw(root);
@@ -1441,6 +1447,26 @@ function rightsEN(y, low, w, qa) {
 }
 
 /* ================= SETTINGS ================= */
+// developer status: the app's developer unlocks everything on his own phone with a private code
+// (7 taps on the version line). Only the code's hash is here.
+const OWNER_HASH = '64ae080dbf4c45fd17195aa9632812ab14763df24dcc77405c5c82dd21887a78';
+const devOK = () => FEATURES.devTools || !!S.settings.owner;
+async function sha256(t) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
+function openOwnerCode() {
+  openSheet(`<h2>מצב מפתח</h2><p class="shsub">קוד המפתח פותח את כל האפשרויות במכשיר הזה.</p>
+    <label class="field"><span>קוד</span><input class="input num" id="ow-code" dir="ltr" autocomplete="off" autocapitalize="characters" placeholder="XXXX-XXXX-XXXX"></label>
+    <div class="btnrow"><button class="btn primary" id="ow-go">${I.check}אישור</button></div>`, root => {
+    const go = async () => {
+      const v = $('#ow-code', root).value.trim().toUpperCase().replace(/\s+/g, '');
+      if (await sha256('etzba:' + v) !== OWNER_HASH) { buzz(60); return toast('הקוד לא נכון', 'err'); }
+      S.settings.owner = true; S.settings.dev = true; S.settings.supported = true; S.settings.supportedAt ||= new Date().toISOString();
+      persist(); applyTheme(); closeSheet(); buzz(40); toast('מצב מפתח פעיל: הכול פתוח', 'ok'); renderSet();
+    };
+    $('#ow-go', root).onclick = go;
+    $('#ow-code', root).onkeydown = e => { if (e.key === 'Enter') go(); };
+    setTimeout(() => $('#ow-code', root).focus(), 300);
+  });
+}
 const THEMES = [['auto', 'אוטומטי', 'linear-gradient(90deg,#F1EEE6 50%,#141518 50%)'], ['light', 'בהיר', '#F1EEE6'], ['dark', 'כהה', '#141518'], ['blurple', 'בלרפל', 'linear-gradient(90deg,#1E1F22 60%,#5865F2 60%)']];
 // for supporters, as a thank-you: looks only, never anything that changes pay
 const THEMES_SUPPORT = [['gold', 'זהב', 'linear-gradient(135deg,#15130E 55%,#E2B65A 55%)'], ['night', 'לילה', 'linear-gradient(135deg,#0C1322 55%,#8DB8FF 55%)'], ['sunset', 'שקיעה', 'linear-gradient(135deg,#F7EEE8 55%,#D2486A 55%)'], ['forest', 'יער', 'linear-gradient(135deg,#0F1712 55%,#7FD6A0 55%)']];
@@ -1461,7 +1487,7 @@ function renderSet() {
     <div class="sec"><span>${secIc('noon', 'gold')}מראה</span></div>
     <div class="card pad"><div class="themes" id="s-theme">${THEMES.map(themeBtn).join('')}</div>
       ${native.billing.available() || st.supported ? `<div class="themes-h">${I.heart}${st.supported ? 'בתודה על התמיכה' : 'לתומכים באצבע'}</div><div class="themes" id="s-theme2">${THEMES_SUPPORT.map(themeBtn).join('')}</div>` : ''}
-      ${st.supported && native.billing.available() ? `<div class="themes-h">אייקון האפליקציה</div><div class="icons" id="s-icon">${ICONS.map(([k, n, f]) => `<button data-ic="${k}" class="${(st.icon || 'default') === k ? 'on' : ''}"><img src="icons/${f}" alt="">${n}</button>`).join('')}</div>` : ''}
+      ${st.supported && (native.billing.available() || native.PLATFORM === 'android') ? `<div class="themes-h">אייקון האפליקציה</div><div class="icons" id="s-icon">${ICONS.map(([k, n, f]) => `<button data-ic="${k}" class="${(st.icon || 'default') === k ? 'on' : ''}"><img src="icons/${f}" alt="">${n}</button>`).join('')}</div>` : ''}
       <div class="field"><span>שפה</span><div class="seg" id="s-lang">${LANGS.map(l => `<button data-l="${l.code}" class="${l.code === LANG ? 'on' : ''}" data-keep>${l.name}</button>`).join('')}</div></div></div>
 
     <div class="sec"><span>${secIc('shabbat', 'gold')}זמני שבת וחג</span></div>
@@ -1499,9 +1525,9 @@ function renderSet() {
     </div>
     <div class="note info" style="margin-top:10px" id="storeNote">${storeNote()}</div>
     ${native.NATIVE ? `<div class="card" style="margin-top:12px"><label class="cell"><span class="cell-ic t-orange">${I.bell}</span><span class="grow">התראות במשמרת<div class="sub">כשמתחילות שעות נוספות, בכניסת שבת וחג, ואם שכחת לצאת</div></span><span class="switch"><input type="checkbox" id="s-notif"${notifOn() ? ' checked' : ''}><i></i></span></label><div id="s-nstat"></div></div>` : ''}
-    ${FEATURES.devTools ? `<div class="card" style="margin-top:12px"><button class="cell" id="s-debug"><span class="cell-ic t-violet">${I.info}</span><span class="grow">אבחון ותקלות<div class="sub">${dbg.lastCrash() ? 'האפליקציה נסגרה בפעם הקודמת · פרטים כאן' : 'מידע טכני לשליחה כשמשהו לא עובד'}</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
-    ${FEATURES.devTools && S.settings.dev ? `<div class="card" style="margin-top:12px" data-keep><button class="cell" id="s-dev"><span class="cell-ic t-gray">${I.gear}</span><span class="grow">כלי פיתוח<div class="sub">בדיקת התראות, משמרות לדוגמה ועוד</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
-    ${native.billing.available() ? `<div class="card" style="margin-top:12px"><button class="cell" id="s-support"><span class="cell-ic t-red">${I.heart}</span><span class="grow">${S.settings.supported ? 'תומך/ת באצבע' : 'תמיכה באצבע'}<div class="sub">${S.settings.supported ? `מאז ${dFull(S.settings.supportedAt || S.updatedAt)} · תודה! אפשר לתמוך שוב מתי שרוצים` : 'האפליקציה חינמית ובלי פרסומות. תומכים מקבלים ערכות צבע ואייקונים'}</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
+    ${devOK() ? `<div class="card" style="margin-top:12px"><button class="cell" id="s-debug"><span class="cell-ic t-violet">${I.info}</span><span class="grow">אבחון ותקלות<div class="sub">${dbg.lastCrash() ? 'האפליקציה נסגרה בפעם הקודמת · פרטים כאן' : 'מידע טכני לשליחה כשמשהו לא עובד'}</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
+    ${devOK() && S.settings.dev ? `<div class="card" style="margin-top:12px" data-keep><button class="cell" id="s-dev"><span class="cell-ic t-gray">${I.gear}</span><span class="grow">כלי פיתוח<div class="sub">בדיקת התראות, משמרות לדוגמה ועוד</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
+    ${native.billing.available() || S.settings.owner ? `<div class="card" style="margin-top:12px"><button class="cell" id="s-support"><span class="cell-ic t-red">${I.heart}</span><span class="grow">${S.settings.owner ? 'מפתח' : S.settings.supported ? 'תומך/ת באצבע' : 'תמיכה באצבע'}<div class="sub">${S.settings.owner ? 'כל האפשרויות פתוחות במכשיר הזה' : S.settings.supported ? `מאז ${dFull(S.settings.supportedAt || S.updatedAt)} · תודה! אפשר לתמוך שוב מתי שרוצים` : 'האפליקציה חינמית ובלי פרסומות. תומכים מקבלים ערכות צבע ואייקונים'}</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
     <div class="card" style="margin-top:12px"><button class="cell" id="s-legal"><span class="cell-ic t-gray">${I.lock}</span><span class="grow">פרטיות ומשפטי<div class="sub">מה נשמר, ומה החישוב כן ולא</div></span><span class="chev">${I.chevL}</span></button></div>
     <p class="fine" id="s-ver"><b>אצבע</b> · גרסה ${VERSION}${S.settings.supported ? ' <span style="color:#D9534F">♥</span>' : ''}<br>An Edvin Studios Project</p>`;
   $$('[data-job]', el).forEach(b => b.onclick = () => openJobSheet(jobById(b.dataset.job), false));
@@ -1528,8 +1554,11 @@ function renderSet() {
   $('#s-import', el).onclick = openImport;
   $('#s-debug', el) && ($('#s-debug', el).onclick = openDebug);
   $('#s-dev', el) && ($('#s-dev', el).onclick = openDevTools);
-  if (FEATURES.devTools) { let taps = 0, t; $('#s-ver', el).onclick = () => { clearTimeout(t); t = setTimeout(() => taps = 0, 1500);
-      if (++taps >= 7 && !S.settings.dev) { S.settings.dev = true; persist(); buzz(30); toast('מצב מפתח פעיל', 'ok'); renderSet(); } }; }
+  { let taps = 0, t; $('#s-ver', el).onclick = () => { clearTimeout(t); t = setTimeout(() => taps = 0, 1500);
+      if (++taps < 7) return; taps = 0;
+      if (S.settings.owner) { if (!S.settings.dev) { S.settings.dev = true; persist(); renderSet(); } return toast('מצב מפתח פעיל', 'ok'); }
+      if (FEATURES.devTools && !S.settings.dev) { S.settings.dev = true; persist(); buzz(30); toast('מצב מפתח פעיל', 'ok'); return renderSet(); }
+      openOwnerCode(); }; }
   $('#s-notif', el) && ($('#s-notif', el).onchange = e => {
     const on = e.target.checked; S.settings.notif = { rates: on, rest: on, long: on };
     persist(); if (on) planNotifications(true); drawNotifStatus();

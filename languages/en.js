@@ -371,6 +371,13 @@ export default {
     'בתודה: ארבע ערכות צבע מיוחדות, אייקונים אחרים לאפליקציה וטבעת זהב סביב החוגה. רק המראה משתנה: כל החישובים והזכויות זמינים לכולם.': 'As a thank-you: four special color themes, other app icons and a gold ring around the dial. Only the look changes: every calculation and right is there for everyone.',
     'אצבע חינמית, בלי פרסומות, והנתונים שלך נשארים בטלפון. אם היא עוזרת לך, אפשר לתמוך בפיתוח בתשלום חד־פעמי.': 'Etzba is free, has no ads, and your data stays on your phone. If it helps you, you can support its development with a one-time payment.',
     'יער': 'Forest',
+    'מצב מפתח': 'Developer mode',
+    'קוד המפתח פותח את כל האפשרויות במכשיר הזה.': 'The developer code unlocks everything on this device.',
+    'קוד': 'Code',
+    'הקוד לא נכון': 'Wrong code',
+    'מצב מפתח פעיל: הכול פתוח': 'Developer mode on: everything unlocked',
+    'מפתח': 'Developer',
+    'כל האפשרויות פתוחות במכשיר הזה': 'Everything is unlocked on this device',
   },
   templates: [
     ['· ₪{} לשעה', '· ₪{1} an hour'],
@@ -514,6 +521,7 @@ export default {
   ['נשמרה משמרת מתוכננת ל{} · תזכורת שעה לפני', 'Planned shift saved for {1} · reminder an hour before'],
   ['~{}', '~{1}'],
   ['מאז {} · תודה! אפשר לתמוך שוב מתי שרוצים', 'Since {1} · thank you! You can support again any time'],
+  ['תמיכה ב־{}', 'Support with {1}'],
 ],
 
   words: {
