@@ -1448,7 +1448,7 @@ function buildNotifications(a, N = { rates: true, rest: true, long: true, ...(S.
 var planTimer = null;
 /* What happened the last time notifications were planned: shown under the live shift, and in Settings. */
 let NOTIF = { state: 'unknown', next: null, exact: null };
-const PRIVACY_URL = 'https://ilanox.github.io/Etzba/privacy.html', CONTACT = 'ilan@edvin.co.il';
+const PRIVACY_URL = 'https://etzba.ilanox.dev/privacy.html', CONTACT = 'ilan@edvin.co.il';
 /** Privacy and the calculation disclaimer, in one place. */
 function openLegal() {
   openSheet(`<h2>פרטיות ומשפטי</h2>

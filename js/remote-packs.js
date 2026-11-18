@@ -4,7 +4,7 @@
 import BUILT from '../languages/pack-versions.js';
 import * as dbg from './diagnostics.js';
 
-export const PACK_URL = code => `https://ilanox.github.io/Etzba/data/lang/${code}.json`;
+export const PACK_URL = code => `https://etzba.ilanox.dev/data/lang/${code}.json`;
 const KEY = code => 'etzba.pack.' + code, CHECKED = code => 'etzba.pack.checked.' + code, DAY = 864e5;
 
 /** Throws if a downloaded pack looks wrong, so a bad upload can never break the screens. */
