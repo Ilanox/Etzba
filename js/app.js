@@ -674,7 +674,7 @@ function openShiftSheet(sh, mode) {
     days += `<button type="button" class="day${d.getDay() === 6 ? ' sat' : ''}" data-d="${+d}"><small>${diff === 0 ? 'היום' : diff === 1 ? 'אתמול' : DAY_SHORT[d.getDay()]}</small><b class="num">${d.getDate()}</b><em class="num">${MONTHS[d.getMonth()].slice(0, 3)}${EN ? '' : '׳'}</em></button>`;
   }
   openSheet(`
-    <h2>${title}</h2>${sub ? `<p class="shsub">${sub}</p>` : ''}
+    <h2 id="f-title">${title}</h2>${sub ? `<p class="shsub">${sub}</p>` : ''}
     ${mode !== 'end' ? `<div class="seg kinds" id="f-kind">${[['shift', 'משמרת'], ['special', 'מיוחדת'], ...(mode === 'new' ? [['vac', 'חופשה'], ['sick', 'מחלה']] : [])].map(([k, l]) => `<button type="button" data-k="${k}">${l}</button>`).join('')}</div>` : ''}
     <div id="f-special" class="hidden">
       <h3>תעריף לכל השעות</h3>
@@ -685,6 +685,11 @@ function openShiftSheet(sh, mode) {
     ${S.jobs.length > 1 ? `<div class="chips" id="f-jobs">${S.jobs.map(j => `<button type="button" class="chip" data-j="${j.id}"><span class="dot" style="background:${j.color}"></span>${nm(j.name)}</button>`).join('')}</div>` : ''}
     <h3>יום</h3>
     <div class="daystrip" id="f-days">${days}</div>
+    <div id="f-leave" class="hidden">
+      <label class="field"><span>כמה ימים</span><input class="input num" type="number" min="1" max="60" inputmode="numeric" id="f-ndays" value="1"></label>
+      <p class="hint" id="f-lhint"></p>
+    </div>
+    <div id="f-shiftonly">
     <h3>שעות · בחירה מהירה</h3>
     <div class="qchips" id="f-pre">${commonShifts().map(c => `<button type="button" class="num" dir="ltr" data-p="${c}">${c}</button>`).join('')}</div>
     <div class="tp">
@@ -708,6 +713,7 @@ function openShiftSheet(sh, mode) {
         <button type="button" data-r="auto">אוטומטי</button><button type="button" data-r="yes">הכל בתוספת שבת</button><button type="button" data-r="no">בלי תוספת</button></div>
       <p class="hint">"אוטומטי" מחשב לפי זמני כניסת ויציאת שבת וחג בעיר שבחרת.</p></details>
     <div id="f-explain"></div>
+    </div>
     <div class="btnrow">
       <button class="btn ${mode === 'end' ? 'accent' : 'primary'}" id="f-save">${I.check}${mode === 'end' ? 'סיום ושמירה' : 'שמירה'}</button>
       ${mode === 'end' ? `<button class="btn soft" id="f-cont">חזרה, המשמרת ממשיכה</button><button class="btn danger" id="f-discard">${I.trash}מחיקת המשמרת</button><p class="hint" style="text-align:center">מחיקה: המשמרת לא נשמרת, כאילו לא נכנסת. אפשר לבטל מיד אחרי.</p>` : ''}
@@ -742,6 +748,11 @@ function openShiftSheet(sh, mode) {
       $('#f-special', root).classList.toggle('hidden', kind !== 'special');
       $$('#f-pq button', root).forEach(b => b.classList.toggle('on', +b.dataset.p === s.specialPct));
       $('details.adv', root)?.classList.toggle('hidden', kind === 'special');
+      const leave = kind === 'vac' || kind === 'sick';
+      $('#f-shiftonly', root).classList.toggle('hidden', leave);
+      $('#f-leave', root).classList.toggle('hidden', !leave);
+      if (mode === 'new') $('#f-title', root).textContent = kind === 'vac' ? 'יום חופשה' : kind === 'sick' ? 'יום מחלה' : title;
+      if (leave) { $('#f-lhint', root).textContent = leaveHint(kind); return; }
       const pre = `${pad(T.s[0])}:${pad(T.s[1])}–${pad(T.e[0])}:${pad(T.e[1])}`;
       $$('#f-pre button', root).forEach(b => b.classList.toggle('on', b.dataset.p === pre));
       const j = jobAt(jobById(jobId), s.start), p = shiftPay(s, j, place(), weekRegBefore(j, s.start));
@@ -765,8 +776,6 @@ function openShiftSheet(sh, mode) {
     $$('#f-pq button', root).forEach(b => b.onclick = () => { $('#f-pct', root).value = b.dataset.p; upd(); });
     $$('#f-kind button', root).forEach(b => b.onclick = () => {
       const k = b.dataset.k;
-      // a vacation or sick day isn't a shift: it opens its own short form, on the day chosen here
-      if (k === 'vac' || k === 'sick') { const dk = dateKey(T.date); closeSheet(); setTimeout(() => openLeaveSheet({ kind: k, date: dk, jobId }), 260); return; }
       kind = k; upd();
     });
     $$('input', root).forEach(i => i.addEventListener('input', upd));
@@ -777,6 +786,11 @@ function openShiftSheet(sh, mode) {
       const a = on.getBoundingClientRect(), b = st.getBoundingClientRect(); st.scrollLeft += (a.left + a.width / 2) - (b.left + b.width / 2); };
     centerDay(); requestAnimationFrame(() => requestAnimationFrame(centerDay)); setTimeout(centerDay, 350);
     $('#f-save', root).onclick = () => {
+      if (kind === 'vac' || kind === 'sick') {   // a vacation or sick day isn't a shift: days off from the day chosen
+        const n = addLeave(jobId, kind, dateKey(T.date), +$('#f-ndays', root).value);
+        const d = new Date(T.date); viewY = d.getFullYear(); viewM = d.getMonth();
+        closeSheet(); commit(); buzz(20); return toast(n === 1 ? 'נשמר יום אחד' : `נשמרו ${n} ימים`, 'ok');
+      }
       const s = read(), len = new Date(s.end) - new Date(s.start);
       if (len < 6e4) { $$('.wheels', root).forEach(w => w.classList.add('bad')); return toast('המשמרת קצרה מדי. אפשר לבטל אותה', 'err'); }
       if (len > 24 * 3.6e6) { $$('.wheels', root).forEach(w => w.classList.add('bad')); return toast('משמרת לא יכולה להיות יותר מ־24 שעות', 'err'); }
@@ -1004,6 +1018,23 @@ function bindLeave(root) {
     toast('נמחק', '', { label: 'ביטול', fn: () => { S.absences.push(was); commit(); } });
   });
 }
+const leaveHint = kind => kind === 'sick'
+  ? 'דמי מחלה: היום הראשון בלי תשלום, השני והשלישי 50%, ומהרביעי 100%. צריך אישור מחלה. ימים ברצף נספרים יחד.'
+  : 'ימי עבודה בלבד: בלי שבתות וחגים שלא עובדים בהם.';
+/** Adds n sick or vacation days from a date (YYYY-MM-DD). Returns how many. */
+function addLeave(jobId, kind, from, n) {
+  n = Math.min(60, Math.max(1, Math.round(+n || 1)));
+  const job = jobById(jobId), [y, m, dd] = from.split('-').map(Number);
+  let added = 0;
+  for (let d = new Date(y, m - 1, dd); added < n; d.setDate(d.getDate() + 1)) {
+    // vacation counts work days only; sick days run on in a row, as the law counts them
+    if (kind === 'vac' && (d.getDay() === 6 || (+job.weekDays !== 6 && d.getDay() === 5))) continue;
+    const k = dateKey(d);
+    if (!S.absences.some(a => a.jobId === jobId && a.date === k)) S.absences.push({ id: uid(), jobId, kind, date: k });
+    added++;
+  }
+  return n;
+}
 function openLeaveSheet(pre = {}) {
   let kind = pre.kind || 'sick', jobId = pre.jobId || (S.settings.lastJob && S.jobs.some(j => j.id === S.settings.lastJob) ? S.settings.lastJob : S.jobs[0].id);
   const today = new Date(), inView = viewY === today.getFullYear() && viewM === today.getMonth();
@@ -1020,25 +1051,15 @@ function openLeaveSheet(pre = {}) {
     const ui = () => {
       $$('#lv-kind button', root).forEach(b => b.classList.toggle('on', b.dataset.k === kind));
       $$('#lv-jobs .chip', root).forEach(b => b.classList.toggle('on', b.dataset.j === jobId));
-      $('#lv-hint', root).textContent = kind === 'sick'
-        ? 'דמי מחלה: היום הראשון בלי תשלום, השני והשלישי 50%, ומהרביעי 100%. צריך אישור מחלה. ימים ברצף נספרים יחד.'
-        : 'ימי עבודה בלבד: בלי שבתות וחגים שלא עובדים בהם.';
+      $('#lv-hint', root).textContent = leaveHint(kind);
     };
     $$('#lv-kind button', root).forEach(b => b.onclick = () => { kind = b.dataset.k; ui(); });
     $$('#lv-jobs .chip', root).forEach(b => b.onclick = () => { jobId = b.dataset.j; ui(); });
     ui();
     $('#lv-save', root).onclick = () => {
-      const v = $('#lv-date', root).value, n = Math.min(60, Math.max(1, Math.round(+$('#lv-n', root).value || 1)));
+      const v = $('#lv-date', root).value;
       if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return toast('צריך לבחור תאריך', 'err');
-      const job = jobById(jobId), [y, m, dd] = v.split('-').map(Number);
-      let added = 0;
-      for (let d = new Date(y, m - 1, dd); added < n; d.setDate(d.getDate() + 1)) {
-        // vacation counts work days only; sick days run on in a row, as the law counts them
-        if (kind === 'vac' && (d.getDay() === 6 || (+job.weekDays !== 6 && d.getDay() === 5))) continue;
-        const k = dateKey(d);
-        if (!S.absences.some(a => a.jobId === jobId && a.date === k)) S.absences.push({ id: uid(), jobId, kind, date: k });
-        added++;
-      }
+      const n = addLeave(jobId, kind, v, +$('#lv-n', root).value), [y, m, dd] = v.split('-').map(Number);
       const d = new Date(y, m - 1, dd); viewY = d.getFullYear(); viewM = d.getMonth();
       closeSheet(); commit(); buzz(20); toast(n === 1 ? 'נשמר יום אחד' : `נשמרו ${n} ימים`, 'ok');
     };

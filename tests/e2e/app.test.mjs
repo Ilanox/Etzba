@@ -303,7 +303,7 @@ test('a goal for the month: progress bar and shifts still needed, not counting S
   assert.deepEqual(errors, []); await ctx.close();
 });
 
-test('adding by hand: a special shift at 200%, and a vacation day from the same form', async () => {
+test('adding by hand: a special shift at 200%, and a vacation day in the same form', async () => {
   const { page, ctx, errors, state } = await open();
   await page.click('[data-v=shifts]'); await wait(page);
   await page.click('#fab'); await wait(page, 500);
@@ -311,9 +311,10 @@ test('adding by hand: a special shift at 200%, and a vacation day from the same 
   let st = await state();
   assert.equal(st.shifts.length, 1); assert.equal(st.shifts[0].specialPct, 200);
   await page.click('#fab'); await wait(page, 500);
-  await page.click('#f-kind [data-k=vac]'); await wait(page, 600);
-  assert.ok(await page.locator('#lv-save').isVisible(), 'vacation form');
-  await page.click('#lv-save'); await wait(page, 500);
+  await page.click('#f-kind [data-k=vac]'); await wait(page, 300);
+  assert.ok(await page.locator('#f-ndays').isVisible(), 'days field in the same form');
+  assert.equal(await page.locator('#f-shiftonly').isVisible(), false, 'times hidden');
+  await page.click('#f-save'); await wait(page, 500);
   st = await state();
   assert.equal(st.absences.length, 1); assert.equal(st.absences[0].kind, 'vac');
   assert.deepEqual(errors, []); await ctx.close();
