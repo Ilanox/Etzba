@@ -69,7 +69,7 @@ loadRules();   // yearly figures: built in, or a newer saved copy
 /** The next election day (or the most recent), as d.m.yyyy. */
 function electionDate() {
   const list = rules().elections.map(e => e.date).sort(), today = new Date().toISOString().slice(0, 10);
-  const d = list.find(x => x >= today) || list[list.length - 1];
+  const d = list.find(x => x >= today);   // only an upcoming election; a past date would mislead
   if (!d) return '';
   const [y, m, dd] = d.split('-').map(Number); return `${dd}.${m}.${y}`;
 }
@@ -804,9 +804,9 @@ function openShiftSheet(sh, mode) {
     <div id="f-shiftonly">
     <h3>שעות</h3>
     <div class="tp">
-      <div class="tp-col"><div class="tp-cap">כניסה</div><div class="wheels" dir="ltr">${wheel('sh', 24, 1)}<span class="colon">:</span>${wheel('sm', 60, mstep)}</div></div>
+      <div class="tp-col"><button type="button" class="tp-cap tp-type" data-t="s" aria-label="הקלדת שעת הכניסה">כניסה<span>${I.clockEdit}</span></button><input type="time" class="tp-in" data-t="s" tabindex="-1" aria-hidden="true"><div class="wheels" dir="ltr">${wheel('sh', 24, 1)}<span class="colon">:</span>${wheel('sm', 60, mstep)}</div></div>
       <div class="tp-arrow">${I.chevL}</div>
-      <div class="tp-col"><div class="tp-cap">יציאה</div><div class="wheels" dir="ltr">${wheel('eh', 24, 1)}<span class="colon">:</span>${wheel('em', 60, mstep)}</div><button type="button" class="tp-next" id="tNext" aria-pressed="false">${I.check}<span>למחרת</span></button></div>
+      <div class="tp-col"><button type="button" class="tp-cap tp-type" data-t="e" aria-label="הקלדת שעת היציאה">יציאה<span>${I.clockEdit}</span></button><input type="time" class="tp-in" data-t="e" tabindex="-1" aria-hidden="true"><div class="wheels" dir="ltr">${wheel('eh', 24, 1)}<span class="colon">:</span>${wheel('em', 60, mstep)}</div><button type="button" class="tp-next" id="tNext" aria-pressed="false">${I.check}<span>למחרת</span></button></div>
     </div>
     <div class="tp-sum">סה״כ <b class="num" id="tDur"></b> שעות · גוללים כדי לשנות</div>
     <h3>הפסקה לא בתשלום</h3>
@@ -874,6 +874,24 @@ function openShiftSheet(sh, mode) {
       }, 80); }, { passive: true });
       $$('.wi', w).forEach(it => it.onclick = () => { W[id][0][W[id][1]] = +it.dataset.v; setWheel(id, true); upd(); });
     }
+    // typing a time instead of turning the wheels: the phone's own time picker (with a keyboard option)
+    const restep = id => {   // a typed minute the 5-minute wheel can't show: switch both minute wheels to every minute
+      const w = $('#w-' + id, root); if (+w.dataset.step === 1) return;
+      w.dataset.step = 1; w.innerHTML = Array.from({ length: 60 }, (_, i) => `<div class="wi num" data-v="${i}">${pad(i)}</div>`).join('');
+      $$('.wi', w).forEach(it => it.onclick = () => { W[id][0][W[id][1]] = +it.dataset.v; setWheel(id, true); upd(); });
+    };
+    $$('.tp-type', root).forEach(b => b.onclick = () => {
+      const t = b.dataset.t, inp = $(`.tp-in[data-t="${t}"]`, root), v = T[t];
+      inp.value = `${pad(v[0])}:${pad(v[1])}`;
+      try { inp.showPicker(); } catch { inp.focus(); inp.click(); }
+    });
+    $$('.tp-in', root).forEach(inp => inp.onchange = () => {
+      const m = /^(\d{1,2}):(\d{2})/.exec(inp.value); if (!m) return;
+      const t = inp.dataset.t, h = +m[1], mm = +m[2];
+      T[t][0] = h; T[t][1] = mm;
+      if (mm % 5) { restep('sm'); restep('em'); }
+      setWheel(t + 'h'); setWheel(t + 'm'); upd(); buzz(8);
+    });
     $$('.day', root).forEach(b => b.onclick = () => { T.date = new Date(+b.dataset.d); upd(); });
     $('#tNext', root).onclick = () => {
       if (T.e[0] * 60 + T.e[1] <= T.s[0] * 60 + T.s[1]) return toast('שעת היציאה מוקדמת משעת הכניסה, אז היציאה למחרת');
@@ -1668,7 +1686,7 @@ function renderRights() {
       <p style="margin-top:10px">עובד שעתי עם <b>3 חודשי ותק</b> מקבל בדרך כלל תשלום על חג שלא חל בשבת, גם בלי לעבוד, אם לא נעדר ביום שלפני החג וביום שאחריו בלי הסכמת המעסיק.</p>
       <p>ומי שעבד בחג מקבל את דמי החג <b>וגם</b> 150% על השעות שעבד.</p>`)}
     ${qa('check', 'עבדתי ביום הבחירות. כמה מגיע לי?', `
-      <p>יום הבחירות לכנסת (<b>${electionDate()}</b>) הוא יום שבתון. מי שעובד אצל אותו מעסיק לפחות 14 ימים ברציפות מקבל עליו שכר מלא גם בלי לעבוד.</p>
+      <p>יום הבחירות לכנסת${electionDate() ? ` (<b>${electionDate()}</b>)` : ''} הוא יום שבתון. מי שעובד אצל אותו מעסיק לפחות 14 ימים ברציפות מקבל עליו שכר מלא גם בלי לעבוד.</p>
       <p>מי שכן עבד מקבל לפי <b>נוהג מקובל</b>, שלא כתוב בחוק, <b>200%</b>, ובשעות נוספות 250% ו־300%. יש מעסיקים שמשלמים במקום זה שכר רגיל ונותנים יום חופש אחר.</p>
       <p>אצבע מחשבת 200% על כל שעה שעבדת באותו יום. אפשר לשנות או לכבות בהגדרות העבודה.</p>`)}
     ${qa('coffee', 'הפסקות: מתי משלמים עליהן?', `
@@ -1711,7 +1729,7 @@ function rightsEN(y, low, w, qa) {
       <p style="margin-top:10px">An hourly worker with <b>3 months</b> at the job usually gets paid for a holiday that isn’t on Shabbat, without working it, if they weren’t absent the day before and after without the employer’s consent.</p>
       <p>If you did work the holiday you get the holiday pay <b>and</b> 150% for the hours worked.</p>`)}
     ${qa('check', 'I worked on election day. What am I owed?', `
-      <p>Knesset election day (<b>${electionDate()}</b>) is a day off by law. If you’ve worked for the same employer for at least 14 days in a row, you’re paid for it even without working.</p>
+      <p>Knesset election day${electionDate() ? ` (<b>${electionDate()}</b>)` : ''} is a day off by law. If you’ve worked for the same employer for at least 14 days in a row, you’re paid for it even without working.</p>
       <p>If you did work, <b>accepted practice</b> (not written in the law) is <b>200%</b>, with overtime at 250% and 300%. Some employers pay a regular wage plus another day off instead.</p>
       <p>Etzba pays 200% for every hour you worked that day. You can change or turn this off in the job settings.</p>`)}
     ${qa('coffee', 'Breaks: when are they paid?', `
@@ -1781,10 +1799,12 @@ function renderSet() {
     <div class="card">
       <label class="cell"><span class="cell-ic t-orange">${I.pin}</span><span class="grow">עיר</span>
         <select class="val" id="s-city" style="border:0;background:none;text-align:end;font-weight:600">${Object.keys(CITIES).map(c => `<option value="${c}"${c === st.city ? ' selected' : ''}>${c}</option>`).join('')}</select></label>
-      <label class="cell"><span class="cell-ic t-gold">${I.shabbat}</span><span class="grow">הדלקת נרות<div class="sub">דקות לפני השקיעה</div></span>
+<details class="adv-cell"><summary class="cell"><span class="cell-ic">${I.clockEdit}</span><span class="grow">כניסת ויציאת שבת<div class="sub num">${st.candleMin} דק׳ לפני השקיעה · ${st.havdalahMin} דק׳ אחריה</div></span><span class="chev">${I.chevDown}</span></summary>
+            <label class="cell"><span class="cell-ic t-gold">${I.shabbat}</span><span class="grow">הדלקת נרות<div class="sub">דקות לפני השקיעה</div></span>
         <input class="input num" style="width:76px;height:44px;text-align:center" type="number" id="s-candleMin" value="${st.candleMin}"></label>
       <label class="cell"><span class="cell-ic t-indigo">${I.night}</span><span class="grow">צאת שבת<div class="sub">דקות אחרי השקיעה</div></span>
         <input class="input num" style="width:76px;height:44px;text-align:center" type="number" id="s-havdalahMin" value="${st.havdalahMin}"></label>
+      </details>
     </div>
 
     <div class="sec"><span>${secIc('coins', 'green')}מס ונטו</span></div>
@@ -2022,7 +2042,25 @@ function openJobSheet(job, isNew) {
     <div class="field"><span>צבע</span><div class="swatches" id="j-col">${COLORS.map(c => `<button type="button" data-c="${c}" style="background:${c}"></button>`).join('')}</div></div>
     <label class="field"><span class="ih">${secIc('coins', 'green')}שכר לשעה (₪)</span><input class="input num" type="number" step="0.01" inputmode="decimal" data-k="rate" value="${j.rate}"><p class="hint" id="j-minw"></p></label>
 
-    <h3 class="ih">${secIc('ot', 'orange')}תוספות שכר</h3>
+    <h3 class="ih">${secIc('coffee', 'gray')}הפסקה קבועה</h3>
+    <div class="qchips" id="j-brk">${[0, 15, 30, 45, 60].map(b => `<button type="button" data-b="${b}">${b ? b + ' דק׳' : 'בלי'}</button>`).join('')}</div>
+    <p class="hint">תיכנס אוטומטית לכל משמרת, ואפשר לשנות בכל משמרת.</p>
+
+    <h3 class="ih">${secIc('pin', 'blue')}נסיעות</h3>
+    <div class="grid2">
+      <label class="field"><span>החזר נסיעות (₪)</span><input class="input num" type="number" step="0.5" inputmode="decimal" data-k="travel" value="${j.travel}"></label>
+      <label class="field"><span>תקרה לחודש (₪)</span><input class="input num" type="number" step="1" inputmode="decimal" data-k="travelMonthCap" value="${+j.travelMonthCap || ''}" placeholder="בלי"></label>
+    </div>
+    <div class="seg" id="j-tmode" style="margin-top:10px"><button type="button" data-t="day">פעם ביום עבודה</button><button type="button" data-t="shift">על כל משמרת</button></div>
+    <p class="hint" id="j-thint"></p>
+
+    <div class="rule" id="rule-tips"><label class="rule-h"><span class="kic" style="--kc:var(--c-tips)">${I.coins}</span><span class="grow"><b>טיפים</b><div class="sub">שדה טיפים בכל משמרת</div></span>${SW('tipsOn', j.tipsOn)}</label>
+      <div class="rule-b" id="tips-body">
+        <div class="seg" id="j-tips"><button type="button" data-m="own">הטיפים שלי</button><button type="button" data-m="wage">דרך המעסיק</button></div>
+        <p class="hint" id="j-tipshint"></p>
+      </div></div>
+
+    <details class="adv-sec"><summary><span class="ih">${secIc('ot', 'orange')}תוספות שכר</span><small>שעות נוספות, שבת, חגים ויום הבחירות. ברירת המחדל לפי החוק</small>${I.chevDown}</summary>
     ${rule('ot', 'noon', 'ot', 'שעות נוספות ביום חול', 'תוספת אחרי יום עבודה מלא', 'otOn', `
       <div class="seg" id="j-week"><button type="button" data-w="5">שבוע של 5 ימים</button><button type="button" data-w="6">שבוע של 6 ימים</button></div>
       <div class="grid2">${K('regHours', 'אחרי (שעות ביום)')}${R('ot1', 'תוספת ראשונה')}</div>
@@ -2045,32 +2083,14 @@ function openJobSheet(job, isNew) {
       </div>`)}
     ${rule('chag', 'chag', 'chag', 'חגים', 'תוספת על שעות בתוך החג', 'chag', `
       <div class="grid3">${R('chag', 'שעה בחג')}<span class="otx">${R('chagOt1', 'נוספות א׳')}</span><span class="otx">${R('chagOt2', 'נוספות ב׳')}</span></div>`)}
-    ${rule('elect', 'chag', 'check', 'יום הבחירות', `עבודה ביום הבחירות לכנסת (${electionDate()})`, 'election', `
+    ${rule('elect', 'chag', 'check', 'יום הבחירות', electionDate() ? `עבודה ביום הבחירות לכנסת (${electionDate()})` : 'עבודה ביום הבחירות לכנסת', 'election', `
       <div class="grid3">${R('elect', 'שעה ביום בחירות')}<span class="otx">${R('electOt1', 'נוספות א׳')}</span><span class="otx">${R('electOt2', 'נוספות ב׳')}</span></div>
       <p class="hint">הנוהג המקובל: 200%, ובשעות נוספות 250% ו־300%. יש מקומות שמשלמים במקום זה שכר רגיל ויום חופש אחר.</p>`)}
     <div class="rule"><label class="rule-h"><span class="kic k-chag">${I.receipt}</span><span class="grow"><b>דמי חגים</b><div class="sub">תשלום על חג שלא עבדת בו (אחרי 3 חודשים)</div></span>${SW('holidayPay', j.holidayPay)}</label>
       <div class="rule-b" id="hp-body">${K('holidayPayHours', 'שעות לתשלום על יום חג', 0.5)}</div></div>
-
-    <h3 class="ih">${secIc('coffee', 'gray')}הפסקה קבועה</h3>
-    <div class="qchips" id="j-brk">${[0, 15, 30, 45, 60].map(b => `<button type="button" data-b="${b}">${b ? b + ' דק׳' : 'בלי'}</button>`).join('')}</div>
-    <p class="hint">תיכנס אוטומטית לכל משמרת, ואפשר לשנות בכל משמרת.</p>
     ${R('reg', 'אחוז שעה רגילה')}
-
-    <h3 class="ih">${secIc('pin', 'blue')}נסיעות</h3>
-    <div class="grid2">
-      <label class="field"><span>החזר נסיעות (₪)</span><input class="input num" type="number" step="0.5" inputmode="decimal" data-k="travel" value="${j.travel}"></label>
-      <label class="field"><span>תקרה לחודש (₪)</span><input class="input num" type="number" step="1" inputmode="decimal" data-k="travelMonthCap" value="${+j.travelMonthCap || ''}" placeholder="בלי"></label>
-    </div>
-    <div class="seg" id="j-tmode" style="margin-top:10px"><button type="button" data-t="day">פעם ביום עבודה</button><button type="button" data-t="shift">על כל משמרת</button></div>
-    <p class="hint" id="j-thint"></p>
-
-    <div class="rule" id="rule-tips"><label class="rule-h"><span class="kic" style="--kc:var(--c-tips)">${I.coins}</span><span class="grow"><b>טיפים</b><div class="sub">שדה טיפים בכל משמרת</div></span>${SW('tipsOn', j.tipsOn)}</label>
-      <div class="rule-b" id="tips-body">
-        <div class="seg" id="j-tips"><button type="button" data-m="own">הטיפים שלי</button><button type="button" data-m="wage">דרך המעסיק</button></div>
-        <p class="hint" id="j-tipshint"></p>
-      </div></div>
-
-    <h3 class="ih">${secIc('vac', 'teal')}ימי מחלה וחופשה</h3>
+    </details>
+    <details class="adv-sec"><summary><span class="ih">${secIc('vac', 'teal')}ימי מחלה, חופשה והבראה</span><small>ותק, ימי חופשה ואיך משלמים עליהם</small>${I.chevDown}</summary>
     <div class="grid2">
       <label class="field"><span>התחלתי לעבוד ב־</span><input class="input num" type="date" data-k="startDate" value="${esc(j.startDate || '')}"></label>
       <label class="field"><span>ימי חופשה בשנה</span><input class="input num" type="number" step="1" inputmode="numeric" data-k="vacDays" value="${+j.vacDays || ''}" placeholder="${+j.weekDays === 6 ? 14 : 12}"></label>
@@ -2083,6 +2103,7 @@ function openJobSheet(job, isNew) {
     <div class="field"><span>דמי הבראה</span>
       <div class="seg" id="j-hav"><button type="button" data-m="year">פעם בשנה</button><button type="button" data-m="month">כל חודש בתלוש</button></div></div>
     <p class="hint">אחרי שנה בעבודה: 5 ימים בשנה ויותר עם הוותק, לפי היקף המשרה. בבחירה של כל חודש, חלק מהם נכנס לשכר של כל חודש.</p>
+    </details>
     ${native.geo.available() ? `<h3 class="ih">${secIc('pin', 'orange')}מיקום העבודה</h3>
     <div class="card pad" id="j-place"></div>
     <p class="hint">כשמגיעים לעבודה (אחרי כ־3 דקות במקום) תגיע התראה שמציעה להתחיל משמרת, וכשיוצאים באמצע משמרת, הצעה לסיים אותה. הטלפון עצמו עוקב אחרי האזור, כך שזה כמעט לא צורך סוללה.</p>` : ''}

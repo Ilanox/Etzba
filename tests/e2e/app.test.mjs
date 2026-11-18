@@ -120,6 +120,7 @@ test('weekly limit is editable in the job settings and hidden when the weekly ru
   const { page, ctx, errors, state } = await open();
   await page.click('[data-v=set]'); await wait(page);
   await page.locator('[data-job]').first().click(); await wait(page, 500);
+  await page.locator('details.adv-sec summary').first().click(); await wait(page, 200);   // pay premiums are folded under the basics
   const field = page.locator('#j-weekly');
   assert.equal(await field.isVisible(), true);
   await field.locator('input').fill('45');
