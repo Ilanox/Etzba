@@ -224,3 +224,14 @@ test('English with a Hebrew job name never freezes (translating its own output i
   assert.ok(alive && /Settings/.test(alive), 'the page still responds, in English');
   await ctx.close();
 });
+
+test('Android: switching to English updates every widget text', async () => {
+  const { page, ctx, errors } = await open({ native: true });
+  await page.click('#punchBtn'); await wait(page, 500);
+  await page.click('[data-v=set]'); await wait(page); await page.click('#s-lang [data-l=en]'); await wait(page, 800);
+  const w = await page.evaluate(() => __calls.filter(c => c.n === 'AppActions' && c.m === 'updateWidget').at(-1).a);
+  assert.equal(w.rtl, false);
+  const texts = [w.extra.month.name, ...w.segs.map(s => s[2]), ...Object.values(w.labels)].join(' ');
+  assert.doesNotMatch(texts, /[֐-׿]/, texts);
+  assert.deepEqual(errors, []); await ctx.close();
+});

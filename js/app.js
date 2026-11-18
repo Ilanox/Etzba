@@ -1863,11 +1863,12 @@ async function setLang(l, save = true) {
   const info = langInfo(l);
   const pack = await loadPack(info.code).catch(() => null);
   LANG = info.code; EN = LANG !== 'he'; PACK = pack;
-  if (save) { S.settings.lang = LANG; persist(); }
   document.documentElement.lang = LANG; document.documentElement.dir = info.dir;
   DAYS = pack?.days || HE_DAYS; MONTHS = pack?.months || HE_MONTHS; DAY_SHORT = pack?.daysShort || HE_DAY_SHORT;
   stopTranslating(); usePack(pack);
   if (pack) startTranslating();
+  // save only now: saving also updates the widget, which must get the new language's texts and direction
+  if (save) { S.settings.lang = LANG; persist(); }
   render(); updateBackupDot();
   syncGeo(true); planNotifications(); syncWidget();   // texts the phone shows on its own follow the language
 }
