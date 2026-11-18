@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Resizable: about 2×1 (compact), 2×2 (tall), 4×1 (standard, the default) and 4×2 (expanded). -->
+<!-- Resizable: about 2×1 (compact), 2×2 and 2×3 (tall), 4×1 (standard, the default) and 4×2 (expanded). -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/etzba_widget_description"
     android:minWidth="110dp"

@@ -83,20 +83,21 @@ public class EtzbaWidget extends AppWidgetProvider {
                 Map<SizeF, RemoteViews> m = new HashMap<>();
                 m.put(new SizeF(100f, 40f), build(ctx, s, Size.SMALL));
                 m.put(new SizeF(100f, 120f), build(ctx, s, Size.TALL));
+                m.put(new SizeF(100f, 185f), build(ctx, s, Size.TALLER));
                 m.put(new SizeF(230f, 40f), build(ctx, s, Size.WIDE));
                 m.put(new SizeF(230f, 150f), build(ctx, s, Size.LARGE));
                 mgr.updateAppWidget(id, new RemoteViews(m));
             } else {
                 Bundle o = mgr.getAppWidgetOptions(id);
                 int w = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250), h = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 70);
-                mgr.updateAppWidget(id, build(ctx, s, w < 200 ? (h >= 120 ? Size.TALL : Size.SMALL) : h >= 150 ? Size.LARGE : Size.WIDE));
+                mgr.updateAppWidget(id, build(ctx, s, w < 200 ? (h >= 185 ? Size.TALLER : h >= 120 ? Size.TALL : Size.SMALL) : h >= 150 ? Size.LARGE : Size.WIDE));
             }
         } catch (Exception e) {
             android.util.Log.w("Etzba", "widget draw failed", e);
         }
     }
 
-    private enum Size { SMALL, TALL, WIDE, LARGE }
+    private enum Size { SMALL, TALL, TALLER, WIDE, LARGE }
 
     /** Everything the app last sent, plus what follows from the clock right now. */
     private static final class State {
@@ -171,9 +172,10 @@ public class EtzbaWidget extends AppWidgetProvider {
 
     private static RemoteViews build(Context ctx, State s, Size size) {
         String pkg = ctx.getPackageName();
-        String layout = size == Size.SMALL ? "etzba_widget_small" : size == Size.TALL ? "etzba_widget_tall" : size == Size.LARGE ? "etzba_widget_large" : "etzba_widget";
+        String layout = size == Size.SMALL ? "etzba_widget_small" : size == Size.TALL || size == Size.TALLER ? "etzba_widget_tall" : size == Size.LARGE ? "etzba_widget_large" : "etzba_widget";
         // small and tall have no amount, bar or top lines: touching a view a layout doesn't have breaks the whole widget
-        final boolean compact = size == Size.SMALL || size == Size.TALL;
+        final boolean compact = size == Size.SMALL || size == Size.TALL || size == Size.TALLER;
+        final boolean tall = size == Size.TALL || size == Size.TALLER;
         RemoteViews v = new RemoteViews(pkg, res(ctx, layout, "layout"));
         int root = id(ctx, "w_root"), dial = id(ctx, "w_dial"), timer = id(ctx, "w_timer"), title = id(ctx, "w_title"),
             amt = id(ctx, "w_amt"), line = id(ctx, "w_line"), bar = id(ctx, "w_bar"), top1 = id(ctx, "w_top1"), top2 = id(ctx, "w_top2"),
@@ -192,7 +194,7 @@ public class EtzbaWidget extends AppWidgetProvider {
         if (s.style.equals("accent")) { ink = s.c("bg", 0xFF141518); muted = (ink & 0x00FFFFFF) | 0xB3000000; pc = ink; }
         if (s.style.equals("bold")) {
             // a little bigger than each layout's own sizes (small 21, standard 32/19, large 46/24), so nothing is cut off
-            v.setTextViewTextSize(timer, android.util.TypedValue.COMPLEX_UNIT_SP, size == Size.SMALL ? 24 : size == Size.TALL ? 30 : size == Size.LARGE ? 54 : 36);
+            v.setTextViewTextSize(timer, android.util.TypedValue.COMPLEX_UNIT_SP, size == Size.SMALL ? 24 : tall ? 30 : size == Size.LARGE ? 54 : 36);
             if (!compact) v.setTextViewTextSize(amt, android.util.TypedValue.COMPLEX_UNIT_SP, size == Size.LARGE ? 28 : 21);
         }
         v.setTextColor(timer, ink);
@@ -201,7 +203,7 @@ public class EtzbaWidget extends AppWidgetProvider {
         if (!compact) v.setTextColor(amt, ink);
         if (size == Size.LARGE) { v.setTextColor(top1, muted); v.setTextColor(top2, muted); v.setTextColor(sub, muted); }
 
-        int dialDp = size == Size.SMALL ? 56 : size == Size.TALL ? 76 : size == Size.LARGE ? 100 : 64;
+        int dialDp = size == Size.SMALL ? 56 : size == Size.TALLER ? 92 : size == Size.TALL ? 76 : size == Size.LARGE ? 100 : 64;
         v.setImageViewBitmap(dial, dialBitmap(s, Math.round(dialDp * dp)));
 
         String hhmm = new SimpleDateFormat("HH:mm", Locale.US).format(new Date(s.start));
@@ -219,7 +221,7 @@ public class EtzbaWidget extends AppWidgetProvider {
             v.setChronometer(timer, SystemClock.elapsedRealtime() - (s.now - s.start), null, true);
             v.setViewVisibility(title, View.GONE);
             switch (size) {
-                case SMALL: case TALL:
+                case SMALL: case TALL: case TALLER:
                     v.setTextViewText(line, money + " · " + l.optString(s.phase.equals("reg") ? "shortReg" : "shortOt", ""));
                     break;
                 case WIDE:
@@ -240,7 +242,7 @@ public class EtzbaWidget extends AppWidgetProvider {
             boolean later = s.active;   // clocked in for a time that hasn't come yet
             String head = later ? l.optString("starts", "מתחילה ב־") + hhmm : l.optString("idle", "לא במשמרת");
             switch (size) {
-                case SMALL: case TALL:
+                case SMALL: case TALL: case TALLER:
                     v.setViewVisibility(timer, View.GONE); v.setViewVisibility(title, View.VISIBLE);
                     v.setTextViewText(title, head);
                     v.setTextViewText(line, l.optString("tapShort", "נגיעה להתחלה"));
@@ -264,6 +266,19 @@ public class EtzbaWidget extends AppWidgetProvider {
                         + " · " + s.month.optInt("count", 0) + " " + l.optString("shifts", "משמרות"));
                     break;
             }
+        }
+
+        if (tall) {
+            int month = id(ctx, "w_month");
+            if (size == Size.TALLER) {
+                String mName = s.month.optString("name", ""), mGross = s.month.optString("gross", "");
+                String txt = s.running ? (s.job.isEmpty() ? "" : s.job + "\n") + l.optString("since", "מ־") + hhmm
+                    : (s.job.isEmpty() ? "" : s.job + (rateTxt.isEmpty() ? "" : " · " + rateTxt) + "\n")
+                      + (mName.isEmpty() ? "" : mName + " · " + mGross + " " + l.optString("gross", "ברוטו"));
+                v.setTextViewText(month, txt.trim());
+                v.setTextColor(month, muted);
+                v.setViewVisibility(month, txt.trim().isEmpty() ? View.GONE : View.VISIBLE);
+            } else v.setViewVisibility(month, View.GONE);
         }
 
         // the thin bar: how far to overtime (full and in the overtime colour once it's started)
