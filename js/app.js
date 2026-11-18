@@ -135,6 +135,8 @@ const COLORS = ['#E4572E', '#1E7A4A', '#4B5BD0', '#C98E00', '#1F8F84', '#A1458F'
 const place = () => ({ city: S.settings.city, candleMin: S.settings.candleMin, havdalahMin: S.settings.havdalahMin });
 const jobById = id => S.jobs.find(j => j.id === id) || S.jobs[0];
 const buzz = ms => { if (native.haptic(+ms >= 30 || Array.isArray(ms) ? 'medium' : 'light')) return; try { navigator.vibrate?.(ms); } catch {} };
+/** A name the person typed (job, note), kept apart from the text around it so mixed Hebrew/English reads in order. */
+const nm = t => `<bdi>${esc(t)}</bdi>`;
 const tierLabel = (k, job) => `${TIER_NAME[k]} ${job.r[k]}%`;
 
 let viewY = new Date().getFullYear(), viewM = new Date().getMonth();
@@ -248,7 +250,7 @@ function shiftRow(s) {
     p.restHours > 0.01 ? `<span class="pill rest">${esc(p.names[0])}</span>` : '',
     p.otHours > 0.01 ? `<span class="pill ot">+${hm(p.otHours)} נוספות</span>` : '',
   ].join('');
-  const second = [S.jobs.length > 1 ? `<span class="jobp"><i style="background:${job.color}"></i>${esc(job.name)}</span>` : esc(KIND_NAME[k]), s.note ? esc(s.note) : ''].filter(Boolean);
+  const second = [S.jobs.length > 1 ? `<span class="jobp"><i style="background:${job.color}"></i>${nm(job.name)}</span>` : esc(KIND_NAME[k]), s.note ? nm(s.note) : ''].filter(Boolean);
   return `<button class="srow" data-id="${s.id}">
     <span class="kic k-${k}" title="${KIND_NAME[k]}">${I[k]}</span>
     <span class="mid"><span class="t1">${DAYS[d.getDay()]} ${dShort(d)} ${pills}</span>
@@ -335,7 +337,7 @@ function renderHome() {
       <div class="punch-label" id="pLabel"></div>
       <button class="punch-edit" id="pEdit" hidden>${I.clockEdit}שינוי שעת הכניסה</button>
       <div id="pTier"></div>
-      ${multi ? `<div class="jobchips" id="jobChips">${S.jobs.map(j => `<button class="chip${j.id === (S.active?.jobId || S.settings.lastJob) ? ' on' : ''}" data-j="${j.id}"><span class="dot" style="background:${j.color}"></span>${esc(j.name)}</button>`).join('')}</div>` : ''}
+      ${multi ? `<div class="jobchips" id="jobChips">${S.jobs.map(j => `<button class="chip${j.id === (S.active?.jobId || S.settings.lastJob) ? ' on' : ''}" data-j="${j.id}"><span class="dot" style="background:${j.color}"></span>${nm(j.name)}</button>`).join('')}</div>` : ''}
     </div>
     <div class="tiles" id="tiles"></div>
     <div class="card rest-card" id="restCard" style="margin-top:12px"></div>
@@ -407,7 +409,7 @@ function tickHome(full) {
     $('#pEdit').hidden = true;
     punch.dataset.phase = 'idle'; setFill(0); tickHome.key = null;
     $('#punchBtn').setAttribute('aria-label', `לא במשמרת. לחיצה להתחלת משמרת · ${job.name}`);
-    $('#pTier').innerHTML = S.jobs.length > 1 ? '' : `<span class="tier plain">${I.briefcase}${esc(job.name)} · ₪${job.rate} לשעה</span>`;
+    $('#pTier').innerHTML = S.jobs.length > 1 ? '' : `<span class="tier plain">${I.briefcase}${nm(job.name)} · ₪${job.rate} לשעה</span>`;
   }
   if (full || now.getSeconds() % 15 === 0) renderTiles(livePay());
 }
@@ -468,7 +470,7 @@ function openShiftSheet(sh, mode) {
   const mstep = [T.s[1], T.e[1]].every(x => x % 5 === 0) ? 5 : 1;
   const wheel = (id, n, st) => `<div class="wheel" id="w-${id}" data-step="${st}">${Array.from({ length: n / st }, (_, i) => `<div class="wi num" data-v="${i * st}">${pad(i * st)}</div>`).join('')}</div>`;
   const title = mode === 'end' ? 'סיום משמרת' : mode === 'new' ? 'משמרת חדשה' : 'עריכת משמרת';
-  const sub = mode === 'end' ? `${esc(job.name)} · אם שכחת להחתים בזמן, אפשר לתקן את השעות.` : '';
+  const sub = mode === 'end' ? `${nm(job.name)} · אם שכחת להחתים בזמן, אפשר לתקן את השעות.` : '';
   const d0 = new Date(Math.min(+today - 45 * 864e5, +T.date - 3 * 864e5)), d1 = new Date(Math.max(+today + 7 * 864e5, +T.date + 3 * 864e5));
   let days = '';
   // oldest first: in Hebrew the days run right to left, like reading
@@ -479,7 +481,7 @@ function openShiftSheet(sh, mode) {
   }
   openSheet(`
     <h2>${title}</h2>${sub ? `<p class="shsub">${sub}</p>` : ''}
-    ${S.jobs.length > 1 ? `<div class="chips" id="f-jobs">${S.jobs.map(j => `<button type="button" class="chip" data-j="${j.id}"><span class="dot" style="background:${j.color}"></span>${esc(j.name)}</button>`).join('')}</div>` : ''}
+    ${S.jobs.length > 1 ? `<div class="chips" id="f-jobs">${S.jobs.map(j => `<button type="button" class="chip" data-j="${j.id}"><span class="dot" style="background:${j.color}"></span>${nm(j.name)}</button>`).join('')}</div>` : ''}
     <h3>יום</h3>
     <div class="daystrip" id="f-days">${days}</div>
     <h3>שעות · בחירה מהירה</h3>
@@ -706,7 +708,7 @@ function sumMonth(el) {
     </div>
     <div class="sec"><span>פירוט שעות ותוספות</span></div>
     ${M.perJob.map(J => `<div class="card">
-      ${S.jobs.length > 1 ? `<div class="ln"><span class="l" style="color:${J.job.color};font-weight:700">${esc(J.job.name)}</span><span class="v num mutedv">₪${J.job.rate} לשעה</span></div>` : ''}
+      ${S.jobs.length > 1 ? `<div class="ln"><span class="l" style="color:${J.job.color};font-weight:700">${nm(J.job.name)}</span><span class="v num mutedv">₪${J.job.rate} לשעה</span></div>` : ''}
       ${TIERS.filter(k => J.b[k] > 0.004).map(k => L(tierLabel(k, J.job), money2(J.money[k]), '', `${hm(J.b[k])} ש׳`)).join('')}
       ${J.travel ? L('נסיעות', money2(J.travel), '', `${J.count} משמרות`) : ''}
       ${J.bonus ? L('טיפים ובונוסים', money2(J.bonus)) : ''}
@@ -874,7 +876,7 @@ function renderRights() {
 const qaEN = (ic, q, a, open) => `<details class="qa"${open ? ' open' : ''}><summary><span class="cell-ic">${I[ic]}</span>${q}<span class="cv">${I.chevDown}</span></summary><div class="ans">${a}</div></details>`;
 function rightsEN(y, low, w, qa) {
   return `<h1 class="title">My rights</h1>
-    ${low.map(j => `<div class="note">${I.warn}<span>The wage at "${esc(j.name)}" (₪${j.rate}) is below minimum wage, ₪${MIN_WAGE_HOURLY} an hour since 1.4.2026.</span></div>`).join('')}
+    ${low.map(j => `<div class="note">${I.warn}<span>The wage at "${nm(j.name)}" (₪${j.rate}) is below minimum wage, ₪${MIN_WAGE_HOURLY} an hour since 1.4.2026.</span></div>`).join('')}
     <div class="note info">${I.info}<span>Etzba follows the general law. If your workplace has a collective agreement or better terms, change the percentages in the job settings.</span></div>
     ${qa('ot', 'When does overtime start?', `
       <p>On a <b>5-day week</b>: after <b>8:36 hours</b> a day (7:36 on the short day).</p>
@@ -920,7 +922,7 @@ function renderSet() {
   el.innerHTML = `<h1 class="title">הגדרות</h1>
     <div class="sec"><span>מקומות עבודה</span></div>
     <div class="card">${S.jobs.map(j => `<button class="cell" data-job="${j.id}"><span class="cell-ic" style="color:${j.color}">${I.briefcase}</span>
-      <span class="grow">${esc(j.name)}<div class="sub num">₪${j.rate} לשעה · שבוע של ${j.weekDays} ימים${j.restMode === 'fixed' ? ' · שבת לפי חוזה' : ''}</div></span><span class="chev">${I.chevL}</span></button>`).join('')}
+      <span class="grow">${nm(j.name)}<div class="sub num">₪${j.rate} לשעה · שבוע של ${j.weekDays} ימים${j.restMode === 'fixed' ? ' · שבת לפי חוזה' : ''}</div></span><span class="chev">${I.chevL}</span></button>`).join('')}
       <button class="cell" id="addJob"><span class="cell-ic">${I.plus}</span><span class="grow" style="color:var(--accent);font-weight:600">הוספת מקום עבודה</span></button></div>
 
     <div class="sec"><span>מראה</span></div>
@@ -1087,7 +1089,7 @@ function openFileImport(f0) {
           ${odd ? L('תעריף אחר', odd, 'תעריף מהקובץ נשמר לכל משמרת כזו') : ''}
         </div>
         ${res.needsYear ? `<label class="field"><span>שנה</span><div class="seg" id="fi-year">${yearsSel.map(y => `<button type="button" data-y="${y}" class="${y === (year ?? res.year) ? 'on' : ''}">${y}</button>`).join('')}</div><p class="hint">בקובץ אין שנה ליד התאריכים${sh.year ? `. לקחתי ${sh.year} משם הקובץ או הגיליון` : ''}.</p></label>` : ''}
-        <div class="field"><span>לאיזה מקום עבודה</span><div class="chips" id="fi-job" style="padding-top:0">${S.jobs.map(j => `<button type="button" class="chip${j.id === jid ? ' on' : ''}" data-j="${j.id}"><span class="dot" style="background:${j.color}"></span>${esc(j.name)}</button>`).join('')}<button type="button" class="chip${jid === '__new' ? ' on' : ''}" data-j="__new">${I.plus}חדש</button></div>
+        <div class="field"><span>לאיזה מקום עבודה</span><div class="chips" id="fi-job" style="padding-top:0">${S.jobs.map(j => `<button type="button" class="chip${j.id === jid ? ' on' : ''}" data-j="${j.id}"><span class="dot" style="background:${j.color}"></span>${nm(j.name)}</button>`).join('')}<button type="button" class="chip${jid === '__new' ? ' on' : ''}" data-j="__new">${I.plus}חדש</button></div>
           ${jid === '__new' ? `<input class="input" id="fi-newname" value="${esc(newJobName || 'מיובא')}" style="margin-top:8px"><p class="hint">ייווצר עם ₪${draftJob.rate} לשעה ונסיעות ₪${draftJob.travel}, לפי מה שהכי נפוץ בקובץ.</p>` : ''}</div>
         <div class="card" style="margin-top:12px">
           ${L('אצבע תחשב', money(gross), `ברוטו ל־${fresh.length} משמרות · ${hm(hours)} ש׳, לפי הגדרות "${esc(draftJob.name)}"`)}
@@ -1599,7 +1601,7 @@ function appAction({ action, jobId }) {
   if (action === 'toggle') {
     go('home');
     // a running shift: confirm before ending it. none: start on the last job.
-    if (S.active) openSheet(`<h2>לסיים את המשמרת?</h2><p class="shsub">${esc(jobById(S.active.jobId).name)} · ${hm((Date.now() - new Date(S.active.start)) / 36e5)}</p>
+    if (S.active) openSheet(`<h2>לסיים את המשמרת?</h2><p class="shsub">${nm(jobById(S.active.jobId).name)} · ${hm((Date.now() - new Date(S.active.start)) / 36e5)}</p>
       <div class="btnrow"><button class="btn primary" id="wa-end">${I.check}סיום משמרת</button><button class="btn soft" id="wa-no">עדיין לא</button></div>`, root => {
       $('#wa-end', root).onclick = () => { closeSheet(); if (S.active) onPunch(); };
       $('#wa-no', root).onclick = closeSheet;
@@ -1611,7 +1613,7 @@ function appAction({ action, jobId }) {
   go('home');
   if (action === 'start' && !S.active) { S.settings.lastJob = job.id; onPunch(); return; }
   if ((action === 'end' || action === 'ask_end') && S.active) { onPunch(); return; }
-  if (action === 'ask_start' && !S.active) openSheet(`<h2>הגעת לעבודה?</h2><p class="shsub">${esc(job.name)}</p>
+  if (action === 'ask_start' && !S.active) openSheet(`<h2>הגעת לעבודה?</h2><p class="shsub">${nm(job.name)}</p>
     <div class="btnrow"><button class="btn primary" id="ga-yes">${I.check}להתחיל משמרת</button><button class="btn soft" id="ga-no">לא עכשיו</button></div>`, root => {
     $('#ga-yes', root).onclick = () => { closeSheet(); S.settings.lastJob = job.id; onPunch(); };
     $('#ga-no', root).onclick = closeSheet;

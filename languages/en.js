@@ -217,6 +217,7 @@ export default {
   'מתוך 42 ש׳': 'of 42 h this week'
   },
   templates: [
+    ['· ₪{} לשעה', '· ₪{1} an hour'],
     ['{} משמרות + המשמרת הנוכחית · {} שעות', '{1} shifts + the current one · {2} hours'],
     ['₪{} לשעה', '₪{1} per hour'],
     ['יצירת קשר · {}', 'Contact · {1}'],

@@ -112,7 +112,8 @@ public class EtzbaWidget extends AppWidgetProvider {
             rtl = p.getBoolean("rtl", true);
             start = p.getLong("start", 0L);
             now = System.currentTimeMillis();
-            job = p.getString("job", "");
+            String jn = p.getString("job", "");
+            job = jn.isEmpty() ? "" : "\u2068" + jn + "\u2069";   // isolated: a Hebrew name inside English (or the reverse) stays in order
             rate = Double.longBitsToDouble(p.getLong("rate", 0L));
             l = obj(p.getString("labels", "{}"));
             JSONObject x = obj(p.getString("extra", "{}"));
