@@ -37,7 +37,9 @@ if (push) {
   const sh = c => execSync(c, { stdio: 'inherit' });
   try {
     sh(`git add ${FILE}`);
-    sh(`git commit -qm "Early access: ${name} ${when === 'off' ? 'off' : date}"`);
+    let same = false; try { execSync(`git diff --cached --quiet -- ${FILE}`); same = true; } catch { /* there's a change */ }
+    if (same) console.log('Already set that way here; making sure the site has it.');
+    else sh(`git commit -qm "Early access: ${name} ${when === 'off' ? 'off' : date}" -- ${FILE}`);
     sh('git pull --rebase --autostash -q origin main');
     sh('git -c push.negotiate=true push -q origin main');
     console.log('Sent. Phones get it the next time the app is opened (a few minutes for the site to update).');
