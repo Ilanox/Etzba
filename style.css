@@ -855,3 +855,5 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
 .sec span{display:inline-flex;align-items:center;gap:7px}
 .sec-ic{display:grid;place-items:center;color:var(--tc)}
 .sec-ic svg{width:15px;height:15px}
+.ih{display:flex;align-items:center;gap:7px}
+.field .ih{display:flex}

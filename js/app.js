@@ -1646,9 +1646,9 @@ function openJobSheet(job, isNew) {
     <p class="shsub">כל מקום עבודה שונה. מדליקים רק את התוספות שבאמת משלמים לך, ומשנים את האחוזים לפי החוזה.</p>
     <label class="field"><span>שם</span><input class="input" type="text" data-k="name" value="${esc(j.name)}"></label>
     <div class="field"><span>צבע</span><div class="swatches" id="j-col">${COLORS.map(c => `<button type="button" data-c="${c}" style="background:${c}"></button>`).join('')}</div></div>
-    <label class="field"><span>שכר לשעה (₪)</span><input class="input num" type="number" step="0.01" inputmode="decimal" data-k="rate" value="${j.rate}"><p class="hint" id="j-minw"></p></label>
+    <label class="field"><span class="ih">${secIc('coins', 'green')}שכר לשעה (₪)</span><input class="input num" type="number" step="0.01" inputmode="decimal" data-k="rate" value="${j.rate}"><p class="hint" id="j-minw"></p></label>
 
-    <h3>תוספות שכר</h3>
+    <h3 class="ih">${secIc('ot', 'orange')}תוספות שכר</h3>
     ${rule('ot', 'noon', 'ot', 'שעות נוספות ביום חול', 'תוספת אחרי יום עבודה מלא', 'otOn', `
       <div class="seg" id="j-week"><button type="button" data-w="5">שבוע של 5 ימים</button><button type="button" data-w="6">שבוע של 6 ימים</button></div>
       <div class="grid2">${K('regHours', 'אחרי (שעות ביום)')}${R('ot1', 'תוספת ראשונה')}</div>
@@ -1674,15 +1674,15 @@ function openJobSheet(job, isNew) {
     ${rule('elect', 'chag', 'check', 'יום הבחירות', `עבודה ביום הבחירות לכנסת (${electionDate()})`, 'election', `
       <div class="grid3">${R('elect', 'שעה ביום בחירות')}<span class="otx">${R('electOt1', 'נוספות א׳')}</span><span class="otx">${R('electOt2', 'נוספות ב׳')}</span></div>
       <p class="hint">הנוהג המקובל: 200%, ובשעות נוספות 250% ו־300%. יש מקומות שמשלמים במקום זה שכר רגיל ויום חופש אחר.</p>`)}
-    <div class="rule"><label class="rule-h"><span class="kic k-evening">${I.receipt}</span><span class="grow"><b>דמי חגים</b><div class="sub">תשלום על חג שלא עבדת בו (אחרי 3 חודשים)</div></span>${SW('holidayPay', j.holidayPay)}</label>
+    <div class="rule"><label class="rule-h"><span class="kic k-chag">${I.receipt}</span><span class="grow"><b>דמי חגים</b><div class="sub">תשלום על חג שלא עבדת בו (אחרי 3 חודשים)</div></span>${SW('holidayPay', j.holidayPay)}</label>
       <div class="rule-b" id="hp-body">${K('holidayPayHours', 'שעות לתשלום על יום חג', 0.5)}</div></div>
 
-    <h3>הפסקה קבועה</h3>
+    <h3 class="ih">${secIc('coffee', 'gray')}הפסקה קבועה</h3>
     <div class="qchips" id="j-brk">${[0, 15, 30, 45, 60].map(b => `<button type="button" data-b="${b}">${b ? b + ' דק׳' : 'בלי'}</button>`).join('')}</div>
     <p class="hint">תיכנס אוטומטית לכל משמרת, ואפשר לשנות בכל משמרת.</p>
     ${R('reg', 'אחוז שעה רגילה')}
 
-    <h3>נסיעות</h3>
+    <h3 class="ih">${secIc('pin', 'blue')}נסיעות</h3>
     <div class="grid2">
       <label class="field"><span>החזר נסיעות (₪)</span><input class="input num" type="number" step="0.5" inputmode="decimal" data-k="travel" value="${j.travel}"></label>
       <label class="field"><span>תקרה לחודש (₪)</span><input class="input num" type="number" step="1" inputmode="decimal" data-k="travelMonthCap" value="${+j.travelMonthCap || ''}" placeholder="בלי"></label>
@@ -1690,13 +1690,13 @@ function openJobSheet(job, isNew) {
     <div class="seg" id="j-tmode" style="margin-top:10px"><button type="button" data-t="day">פעם ביום עבודה</button><button type="button" data-t="shift">על כל משמרת</button></div>
     <p class="hint" id="j-thint"></p>
 
-    <div class="rule" id="rule-tips"><label class="rule-h"><span class="kic k-morning">${I.coins}</span><span class="grow"><b>טיפים</b><div class="sub">שדה טיפים בכל משמרת</div></span>${SW('tipsOn', j.tipsOn)}</label>
+    <div class="rule" id="rule-tips"><label class="rule-h"><span class="kic" style="--kc:var(--c-tips)">${I.coins}</span><span class="grow"><b>טיפים</b><div class="sub">שדה טיפים בכל משמרת</div></span>${SW('tipsOn', j.tipsOn)}</label>
       <div class="rule-b" id="tips-body">
         <div class="seg" id="j-tips"><button type="button" data-m="own">הטיפים שלי</button><button type="button" data-m="wage">דרך המעסיק</button></div>
         <p class="hint" id="j-tipshint"></p>
       </div></div>
 
-    <h3>ימי מחלה וחופשה</h3>
+    <h3 class="ih">${secIc('vac', 'teal')}ימי מחלה וחופשה</h3>
     <div class="grid2">
       <label class="field"><span>התחלתי לעבוד ב־</span><input class="input num" type="date" data-k="startDate" value="${esc(j.startDate || '')}"></label>
       <label class="field"><span>ימי חופשה בשנה</span><input class="input num" type="number" step="1" inputmode="numeric" data-k="vacDays" value="${+j.vacDays || ''}" placeholder="${+j.weekDays === 6 ? 14 : 12}"></label>
@@ -1709,7 +1709,7 @@ function openJobSheet(job, isNew) {
     <div class="field"><span>דמי הבראה</span>
       <div class="seg" id="j-hav"><button type="button" data-m="year">פעם בשנה</button><button type="button" data-m="month">כל חודש בתלוש</button></div></div>
     <p class="hint">אחרי שנה בעבודה: 5 ימים בשנה ויותר עם הוותק, לפי היקף המשרה. בבחירה של כל חודש, חלק מהם נכנס לשכר של כל חודש.</p>
-    ${native.geo.available() ? `<h3>מיקום העבודה</h3>
+    ${native.geo.available() ? `<h3 class="ih">${secIc('pin', 'orange')}מיקום העבודה</h3>
     <div class="card pad" id="j-place"></div>
     <p class="hint">כשמגיעים לעבודה (אחרי כ־3 דקות במקום) תגיע התראה שמציעה להתחיל משמרת, וכשיוצאים באמצע משמרת, הצעה לסיים אותה. הטלפון עצמו עוקב אחרי האזור, כך שזה כמעט לא צורך סוללה.</p>` : ''}
     <div class="btnrow">
