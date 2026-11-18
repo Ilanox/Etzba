@@ -820,3 +820,4 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
 .goal-tip svg{width:16px;height:16px;flex:none;margin-top:1px;color:var(--gold-ink,var(--gold))}
 .goal-tip.warn svg{color:var(--danger)}
 .seg.kinds{margin-top:14px}
+.field .fhint{display:block;font-size:.74rem;color:var(--ink3);margin-top:5px;font-weight:400}

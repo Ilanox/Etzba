@@ -316,6 +316,7 @@ export default {
     'מיוחדת': 'Special',
     'משמרת': 'Shift',
     'שעות בתעריף מיוחד': 'Special-rate hours',
+    'ריק: לפי הגדרות העבודה': 'Empty: from the job settings',
   },
   templates: [
     ['· ₪{} לשעה', '· ₪{1} an hour'],

@@ -704,9 +704,8 @@ function openShiftSheet(sh, mode) {
     <div class="grid2">
       <label class="field" id="f-tips-w"><span>טיפים (₪)</span><input class="input num" type="number" inputmode="decimal" id="f-tips" value="${+sh.tips || ''}" placeholder="0"></label>
       <label class="field"><span>בונוס (₪)</span><input class="input num" type="number" inputmode="decimal" id="f-bonus" value="${+sh.bonus || ''}" placeholder="0"></label>
-      <label class="field"><span>נסיעות (₪)</span><input class="input num" type="number" step="0.5" inputmode="decimal" id="f-travel" value="${sh.travel ?? ''}" placeholder="${jobAt(job, sh.start).travel || 0}"></label>
+      <label class="field"><span>נסיעות (₪)</span><input class="input num" type="number" step="0.5" inputmode="decimal" id="f-travel" value="${sh.travel ?? ''}" placeholder="${jobAt(job, sh.start).travel || 0}"><small class="fhint">ריק: לפי הגדרות העבודה</small></label>
     </div>
-    <p class="hint" style="margin-top:-4px">ריק בנסיעות = לפי הגדרות העבודה</p>
     <label class="field"><span>הערה</span><input class="input" type="text" id="f-note" value="${esc(sh.note)}" placeholder="אופציונלי"></label>
     <details class="adv"><summary>${I.chevDown}שבת / חג ידני</summary>
       <div class="seg" id="f-rest" style="margin-top:10px">
