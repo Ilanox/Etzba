@@ -821,3 +821,30 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
 .goal-tip.warn svg{color:var(--danger)}
 .seg.kinds{margin-top:14px}
 .field .fhint{display:block;font-size:.74rem;color:var(--ink3);margin-top:5px;font-weight:400}
+
+/* color for each kind of entry: special rate, overtime, tips, vacation, sick, planned */
+:root{--c-special:#7B5CD6;--c-ot:#E07A3A;--c-tips:#C99A2E;--c-vac:#2A9D8F;--c-sick:#D9534F;--c-plan:#3B7DD8;--c-shift:var(--ink2)}
+.k-vac{--kc:var(--c-vac)}.k-sick{--kc:var(--c-sick)}.k-plan{--kc:var(--c-plan)}
+.kic{position:relative}
+.kic .marks{position:absolute;bottom:-5px;inset-inline-start:-5px;display:flex;gap:2px}
+.kic .mk{width:19px;height:19px;border-radius:50%;display:grid;place-items:center;background:var(--mc);color:#fff;box-shadow:0 0 0 2px var(--surface)}
+.kic .mk svg{width:11px;height:11px;stroke-width:2.4}
+.c-special{--mc:var(--c-special)}.c-ot{--mc:var(--c-ot)}.c-tips{--mc:var(--c-tips)}.c-vac{--mc:var(--c-vac)}.c-sick{--mc:var(--c-sick)}.c-plan{--mc:var(--c-plan)}.c-shift{--mc:var(--c-shift)}
+.seg.kinds button{display:flex;align-items:center;justify-content:center;gap:6px}
+.seg.kinds .ki{display:grid;place-items:center;color:var(--mc)}
+.seg.kinds .ki svg{width:16px;height:16px}
+.seg.kinds button.on{box-shadow:inset 0 -2px 0 var(--mc)}
+.pill.ot{color:var(--c-ot)}.pill.special{color:var(--c-special)}
+
+/* planned shifts */
+.plancell{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+.plancell .grow{display:flex;flex-direction:column;min-width:0}
+.plancell small{font-size:.75rem;color:var(--ink3)}
+.plancell b{font-size:.95rem;font-weight:700}
+.plancell .kic{width:38px;height:38px}
+.plancell .kic svg{width:20px;height:20px}
+.plancell .btn.mini{width:auto;height:36px;padding:0 14px;font-size:.85rem}
+.plancell .plan-pay{color:var(--ink2);font-weight:600}
+.plancell.missed{background:color-mix(in srgb,var(--c-plan) 7%,transparent)}
+.srow.planned{opacity:.78}
+.srow.planned .amt{color:var(--ink2)}

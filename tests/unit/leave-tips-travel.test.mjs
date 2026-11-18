@@ -85,3 +85,16 @@ test('one vacation is one run: a weekend in the middle keeps it together, a long
   const ab = ['2026-11-18', '2026-11-19', '2026-11-22', '2026-11-23', '2026-12-10'].map((date, i) => ({ id: 'v' + i, kind: 'vac', date }));
   assert.deepEqual(Object.values(runStarts(ab)), ['2026-11-18', '2026-11-18', '2026-11-18', '2026-11-18', '2026-12-10']);
 });
+
+test('recuperation pay: nothing in the first year, then days by seniority × day rate × share of full time', async () => {
+  const { havraa } = await import('../../js/leave.js');
+  const R = { havraa: { 2025: 418, 2026: 451.5 }, havraaDays: [5, 6, 6, 7] };
+  const worked = [];
+  for (let d = new Date(2025, 10, 1); d < new Date(2026, 10, 18); d.setDate(d.getDate() + 1)) if (d.getDay() < 5) worked.push({ start: new Date(d).toISOString(), hours: 4.55 });
+  const early = havraa({ startDate: '2026-03-01' }, worked, R, new Date(2026, 10, 18));
+  assert.equal(early.eligible, false);
+  const h = havraa({ startDate: '2024-06-01' }, worked, R, new Date(2026, 10, 18));
+  assert.equal(h.years, 2); assert.equal(h.days, 6); assert.equal(h.rate, 451.5);
+  assert.ok(h.scope > 0.45 && h.scope < 0.6, 'about half time: ' + h.scope);
+  near(h.amount, 6 * 451.5 * h.scope, 'amount');
+});

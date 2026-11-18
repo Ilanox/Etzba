@@ -39,6 +39,7 @@ export function defaultJob(name = 'עבודה') {
     vacDays: 0,               // vacation days for a full year; 0 = by law for the work week
     leaveMode: 'hours',       // a vacation or sick day's pay: 'hours' = rate × leaveHours | 'avg' = average day of the 3 months before
     leaveHours: 8,
+    havraaMode: 'year',       // recuperation pay: 'year' = once a year (shown, not added to pay) | 'month' = a twelfth every month
   };
 }
 

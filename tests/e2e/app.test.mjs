@@ -319,3 +319,26 @@ test('adding by hand: a special shift at 200%, and a vacation day in the same fo
   assert.equal(st.absences.length, 1); assert.equal(st.absences[0].kind, 'vac');
   assert.deepEqual(errors, []); await ctx.close();
 });
+
+test('planned shifts: a shift ahead is saved as a plan; one that passed asks if you worked it', async () => {
+  const { page, ctx, errors, state } = await open();
+  await page.click('[data-v=shifts]'); await wait(page);
+  await page.click('#fab'); await wait(page, 500);
+  await page.locator('.day').filter({ hasText: 'נוב' }).last().click().catch(() => {});
+  // pick a day after today on the strip
+  const days = page.locator('#f-days .day, .days .day');
+  const n = await days.count(); let picked = false;
+  for (let i = 0; i < n; i++) { const d = +(await days.nth(i).getAttribute('data-d')); if (d > Date.now() + 864e5) { await days.nth(i).click(); picked = true; break; } }
+  assert.ok(picked, 'a future day');
+  await page.click('#f-save'); await wait(page, 500);
+  let st = await state();
+  assert.equal(st.shifts.length, 0, 'no pay yet'); assert.equal(st.plans.length, 1, 'planned');
+  // a plan that already ended
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('etzba.v1')); const t = Date.now(); s.plans = [{ id: 'p1', jobId: s.jobs[0].id, start: new Date(t - 10 * 36e5).toISOString(), end: new Date(t - 2 * 36e5).toISOString(), breakMin: 0 }]; localStorage.setItem('etzba.v1', JSON.stringify(s)); });
+  await page.reload(); await wait(page, 700);
+  assert.ok(await page.locator('.plancell.missed').isVisible(), 'asks');
+  await page.click('.plancell.missed [data-do=worked]'); await wait(page, 500);
+  st = await state();
+  assert.equal(st.plans.length, 0); assert.equal(st.shifts.length, 1, 'added as a shift');
+  assert.deepEqual(errors, []); await ctx.close();
+});

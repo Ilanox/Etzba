@@ -104,3 +104,29 @@ export function balances(job, worked, absences, today = new Date()) {
     vac: { accrued: vacAcc, used: vacUsed, left: vacAcc - vacUsed, full },
   };
 }
+
+/**
+ * Recuperation pay (דמי הבראה): after a full year at a job, a number of days a year by seniority,
+ * at the yearly day rate, in proportion to the job's share of full time over the last 12 months
+ * (full time: 182 hours a month).
+ * worked: [{ start, hours }]; R: { havraa: { [year]: rate }, havraaDays: [...] }.
+ */
+export const FULL_MONTH_HOURS = 182;
+export function havraa(job, worked, R, today = new Date()) {
+  const first = job.startDate || [...worked].map(w => dateKey(w.start)).sort()[0];
+  if (!first) return null;
+  const start = fromKey(first), t = new Date(today);
+  let years = t.getFullYear() - start.getFullYear();
+  if (t.getMonth() < start.getMonth() || (t.getMonth() === start.getMonth() && t.getDate() < start.getDate())) years--;
+  const from = new Date(start.getFullYear() + 1, start.getMonth(), start.getDate());
+  if (years < 1) return { eligible: false, from, years: 0 };
+  const table = R.havraaDays || [5, 6, 6, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 9, 9, 9, 9, 10];
+  const days = table[Math.min(years, table.length) - 1];
+  const rates = R.havraa || {}, ys = Object.keys(rates).map(Number).sort((a, b) => a - b);
+  const y = ys.filter(x => x <= t.getFullYear()).pop() ?? ys[0];
+  const rate = rates[y] || 451.5;
+  const yearAgo = +t - 365 * DAY;
+  let hours = 0; for (const w of worked) { const s = +new Date(w.start); if (s >= yearAgo && s <= +t) hours += w.hours; }
+  const scope = Math.min(1, hours / (12 * FULL_MONTH_HOURS));
+  return { eligible: true, from, years, days, rate, scope, hours, year: y, amount: days * rate * scope };
+}

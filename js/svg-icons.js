@@ -36,6 +36,10 @@ export const I = {
   x: s('<path d="M6 6l12 12M18 6 6 18"/>'),
   coffee: s('<path d="M4.5 9h12v5a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5Z"/><path d="M16.5 10.5h1.5a2.5 2.5 0 0 1 0 5h-1.5M8 3.5v2.5M12 3.5v2.5"/>'),
   ot: s('<circle cx="12" cy="13" r="7.5"/><path d="M12 9v4l2.5 2M9.5 2.5h5"/>'),
+  pct: s('<path d="M18.5 5.5l-13 13"/><circle cx="7.5" cy="7.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/>'),
+  sick: s('<path d="M14 4.5a2 2 0 0 0-4 0v9.2a4 4 0 1 0 4 0Z"/><path d="M12 11v5"/>'),
+  vac: s('<path d="M12 3.5c-4.7 0-8.5 3.3-8.5 7.5h17c0-4.2-3.8-7.5-8.5-7.5Z"/><path d="M12 11v8.5M12 19.5a2.2 2.2 0 0 0 4.4 0"/>'),
+  cal: s('<rect x="4" y="5.5" width="16" height="14.5" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>'),
 };
 
 // ---------- fingerprint clock ----------

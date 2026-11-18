@@ -1,5 +1,5 @@
 // אצבע — offline cache. Bump VERSION when files change.
-const VERSION = 'etzba-v47';
+const VERSION = 'etzba-v48';
 const FILES = ['./', 'index.html', 'style.css', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'languages/index.js', 'languages/en.js', 'js/app.js', 'js/pay-engine.js', 'js/hebrew-calendar.js', 'js/net-pay.js', 'js/svg-icons.js', 'js/file-reader.js', 'js/shift-import.js', 'js/diagnostics.js', 'js/native-bridge.js', 'js/translate.js', 'js/rules.js', 'js/features.js', 'js/remote-packs.js', 'js/leave.js', 'js/report.js', 'languages/pack-versions.js'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION && k !== 'etzba-share').map(k => caches.delete(k))))); self.clients.claim(); });

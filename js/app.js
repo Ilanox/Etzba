@@ -11,7 +11,7 @@ import { usePack, startTranslating, stopTranslating, tr } from './translate.js';
 import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
-import { balances, dayValue, sickShares, runStarts, dateKey } from './leave.js';
+import { balances, dayValue, sickShares, runStarts, dateKey, havraa } from './leave.js';
 import { drawReport, pagesToPDF } from './report.js';
 import FEATURES from './features.js';
 
@@ -24,7 +24,7 @@ function fresh() {
   const job = defaultJob('העבודה שלי');
   return {
     settings: { city: 'תל אביב', candleMin: 20, havdalahMin: 40, sex: 2.25, extraPts: 0, pension: false, pEmp: 6, pEr: 6.5, sev: 8.33, hish: false, theme: 'auto', lang: 'he', lastJob: job.id, notif: { rates: true, rest: true, long: true } },
-    jobs: [job], shifts: [], absences: [], active: null, ui: {},
+    jobs: [job], shifts: [], absences: [], plans: [], active: null, ui: {},
   };
 }
 function load() {
@@ -39,6 +39,7 @@ function normalizeState(d) {
   d.settings = { ...f.settings, ...d.settings };
   d.shifts = (d.shifts || []).filter(s => s && s.start && s.end);
   d.absences = (d.absences || []).filter(a => a && a.date && (a.kind === 'sick' || a.kind === 'vac'));
+  d.plans = (d.plans || []).filter(x => x && x.start && x.end && x.jobId);
   d.ui = { sort: 'old', filter: 'all', ...(d.ui || {}) };
   if (!d.settings.migSort) { if (d.ui.sort === 'new') d.ui.sort = 'old'; d.settings.migSort = 1; }   // 1.26: oldest first is the default
   if (d.settings.onboarded == null && (d.shifts.length || d.active)) d.settings.onboarded = true;   // existing users skip the welcome
@@ -215,8 +216,14 @@ function monthCalcRaw(y, m) {
     absPay.set(a.id, { pay: v, share });
     per.set(job0.id, J); gross += v;
   }
+  // recuperation pay paid monthly: a twelfth of the year's amount, once the first year is done
+  for (const J of per.values()) {
+    if (J.job.havraaMode !== 'month') { J.havraa = 0; continue; }
+    const H = havraaOf(J.job, monthEnd);
+    J.havraa = H?.eligible ? H.amount / 12 : 0; gross += J.havraa;
+  }
   let tipsOwn = 0;
-  for (const J of per.values()) { J.total = Object.values(J.money).reduce((a, b) => a + b, 0) + J.travel + J.bonus + J.holiday + J.tipsOver + J.sick + J.vac; tipsOwn += J.tipsOwn; }
+  for (const J of per.values()) { J.total = Object.values(J.money).reduce((a, b) => a + b, 0) + J.travel + J.bonus + J.holiday + J.tipsOver + J.sick + J.vac + J.havraa; tipsOwn += J.tipsOwn; }
   const st = S.settings;
   const net = grossToNet(gross, { points: +st.sex + +st.extraPts, pension: st.pension, pEmp: +st.pEmp, pEr: +st.pEr, sev: +st.sev, hish: st.hish }, taxFor(y));
   return { y, m, shifts, absent, absPay, perJob: [...per.values()], gross, hours, net, tipsOwn };
@@ -230,6 +237,11 @@ function workedFor(jobId, date) {
     const p = PAY.get(s.id); if (p) out.push({ start: s.start, base: p.base });
   }
   return out;
+}
+function havraaOf(job, today = new Date()) {
+  const worked = [];
+  for (const s of S.shifts) if (s.jobId === job.id) { const p = PAY.get(s.id); if (p) worked.push({ start: s.start, hours: p.hours }); }
+  return havraa(job, worked, rules(), today);
 }
 function leaveOf(job, today = new Date()) {
   return balances(job, S.shifts.filter(s => s.jobId === job.id), S.absences.filter(a => a.jobId === job.id), today);
@@ -288,11 +300,13 @@ function shiftRow(s) {
   const pills = [
     p.restHours > 0.01 ? `<span class="pill rest">${esc(p.names[0])}</span>` : '',
     p.otHours > 0.01 ? `<span class="pill ot">+${hm(p.otHours)} נוספות</span>` : '',
-    p.specialPct ? `<span class="pill ot">${p.specialPct}%</span>` : '',
+    p.specialPct ? `<span class="pill special">${p.specialPct}%</span>` : '',
   ].join('');
   const second = [S.jobs.length > 1 ? `<span class="jobp"><i style="background:${job.color}"></i>${nm(job.name)}</span>` : esc(KIND_NAME[k]), s.note ? nm(s.note) : ''].filter(Boolean);
+  // small marks on the icon's corner, one color each, for what makes this shift different
+  const marks = [p.specialPct ? ['special', 'pct'] : null, p.otHours > 0.01 ? ['ot', 'ot'] : null, p.tips ? ['tips', 'coins'] : null].filter(Boolean).slice(0, 2);
   return `<button class="srow" data-id="${s.id}">
-    <span class="kic k-${k}" title="${KIND_NAME[k]}">${I[k]}</span>
+    <span class="kic k-${k}" title="${KIND_NAME[k]}">${I[k]}${marks.length ? `<span class="marks">${marks.map(([c, i]) => `<i class="mk c-${c}">${I[i]}</i>`).join('')}</span>` : ''}</span>
     <span class="mid"><span class="t1">${DAYS[d.getDay()]} ${dShort(d)} ${pills}</span>
       <span class="t2 num tline"><bdi dir="ltr" class="trange">${tm(s.start)}–${tm(s.end)}</bdi><span class="tmore">${second.map(x => `<span class="sep">·</span>${x}`).join('')}</span></span></span>
     <span class="end"><span class="amt num">${money(p.pay)}</span><br><span class="t2 num">${hm(p.hours)} ש׳</span></span></button>`;
@@ -468,7 +482,7 @@ function renderTiles(L) {
   if (L) { tH += L.p.hours; tP += L.p.base; if (+weekStart(S.active.start) === ws) H[new Date(S.active.start).getDay()] += L.p.hours; }
   const wH = H.reduce((x, y) => x + y, 0), lim = jobById(S.settings.lastJob).weeklyLimit || 42, mx = Math.max(10, ...H);
   const M = withLive(monthCalc(now.getFullYear(), now.getMonth()));
-  el.innerHTML = `
+  el.innerHTML = `${planCell()}
     <div class="today"><small>היום · ברוטו</small><b class="num">${money(tP)}</b><span class="num">${hm(tH)} ש׳</span></div>
     <button class="monthcell" id="mcell"><small>${MONTHS[now.getMonth()]} · ברוטו</small><b class="num">${money(M.gross)}</b><span class="num">${M.shifts.length} משמרות</span></button>
     <div class="wkb"><div class="wkb-h"><b>השבוע</b><span class="num"><b>${hm(wH)}</b> מתוך ${lim} ש׳</span></div>
@@ -477,6 +491,60 @@ function renderTiles(L) {
     ${goalCell(M)}`;
   $('#mcell', el).onclick = () => { viewY = now.getFullYear(); viewM = now.getMonth(); S.ui.sumView = 'month'; go('sum'); };
   $('#goal', el).onclick = openGoal;
+  $$('[data-plan]', el).forEach(b => b.onclick = e => { e.stopPropagation(); planAction(b.dataset.plan, b.dataset.do); });
+}
+
+/* ================= planned shifts: the schedule ahead, a reminder before each ================= */
+const PLAN_EARLY = 2 * 36e5;   // "start" shows up to two hours before a planned shift
+const planPay = x => { const j = jobAt(jobById(x.jobId), x.start); return shiftPay({ ...x, rest: 'auto' }, j, place(), weekRegBefore(j, x.start)).pay; };
+function planNow(jobId, t = Date.now()) {
+  return S.plans.find(x => (!jobId || x.jobId === jobId) && +new Date(x.start) - PLAN_EARLY <= t && t <= +new Date(x.end));
+}
+const dayWord = d => { const t = new Date(); t.setHours(0, 0, 0, 0); const x = new Date(d); x.setHours(0, 0, 0, 0); const n = Math.round((x - t) / 864e5);
+  return n === 0 ? 'היום' : n === 1 ? 'מחר' : n === -1 ? 'אתמול' : `${DAYS[x.getDay()]} ${dShort(x)}`; };
+function planCell() {
+  if (S.active || !S.plans.length) return '';
+  const now = Date.now(), sorted = [...S.plans].sort((a, b) => new Date(a.start) - new Date(b.start));
+  const missed = sorted.find(x => +new Date(x.end) < now);
+  const x = missed || sorted.find(x => +new Date(x.end) >= now); if (!x) return '';
+  const j = jobById(x.jobId), when = `${dayWord(x.start)} <span class="num" dir="ltr">${tm(x.start)}–${tm(x.end)}</span>${S.jobs.length > 1 ? ' · ' + nm(j.name) : ''}`;
+  if (missed) return `<div class="plancell missed"><span class="kic k-plan">${I.cal}</span><span class="grow"><small>עבדת במשמרת המתוכננת?</small><b>${when}</b></span>
+    <button class="btn primary mini" data-plan="${x.id}" data-do="worked">כן</button><button class="btn soft mini" data-plan="${x.id}" data-do="drop">לא</button></div>`;
+  const near = +new Date(x.start) - PLAN_EARLY <= now;
+  return `<div class="plancell" data-plan="${x.id}" data-do="open"><span class="kic k-plan">${I.cal}</span><span class="grow"><small>המשמרת הבאה</small><b>${when}</b></span>
+    ${near ? `<button class="btn primary mini" data-plan="${x.id}" data-do="start">התחלה</button>` : `<span class="num plan-pay" dir="ltr">~${money(planPay(x))}</span>`}</div>`;
+}
+function planAction(id, act) {
+  const x = S.plans.find(p => p.id === id); if (!x) return;
+  const drop = () => { S.plans = S.plans.filter(p => p.id !== id); };
+  if (act === 'start') {
+    if (S.active) return;
+    drop(); S.settings.lastJob = x.jobId; S.active = { jobId: x.jobId, start: new Date().toISOString() };
+    commit(); buzz(35); planNotifications(true); toast(`נכנסת למשמרת ב־${tm(S.active.start)}`, 'ok'); return;
+  }
+  if (act === 'worked') {
+    drop(); S.shifts.push({ id: uid(), jobId: x.jobId, start: x.start, end: x.end, breakMin: x.breakMin || 0, bonus: 0, note: '', rest: 'auto', ...(x.specialPct ? { specialPct: x.specialPct } : {}) });
+    commit(); buzz(25); toast('המשמרת נוספה', 'ok', { label: 'עריכה', fn: () => { const sh = S.shifts[S.shifts.length - 1]; openShiftSheet(sh, 'edit'); } }); return;
+  }
+  if (act === 'drop') { const was = { ...x }; drop(); commit(); toast('הוסרה', '', { label: 'ביטול', fn: () => { S.plans.push(was); commit(); } }); return; }
+  // open: what you can do with a planned shift
+  const past = +new Date(x.start) <= Date.now(), near = +new Date(x.start) - PLAN_EARLY <= Date.now();
+  openSheet(`<h2>משמרת מתוכננת</h2><p class="shsub"><span>${dayWord(x.start)}</span> <span class="num" dir="ltr">${tm(x.start)}–${tm(x.end)}</span> · ${nm(jobById(x.jobId).name)} · <span>בערך ${money(planPay(x))}</span></p>
+    <p class="hint">${notifOn() ? 'תגיע תזכורת שעה לפני.' : 'ההתראות כבויות, אז לא תגיע תזכורת.'} כשנכנסים למשמרת סביב השעה הזו, היא נרשמת כרגיל.</p>
+    <div class="btnrow">${near && !S.active ? `<button class="btn primary" id="pl-start">התחלת המשמרת</button>` : ''}${past ? `<button class="btn soft" id="pl-worked">עבדתי בה, להוסיף</button>` : ''}<button class="btn danger" id="pl-del">${I.trash}הסרה</button></div>`, root => {
+    $('#pl-start', root) && ($('#pl-start', root).onclick = () => { closeSheet(); planAction(id, 'start'); });
+    $('#pl-worked', root) && ($('#pl-worked', root).onclick = () => { closeSheet(); planAction(id, 'worked'); });
+    $('#pl-del', root).onclick = () => { closeSheet(); planAction(id, 'drop'); };
+  });
+}
+function planReminders() {
+  const lead = 60 * 6e4, out = [];
+  for (const x of S.plans) {
+    const at = +new Date(x.start) - lead; if (at < Date.now() + 5000) continue;
+    const j = jobById(x.jobId);
+    out.push({ at: new Date(at), title: 'משמרת בעוד שעה', body: `${tm(x.start)}–${tm(x.end)}${S.jobs.length > 1 ? ' · ' + j.name : ''}` });
+  }
+  return out;
 }
 
 /* ================= the month's goal ================= */
@@ -595,7 +663,9 @@ function onPunch() {
   if (!S.active) {
     const jobId = S.settings.lastJob && S.jobs.some(j => j.id === S.settings.lastJob) ? S.settings.lastJob : S.jobs[0].id;
     S.active = { jobId, start: new Date().toISOString() };
-    if (!persist()) { S.active = null; return; }
+    const plan = planNow(jobId);   // clocking in for a planned shift: it's happening, so it's no longer a plan
+    if (plan) S.plans = S.plans.filter(x => x !== plan);
+    if (!persist()) { S.active = null; if (plan) S.plans.push(plan); return; }
     buzz(35); askPersist(); planNotifications(true);
     announce(`משמרת התחילה ב־${tm(S.active.start)}`);
     toast(`נכנסת למשמרת ב־${tm(S.active.start)} · אפשר לשנות את השעה`, 'ok', { label: 'ביטול', fn: () => { S.active = null; persist(); renderHome(); toast('הכניסה בוטלה'); announce('הכניסה בוטלה'); } });
@@ -648,16 +718,6 @@ function openShiftDone(sh, was) {
 /* ================= SHIFT SHEET ================= */
 const HE_DAY_SHORT = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
 let DAY_SHORT = HE_DAY_SHORT;
-function commonShifts() {
-  const m = new Map();
-  for (const s of index().newest.slice(0, 300)) {   // recent habits are what matter
-    if (new Date(s.start).getMinutes() % 5 || new Date(s.end).getMinutes() % 5) continue;
-    const k = tm(s.start) + '–' + tm(s.end); m.set(k, (m.get(k) || 0) + 1);
-  }
-  const top = [...m.entries()].sort((a, b) => b[1] - a[1]).map(x => x[0]);
-  for (const d of ['07:00–15:00', '15:00–23:00', '23:00–07:00']) if (!top.includes(d)) top.push(d);
-  return top.slice(0, 4);
-}
 function openShiftSheet(sh, mode) {
   const job = jobById(sh.jobId);
   const st0 = new Date(sh.start), en0 = new Date(sh.end), today = new Date(); today.setHours(0, 0, 0, 0);
@@ -672,11 +732,11 @@ function openShiftSheet(sh, mode) {
   d0.setHours(0, 0, 0, 0); d1.setHours(0, 0, 0, 0);   // whole days, also across a clock change
   for (let d = new Date(d0); d <= d1; d.setDate(d.getDate() + 1)) {
     const diff = Math.round((today - d) / 864e5);
-    days += `<button type="button" class="day${d.getDay() === 6 ? ' sat' : ''}" data-d="${+d}"><small>${diff === 0 ? 'היום' : diff === 1 ? 'אתמול' : DAY_SHORT[d.getDay()]}</small><b class="num">${d.getDate()}</b><em class="num">${MONTHS[d.getMonth()].slice(0, 3)}${EN ? '' : '׳'}</em></button>`;
+    days += `<button type="button" class="day${d.getDay() === 6 ? ' sat' : ''}" data-d="${+d}"><small>${diff === 0 ? 'היום' : diff === 1 ? 'אתמול' : diff === -1 ? 'מחר' : DAY_SHORT[d.getDay()]}</small><b class="num">${d.getDate()}</b><em class="num">${MONTHS[d.getMonth()].slice(0, 3)}${EN ? '' : '׳'}</em></button>`;
   }
   openSheet(`
     <h2 id="f-title">${title}</h2>${sub ? `<p class="shsub">${sub}</p>` : ''}
-    ${mode !== 'end' ? `<div class="seg kinds" id="f-kind">${[['shift', 'משמרת'], ['special', 'מיוחדת'], ...(mode === 'new' ? [['vac', 'חופשה'], ['sick', 'מחלה']] : [])].map(([k, l]) => `<button type="button" data-k="${k}">${l}</button>`).join('')}</div>` : ''}
+    ${mode !== 'end' ? `<div class="seg kinds" id="f-kind">${[['shift', 'משמרת', 'ot'], ['special', 'מיוחדת', 'pct'], ...(mode === 'new' ? [['vac', 'חופשה', 'vac'], ['sick', 'מחלה', 'sick']] : [])].map(([k, l, i]) => `<button type="button" data-k="${k}" class="c-${k}"><span class="ki">${I[i]}</span>${l}</button>`).join('')}</div>` : ''}
     <div id="f-special" class="hidden">
       <h3>תעריף לכל השעות</h3>
       <div class="qchips" id="f-pq">${[125, 150, 175, 200, 250].map(v => `<button type="button" class="num" data-p="${v}">${v}%</button>`).join('')}
@@ -691,8 +751,7 @@ function openShiftSheet(sh, mode) {
       <p class="hint" id="f-lhint"></p>
     </div>
     <div id="f-shiftonly">
-    <h3>שעות · בחירה מהירה</h3>
-    <div class="qchips" id="f-pre">${commonShifts().map(c => `<button type="button" class="num" dir="ltr" data-p="${c}">${c}</button>`).join('')}</div>
+    <h3>שעות</h3>
     <div class="tp">
       <div class="tp-col"><div class="tp-cap">כניסה</div><div class="wheels" dir="ltr">${wheel('sh', 24, 1)}<span class="colon">:</span>${wheel('sm', 60, mstep)}</div></div>
       <div class="tp-arrow">${I.chevL}</div>
@@ -753,8 +812,6 @@ function openShiftSheet(sh, mode) {
       $('#f-leave', root).classList.toggle('hidden', !leave);
       if (mode === 'new') $('#f-title', root).textContent = kind === 'vac' ? 'יום חופשה' : kind === 'sick' ? 'יום מחלה' : title;
       if (leave) { $('#f-lhint', root).textContent = leaveHint(kind); return; }
-      const pre = `${pad(T.s[0])}:${pad(T.s[1])}–${pad(T.e[0])}:${pad(T.e[1])}`;
-      $$('#f-pre button', root).forEach(b => b.classList.toggle('on', b.dataset.p === pre));
       const j = jobAt(jobById(jobId), s.start), p = shiftPay(s, j, place(), weekRegBefore(j, s.start));
       $('#f-explain', root).innerHTML = explain(s, j, p);
     };
@@ -767,9 +824,6 @@ function openShiftSheet(sh, mode) {
       $$('.wi', w).forEach(it => it.onclick = () => { W[id][0][W[id][1]] = +it.dataset.v; setWheel(id, true); upd(); });
     }
     $$('.day', root).forEach(b => b.onclick = () => { T.date = new Date(+b.dataset.d); upd(); });
-    $$('#f-pre button', root).forEach(b => b.onclick = () => {
-      const [a, z] = b.dataset.p.split('–').map(x => x.split(':').map(Number)); T.s[0] = a[0]; T.s[1] = a[1]; T.e[0] = z[0]; T.e[1] = z[1]; for (const id in W) setWheel(id, true); upd();
-    });
     $$('#f-jobs .chip', root).forEach(b => b.onclick = () => { jobId = b.dataset.j; upd(); });
     $$('#f-rest button', root).forEach(b => b.onclick = () => { rest = b.dataset.r; upd(); });
     $$('#f-bq button', root).forEach(b => b.onclick = () => { $('#f-break', root).value = b.dataset.b; upd(); });
@@ -792,6 +846,11 @@ function openShiftSheet(sh, mode) {
         closeSheet(); commit(); buzz(20); return toast(n === 1 ? 'נשמר יום אחד' : `נשמרו ${n} ימים`, 'ok');
       }
       const s = read(), len = new Date(s.end) - new Date(s.start);
+      if (mode === 'new' && +new Date(s.start) > Date.now() + 10 * 6e4 && len > 0) {   // a shift ahead is a plan, not pay yet
+        S.plans.push({ id: uid(), jobId: s.jobId, start: s.start, end: s.end, breakMin: s.breakMin, ...(s.specialPct ? { specialPct: s.specialPct } : {}) });
+        closeSheet(); commit(); planNotifications(true); buzz(20);
+        return toast(`נשמרה משמרת מתוכננת ל${dayWord(s.start)} · תזכורת שעה לפני`, 'ok');
+      }
       if (len < 6e4) { $$('.wheels', root).forEach(w => w.classList.add('bad')); return toast('המשמרת קצרה מדי. אפשר לבטל אותה', 'err'); }
       if (len > 24 * 3.6e6) { $$('.wheels', root).forEach(w => w.classList.add('bad')); return toast('משמרת לא יכולה להיות יותר מ־24 שעות', 'err'); }
       if (!s.id) { s.id = uid(); S.shifts.push(s); } else S.shifts[S.shifts.findIndex(x => x.id === s.id)] = s;
@@ -889,21 +948,26 @@ function renderShifts() {
   const tot = list.reduce((a, s) => (a.h += PAY.get(s.id).hours, a.p += PAY.get(s.id).pay, a), { h: 0, p: 0 });
   let body = '';
   const abs = f === 'all' && (so === 'new' || so === 'old') ? M.absent : [];
+  const mk = `${viewY}-${pad(viewM + 1)}`, plans = f === 'all' && (so === 'new' || so === 'old') ? S.plans.filter(x => dateKey(x.start).startsWith(mk)) : [];
+  const planRow = x => { const d = new Date(x.start), j = jobById(x.jobId);
+    return `<button class="srow planned" data-planrow="${x.id}"><span class="kic k-plan">${I.cal}</span>
+      <span class="mid"><span class="t1">${DAYS[d.getDay()]} ${dShort(d)}</span><span class="t2 num tline"><bdi dir="ltr" class="trange">${tm(x.start)}–${tm(x.end)}</bdi><span class="tmore"><span class="sep">·</span>מתוכננת${S.jobs.length > 1 ? `<span class="sep">·</span>${nm(j.name)}` : ''}</span></span></span>
+      <span class="end"><span class="amt num" dir="ltr">~${money(planPay(x))}</span></span></button>`; };
   const absRow = a => { const d = new Date(a.date + 'T12:00:00'), P = M.absPay.get(a.id), j = jobById(a.jobId);
-    return `<button class="srow" data-abs="${a.id}"><span class="kic k-${a.kind === 'sick' ? 'night' : 'morning'}">${a.kind === 'sick' ? I.info : I.coffee}</span>
+    return `<button class="srow" data-abs="${a.id}"><span class="kic k-${a.kind}">${I[a.kind]}</span>
       <span class="mid"><span class="t1">${DAYS[d.getDay()]} ${dShort(d)}</span><span class="t2">${a.kind === 'sick' ? 'יום מחלה' : 'יום חופשה'}${a.kind === 'sick' && P ? ` · ${Math.round(P.share * 100)}%` : ''}${S.jobs.length > 1 ? ` · ${nm(j.name)}` : ''}</span></span>
       <span class="end"><span class="amt num">${money(P?.pay || 0)}</span></span></button>`; };
-  if (!list.length && !abs.length) body = `<div class="card"><div class="empty"><div class="eic">${I.list}</div>${M.shifts.length ? 'אין משמרות שמתאימות לסינון' : 'אין משמרות בחודש הזה'}</div></div>`;
+  if (!list.length && !abs.length && !plans.length) body = `<div class="card"><div class="empty"><div class="eic">${I.list}</div>${M.shifts.length ? 'אין משמרות שמתאימות לסינון' : 'אין משמרות בחודש הזה'}</div></div>`;
   else if (so === 'new' || so === 'old') {
-    const groups = new Map(), items = [...list.map(s => ({ t: +new Date(s.start), s })), ...abs.map(a => ({ t: +new Date(a.date + 'T12:00:00'), a }))];
+    const groups = new Map(), items = [...list.map(s => ({ t: +new Date(s.start), s })), ...abs.map(a => ({ t: +new Date(a.date + 'T12:00:00'), a })), ...plans.map(x => ({ t: +new Date(x.start), x }))];
     items.sort((x, y) => so === 'new' ? y.t - x.t : x.t - y.t);
     for (const it of items) { const k = +weekStart(it.t); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(it); }
     for (const [k, arr] of groups) {
       const ws = new Date(k), we = new Date(k + 6 * 864e5);
       let wh = 0; for (const s of inWeek(k)) wh += PAY.get(s.id).hours;
-      const lim = jobById((arr[0].s || arr[0].a).jobId).weeklyLimit;
+      const lim = jobById((arr[0].s || arr[0].a || arr[0].x).jobId).weeklyLimit;
       body += `<div class="week-h"><span>שבוע ${dShort(ws)}–${dShort(we)}</span><span class="wk num${wh > lim ? ' over' : ''}">${hm(wh)} ש׳ מתוך ${lim}</span></div>
-        <div class="card">${arr.map(it => it.s ? shiftRow(it.s) : absRow(it.a)).join('')}</div>`;
+        <div class="card">${arr.map(it => it.s ? shiftRow(it.s) : it.a ? absRow(it.a) : planRow(it.x)).join('')}</div>`;
     }
   } else body = `<div class="card" style="margin-top:12px">${list.map(shiftRow).join('')}</div>`;
   el.innerHTML = `<h1 class="title">משמרות</h1>${monthBar()}
@@ -912,6 +976,7 @@ function renderShifts() {
       <button class="sortbtn" id="sortBtn">${I.sort}${SORTS.find(x => x[0] === so)[1]}</button></div>
     ${body}`;
   bindMonthBar(el); bindRows(el);
+  $$('[data-planrow]', el).forEach(b => b.onclick = () => planAction(b.dataset.planrow, 'open'));
   $$('[data-abs]', el).forEach(b => b.onclick = () => {
     const a = S.absences.find(x => x.id === b.dataset.abs); if (!a) return;
     openSheet(`<h2>${a.kind === 'sick' ? 'יום מחלה' : 'יום חופשה'}</h2><p class="shsub">${DAYS[new Date(a.date + 'T12:00:00').getDay()]} ${dFull(a.date + 'T12:00:00')}</p>
@@ -960,6 +1025,7 @@ function sumMonth(el) {
       ${J.tipsOver ? L('טיפים מעל השכר', money2(J.tipsOver), '', `מתוך ${money2(J.tips)} טיפים דרך המעסיק`) : ''}
       ${J.sickDays ? L('דמי מחלה', money2(J.sick), '', `${J.sickDays} ימים · יום ראשון בלי תשלום, שני ושלישי 50%`) : ''}
       ${J.vacDays ? L('דמי חופשה', money2(J.vac), '', `${J.vacDays} ימים`) : ''}
+      ${J.havraa ? L('דמי הבראה', money2(J.havraa), '', 'חלק חודשי') : ''}
       ${J.holiday ? L('דמי חגים', money2(J.holiday), '', J.holDays.map(h => h.name).join(', ')) : ''}
       ${L('סה״כ ברוטו', money2(J.total), 'tot')}</div>`).join('')}
     <div class="sec"><span>מה המעסיק מפריש בנוסף</span></div>
@@ -968,7 +1034,7 @@ function sumMonth(el) {
       ${n.employer.hish ? L('קרן השתלמות (מעסיק)', money(n.employer.hish)) : ''}
       ${L('ביטוח לאומי (מעסיק)', money(n.employer.bl))}
       ${L('עלות המעסיק בסה״כ', money(n.cost), 'tot')}</div>` : `<div class="card" style="margin-top:12px"><div class="empty"><div class="eic">${I.receipt}</div>אין משמרות בחודש הזה</div></div>`}
-    <div class="sec"><span>ימי מחלה וחופשה</span></div>
+    <div class="sec"><span>מחלה, חופשה והבראה</span></div>
     <div class="card" id="leave">${leaveCard(M)}</div>
     ${hol.length ? `<div class="sec"><span>חגים החודש</span></div><div class="card">${hol.map(h => L(h.name, `${DAYS[h.dow]} ${dShort(h.date)}`, '', h.dow === 6 ? 'חל בשבת' : '')).join('')}</div>` : ''}
     <div class="sec"><span>ייצוא</span></div>
@@ -1000,7 +1066,8 @@ function leaveCard(M) {
     const b = leaveOf(j);
     return `${S.jobs.length > 1 ? `<div class="ln"><span class="l" style="color:${j.color};font-weight:700">${nm(j.name)}</span><span class="v"></span></div>` : ''}
       ${L('חופשה', `נותרו ${one(b.vac.left)}`, '', `נצברו ${one(b.vac.accrued)}, נוצלו ${b.vac.used} · ${b.vac.full} ימים לשנה מלאה`)}
-      ${L('מחלה', `נותרו ${one(b.sick.left)}`, '', `נצברו ${one(b.sick.accrued)}, נוצלו ${b.sick.used} · עד 90 ימים`)}`;
+      ${L('מחלה', `נותרו ${one(b.sick.left)}`, '', `נצברו ${one(b.sick.accrued)}, נוצלו ${b.sick.used} · עד 90 ימים`)}
+      ${havraaLine(j, L)}`;
   }).join('');
   const list = [...M.absent].sort((a, b) => a.date < b.date ? -1 : 1).map(a => {
     const d = new Date(a.date + 'T12:00:00'), j = jobById(a.jobId);
@@ -1009,6 +1076,11 @@ function leaveCard(M) {
   return `${rows || `<p class="hint" style="margin:10px 14px">היתרה מופיעה אחרי המשמרת הראשונה.</p>`}
     ${list ? `<div class="ln"><span class="l" style="font-weight:700;color:var(--ink)">${MONTHS[viewM]}</span><span class="v"></span></div>${list}` : ''}
     <button class="cell" id="addLeave"><span class="cell-ic">${I.plus}</span><span class="grow">הוספת יום מחלה או חופשה</span></button>`;
+}
+function havraaLine(j, L) {
+  const H = havraaOf(j); if (!H) return '';
+  if (!H.eligible) return L('דמי הבראה', 'אחרי שנה', '', `מגיעים מ־${dFull(H.from)}, אחרי שנת עבודה מלאה`);
+  return L('דמי הבראה', `${money(H.amount)} לשנה`, '', `${H.days} ימים (שנה ${H.years + 1} בעבודה) × ₪${H.rate} × היקף משרה ${Math.round(H.scope * 100)}%${j.havraaMode === 'month' ? ' · נכנס כל חודש' : ''}`);
 }
 function bindLeave(root) {
   $('#addLeave', root) && ($('#addLeave', root).onclick = () => openLeaveSheet());
@@ -1108,6 +1180,7 @@ async function buildReport(y, m, jobId, withNet) {
     if (J.holiday) lines.push({ label: T('דמי חגים'), sub: J.holDays.map(h => T(h.name)).join(', '), value: money2(J.holiday) });
     if (J.sickDays) lines.push({ label: T('דמי מחלה'), sub: `${J.sickDays} ${T('ימים')}`, value: money2(J.sick) });
     if (J.vacDays) lines.push({ label: T('דמי חופשה'), sub: `${J.vacDays} ${T('ימים')}`, value: money2(J.vac) });
+    if (J.havraa) lines.push({ label: T('דמי הבראה'), sub: T('חלק חודשי'), value: money2(J.havraa) });
   }
   lines.push({ label: T('סה״כ ברוטו'), value: money2(gross), strong: true });
   const tiles = [[T('שעות'), hm(hours)], [T('משמרות'), String(shifts.length)], [T('ברוטו'), money(gross)]];
@@ -1631,6 +1704,9 @@ function openJobSheet(job, isNew) {
       <div class="seg" id="j-leave"><button type="button" data-m="hours">שעות × תעריף</button><button type="button" data-m="avg">ממוצע 3 חודשים</button></div></div>
     <div id="j-lhours">${K('leaveHours', 'שעות ליום', 0.5)}</div>
     <p class="hint" id="j-lhint"></p>
+    <div class="field"><span>דמי הבראה</span>
+      <div class="seg" id="j-hav"><button type="button" data-m="year">פעם בשנה</button><button type="button" data-m="month">כל חודש בתלוש</button></div></div>
+    <p class="hint">אחרי שנה בעבודה: 5 ימים בשנה ויותר עם הוותק, לפי היקף המשרה. בבחירה של כל חודש, חלק מהם נכנס לשכר של כל חודש.</p>
     ${native.geo.available() ? `<h3>מיקום העבודה</h3>
     <div class="card pad" id="j-place"></div>
     <p class="hint">כשמגיעים לעבודה (אחרי כ־3 דקות במקום) תגיע התראה שמציעה להתחיל משמרת, וכשיוצאים באמצע משמרת, הצעה לסיים אותה. הטלפון עצמו עוקב אחרי האזור, כך שזה כמעט לא צורך סוללה.</p>` : ''}
@@ -1649,6 +1725,7 @@ function openJobSheet(job, isNew) {
       $$('#j-tmode button', root).forEach(b => b.classList.toggle('on', b.dataset.t === (j.travelMode || 'day')));
       $$('#j-tips button', root).forEach(b => b.classList.toggle('on', b.dataset.m === (j.tipsMode || 'own')));
       $$('#j-leave button', root).forEach(b => b.classList.toggle('on', b.dataset.m === (j.leaveMode || 'hours')));
+      $$('#j-hav button', root).forEach(b => b.classList.toggle('on', b.dataset.m === (j.havraaMode || 'year')));
       $('#j-lhours', root).classList.toggle('hidden', j.leaveMode === 'avg');
       $('#j-lhint', root).textContent = j.leaveMode === 'avg'
         ? 'השכר בשלושת החודשים שלפני החופשה, חלקי ימי העבודה בהם. כך מחשבים בחלק מהמקומות לעובדים לפי שעה.'
@@ -1681,6 +1758,7 @@ function openJobSheet(job, isNew) {
     $$('#j-tmode button', root).forEach(b => b.onclick = () => { j.travelMode = b.dataset.t; ui(); });
     $$('#j-tips button', root).forEach(b => b.onclick = () => { j.tipsMode = b.dataset.m; ui(); });
     $$('#j-leave button', root).forEach(b => b.onclick = () => { j.leaveMode = b.dataset.m; ui(); });
+    $$('#j-hav button', root).forEach(b => b.onclick = () => { j.havraaMode = b.dataset.m; ui(); });
     $$('#j-week button', root).forEach(b => b.onclick = () => {
       j.weekDays = +b.dataset.w; const five = j.weekDays === 5;
       v('regHours').value = five ? 8.6 : 8; v('shortHours').value = five ? 7.6 : 7; v('shortDay').value = five ? 4 : 5; ui();
@@ -1935,10 +2013,11 @@ function planNotifications(ask = false) {
   planTimer = setTimeout(async () => {
     try {
       const a = S.active, N = { rates: true, rest: true, long: true, ...(S.settings.notif || {}) };
-      if (!a || !(N.rates || N.rest || N.long)) { NOTIF = { state: 'off', next: null, exact: null }; await native.scheduleNotifications([]); return; }
+      const on = N.rates || N.rest || N.long, ahead = on ? planReminders() : [];
+      if (!on || (!a && !ahead.length)) { NOTIF = { state: 'off', next: null, exact: null }; await native.scheduleNotifications([]); return; }
       if (!(await native.notifyAllowed(ask))) { NOTIF = { state: 'denied', next: null, exact: null }; dbg.log('warn', 'notifications: not allowed'); return; }
       const st = await native.notifyStatus();
-      const items = buildNotifications(a, N).filter(x => +x.at > Date.now() + 5000).sort((x, y) => x.at - y.at);
+      const items = [...(a ? buildNotifications(a, N) : []), ...ahead].filter(x => +x.at > Date.now() + 5000).sort((x, y) => x.at - y.at);
       const n = await native.scheduleNotifications(items.map(x => ({ ...x, title: tr(x.title), body: tr(x.body) })));
       NOTIF = { state: 'ok', next: items[0] || null, exact: st.exact, count: n };
       dbg.log('info', `notifications: ${n} scheduled${st.exact === false ? ' (approximate times)' : ''}`);
