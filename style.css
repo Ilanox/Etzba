@@ -28,7 +28,7 @@ svg{display:block}
 .brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:1.3rem;letter-spacing:-.01em}
 .brand .logo{width:30px;height:30px;color:var(--ink)}
 .appbar .spacer{flex:1}
-.chip-net{display:flex;flex-direction:column;align-items:flex-end;line-height:1.1;padding:6px 12px;border-radius:12px;background:var(--surface);box-shadow:var(--shadow)}
+.chip-net{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;min-height:44px;border:0;font:inherit;line-height:1.1;padding:6px 12px;border-radius:12px;background:var(--surface);box-shadow:var(--shadow)}
 .chip-net small{font-size:.68rem;color:var(--ink3)}
 .chip-net b{font-size:1rem;color:var(--money)}
 
@@ -118,7 +118,7 @@ button.cell:active{background:var(--surface2)}
 /* ---------- toolbar: month / chips / sort ---------- */
 .monthbar{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-radius:var(--r);padding:6px;box-shadow:var(--shadow)}
 .monthbar b{font-weight:700}
-.ibtn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--ink2)}
+.ibtn{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:var(--ink2)}
 .ibtn:active{background:var(--surface2)}
 .ibtn svg{width:22px;height:22px}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:12px 0 2px;scrollbar-width:none}
@@ -180,7 +180,7 @@ select.input{appearance:none;-webkit-appearance:none;background-image:none}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .seg{display:flex;background:var(--surface2);border-radius:12px;padding:3px}
-.seg button{flex:1;height:40px;border-radius:9px;font-weight:600;font-size:.9rem;color:var(--ink2)}
+.seg button{flex:1;height:44px;border-radius:9px;font-weight:600;font-size:.9rem;color:var(--ink2)}
 .seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 .qchips{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
 .qchips button{height:32px;padding:0 12px;border-radius:999px;background:var(--surface2);font-size:.85rem;font-weight:600;color:var(--ink2)}
@@ -379,6 +379,10 @@ body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none
 .hgrid button:nth-child(n+7):nth-child(-n+18){background:color-mix(in srgb,var(--g-ot-b) 16%,var(--surface2))}
 .hgrid button.on:nth-child(n){background:linear-gradient(135deg,var(--g-acc-a),var(--g-acc-b))}
 .nudge{display:flex;gap:8px;margin-top:10px}
+.rate-card{padding:14px;margin:12px 0 4px}
+.rate-card .rc-top{display:flex;gap:12px;align-items:flex-start}
+.rate-card b{display:block;font-weight:800}.rate-card small{display:block;color:var(--ink2);font-size:.88rem;line-height:1.45;margin-top:2px}
+.rate-card .nudge .btn{flex:1;min-height:44px}
 .nudge button{flex:1;height:36px;border-radius:10px;background:var(--surface2);font-weight:600;font-size:.85rem;color:var(--ink2)}
 .input.mini{width:70px;height:32px;border-radius:999px;text-align:center;padding:0 8px;font-size:.9rem}
 .qchips{align-items:center}

@@ -396,7 +396,11 @@ function setFill(p) {
 function renderHome() {
   const el = $('#v-home');
   const multi = S.jobs.length > 1;
+  // the starting rate is only an example: until it's changed or confirmed, say so where the pay is
+  const rj = jobById(S.active?.jobId || S.settings.lastJob) || S.jobs[0], rateUnset = rj && !rj.rateOk && +rj.rate === 40;
   el.innerHTML = `
+    ${rateUnset ? `<div class="card rate-card" id="rateCard"><div class="rc-top"><span class="cell-ic t-orange">${I.coins}</span><span class="grow"><b>השכר לשעה הוא ₪40 לדוגמה</b><small>כדי שהחישובים יהיו נכונים, כדאי לשים את השכר שלך.</small></span></div>
+      <div class="nudge"><button class="btn primary" id="rateSet">לעדכן את השכר</button><button class="btn soft" id="rateOk">זה השכר שלי</button></div></div>` : ''}
     <div class="punch" id="punch" data-phase="idle">
       <button class="punch-btn" id="punchBtn" aria-label="לחיצה להתחלת משמרת">${punchSVG()}</button>
       <div class="punch-time num" id="pTime" aria-hidden="true">00:00:00</div>
@@ -414,6 +418,10 @@ function renderHome() {
   ridgeLens = null;
   $('#punchBtn').onclick = onPunch;
   $('#pEdit').onclick = openStartTime;
+  if (rateUnset) {
+    $('#rateSet').onclick = () => openJobSheet(rj);
+    $('#rateOk').onclick = () => { rj.rateOk = true; commit(); toast('מעולה, השכר נשמר', 'ok'); };
+  }
   if (multi) $$('#jobChips .chip').forEach(c => c.onclick = () => {
     if (S.active) return toast('אי אפשר להחליף עבודה באמצע משמרת');
     S.settings.lastJob = c.dataset.j; persist(); renderHome();
@@ -2139,6 +2147,7 @@ function openJobSheet(job, isNew) {
       for (const k of ['rate', 'travel', 'travelMonthCap', 'vacDays', 'leaveHours', 'regHours', 'shortHours', 'shortDay', 'ot1Hours', 'weeklyLimit', 'nightRegHours', 'holidayPayHours']) j[k] = Math.max(0, +v(k).value || 0);
       for (const k of ['otOn', 'shabbatOn', 'chag', 'election', 'holidayPay', 'weeklyRule', 'nightRule', 'tipsOn']) j[k] = v(k).checked;
       j.startDate = /^\d{4}-\d{2}-\d{2}$/.test(v('startDate').value) ? v('startDate').value : '';
+      j.rateOk = true;
       j.fixedStart = { day: +v('fsDay').value, time: v('fsTime').value || '16:00' };
       j.fixedEnd = { day: +v('feDay').value, time: v('feTime').value || '04:00' };
       $$('[data-r]', root).forEach(i => j.r[i.dataset.r] = +i.value || 0);
@@ -2677,7 +2686,7 @@ function openOnboarding() {
   const finish = (andImport = false) => {
     read();
     Object.assign(job, { name: d.name || 'העבודה שלי', rate: d.rate || job.rate, travel: d.travel, travelMode: 'day', weekDays: d.weekDays, otOn: d.otOn, shabbatOn: d.shabbatOn, chag: d.shabbatOn,
-      startDate: d.startDate, tipsOn: d.tipsOn, tipsMode: d.tipsMode });
+      startDate: d.startDate, tipsOn: d.tipsOn, tipsMode: d.tipsMode, rateOk: true });
     if (d.goal > 0) S.settings.goal = { amount: d.goal, kind: 'net' };
     if (d.weekDays === 6) Object.assign(job, { regHours: 8, shortHours: 7, shortDay: 5 });
     else Object.assign(job, { regHours: 8.6, shortHours: 7.6, shortDay: 4 });
@@ -2941,6 +2950,7 @@ step('geo', () => { syncGeo(true); native.appActions.onAction(appAction); syncWi
 step('meter', () => { try { if (localStorage.getItem('etzba.meter') === '1') dbg.setMeter(true); } catch {} });
 step('backupDot', updateBackupDot);
 setInterval(() => { tickHome(false); if (new Date().getSeconds() === 0) { renderRestCard(); $('#brandMark').innerHTML = mark({ t: new Date(), sw: 5.4 }); } }, 1000);
+$('#chipNet') && ($('#chipNet').onclick = () => go('sum'));
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { render(); planNotifications(); checkEarly(); } });
 
 /* Offline cache for the website version. Inside an embedded frame service workers aren't allowed,
