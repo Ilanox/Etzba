@@ -1377,7 +1377,7 @@ const earlyWhen = name => {
 };
 // what to say when a feature opens: to everyone, or to supporters first
 const EARLY_NEWS = {
-  recap: { title: 'השנה שלך באצבע פתוחה לכולם', supTitle: 'השנה שלך באצבע כאן, לפני כולם', body: 'סיכום השנה שלך כמו סטורי, עם תמונה לשיתוף.', btn: 'לסיכום השנה', go: () => openRecap(new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear()) },
+  recap: { title: 'השנה שלך באצבע פתוחה לכולם', supTitle: 'השנה שלך באצבע כאן, לפני כולם', body: 'סיכום השנה שלך כמו סטורי, עם תמונה לשיתוף.', btn: 'לסיכום השנה', go: () => openRecap(RECAP_YEAR) },
 };
 let earlyChecked = 0;
 async function checkEarly() {
@@ -1420,9 +1420,11 @@ function announceEarly() {
 }
 const recapOpen = () => openForMe('recap');
 /** Under the header while the year's recap is open: November to January (or right after it opens), until seen or closed. */
+// Wrapped is a one-off for 2026
+const RECAP_YEAR = 2026;
 function recapBanner() {
   const el = $('#rcBanner'); if (!el) return;
-  const now = new Date(), y = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  const now = new Date(), y = RECAP_YEAR;
   const d = (isSup() && earlyDate('recap', 'supporters')) || earlyDate('recap'), justOpened = d && d < '2090' && (now - new Date(d + 'T00:00:00')) / 864e5 < 60 && recapOpen();
   const show = recapOpen() && (now.getMonth() >= 10 || now.getMonth() === 0 || justOpened) && S.ui?.rcBanner !== y
     && S.shifts.some(s => new Date(s.start).getFullYear() === y);
@@ -1453,8 +1455,31 @@ function recapStats(y) {
   const first = list.reduce((a, x) => new Date(x.s.start) < new Date(a.s.start) ? x : a);
   const jobs = {}; for (const x of list) jobs[x.s.jobId] = (jobs[x.s.jobId] || 0) + x.p.hours;
   const topJob = jobById(Object.entries(jobs).sort((a, b) => b[1] - a[1])[0][0]);
+  // stats.fm-style extras: streaks, rankings, the hours of the day, records
+  const dayKeys = [...new Set(list.map(x => dateKey(new Date(x.s.start))))].sort();
+  let streak = 1, runN = 1, streakEnd = dayKeys[0];
+  for (let k = 1; k < dayKeys.length; k++) {
+    const gap = Math.round((new Date(dayKeys[k] + 'T12:00:00') - new Date(dayKeys[k - 1] + 'T12:00:00')) / 864e5);
+    runN = gap === 1 ? runN + 1 : 1; if (runN > streak) { streak = runN; streakEnd = dayKeys[k]; }
+  }
+  const monthRank = Ms.map((M, m) => ({ m, g: M.gross, n: M.shifts.length })).filter(x => x.g > 0).sort((a, b) => b.g - a.g).slice(0, 5);
+  const dayRank = day.map((n, d) => ({ d, n })).filter(x => x.n).sort((a, b) => b.n - a.n).slice(0, 3);
+  const hourH = Array(24).fill(0);
+  for (const x of list) {
+    let t = +new Date(x.s.start); const e = +new Date(x.s.end);
+    while (t < e) { const d = new Date(t), nx = Math.min(e, +new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours() + 1)); hourH[d.getHours()] += (nx - t) / 36e5; t = nx > t ? nx : t + 36e5; }
+  }
+  const peak = hourH.indexOf(Math.max(...hourH));
+  const bestShift = list.reduce((a, x) => x.p.pay > a.p.pay ? x : a);
+  const weeks = {}; for (const x of list) { const k = +weekStart(new Date(x.s.start)); weeks[k] = (weeks[k] || 0) + x.p.hours; }
+  const [bwK, bwH] = Object.entries(weeks).sort((a, b) => b[1] - a[1])[0];
+  // the latest finish: after midnight counts as later than any evening, but a morning end after a night shift isn't "late"
+  const lateKey = x => { const e = new Date(x.s.end), m = e.getHours() * 60 + e.getMinutes(); return m < 6 * 60 ? m + 1440 : m; };
+  const latest = list.reduce((a, x) => lateKey(x) > lateKey(a) ? x : a);
+  const last = list.reduce((a, x) => new Date(x.s.start) > new Date(a.s.start) ? x : a);
   return { y, count: list.length, hours, gross, net, longest, best, kinds, topDay, daily, rest: rest.length, restHours: rest.reduce((a, x) => a + x.p.restHours, 0),
-    ot, tips, first, topJob, months: Ms.map(M => M.gross), perHour: hours ? gross / hours : 0 };
+    ot, tips, first, last, topJob, months: Ms.map(M => M.gross), perHour: hours ? gross / hours : 0,
+    workDays: dayKeys.length, dayKeys, streak, streakEnd, monthRank, dayRank, hourH, peak, bestShift, bestWeek: { start: +bwK, hours: bwH }, latest };
 }
 const hrs = h => { const r = Math.round(h * 2) / 2; return (r % 1 ? r.toFixed(1) : String(r)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
 // each story has its own colour field: background, text, and the fingerprint ridges behind it
@@ -1487,28 +1512,50 @@ function openRecap(y) {
       <circle class="arc" cx="100" cy="100" r="78" pathLength="24" style="--len:${len};transform:rotate(${h0 * 15 - 90}deg)" />
     </svg><div class="rc-dial-in num" dir="ltr"><b>${tm(ls)}</b><i></i><b>${tm(le)}</b></div></div>`;
   const kindsTot = Object.values(R.kinds).reduce((a, b) => a + b, 0) || 1;
+  // a ranking, stats.fm style: revealed from the bottom up, number one last
+  const rank = (rows, max) => `<ol class="rc-rank">${rows.map((r, k) => `<li class="${k === 0 ? 'top' : ''}" style="--d:${(rows.length - 1 - k) * 380 + 250}ms;--w:${Math.max(8, r.v / max * 100)}%"><span class="rk num">${k + 1}</span><span class="nm">${r.name}</span><b class="num">${r.val}</b><i></i></li>`).join('')}</ol>`;
+  // the streak, as the days around it
+  const sEnd = new Date(R.streakEnd + 'T12:00:00'), worked = new Set(R.dayKeys), dots = [];
+  const sStart = dateKey(new Date(+sEnd - (R.streak - 1) * 864e5)), winEnd = new Date(+sEnd + (R.streak < 26 ? 2 : 0) * 864e5);
+  for (let k = 27; k >= 0; k--) {
+    const key = dateKey(new Date(+winEnd - k * 864e5)), run = key >= sStart && key <= R.streakEnd;
+    dots.push(`<i class="${worked.has(key) ? 'on' : ''}${run ? ' run' : ''}" style="--d:${(27 - k) * 35}ms"></i>`);
+  }
+  const maxH = Math.max(...R.hourH, 1);
+  const latestEnd = new Date(R.latest.s.end), bw = new Date(R.bestWeek.start), bwEnd = new Date(+bw + 6 * 864e5);
   const slides = [
-    `<small>השנה שלך באצבע</small><h1 class="num rc-year">${y}</h1><p>בוא נראה מה עשית השנה.</p>`,
-    `<small>שעות עבודה</small><h1>${cnt(R.hours)}</h1><p>${days ? `יותר מ־${days} ימים שלמים בלי הפסקה, ב־${R.count} משמרות.` : `ב־${R.count} משמרות.`}</p>`,
-    `<small>המשמרת הכי ארוכה</small><h1>${cnt(R.longest.p.hours, 'hrs')}<em>שעות</em></h1><div class="rc-dial-row">${line}<p>${DAYS[ls.getDay()]}<br>${dFull(R.longest.s.start)}${sameDay(R.longest.s.start, R.longest.s.end) ? '' : '<br><span class="rc-dim">עד למחרת</span>'}</p></div>`,
-    `<small>הרווחת השנה</small><h1>${cnt(R.gross, 'money')}</h1><p>ברוטו, כ־${money(R.net)} נטו. בממוצע ${money2(R.perHour)} לשעה.</p>`,
-    `<small>החודש הכי חזק</small><h1>${MONTHS[R.best.m]}</h1><p class="num">${money(R.best.gross)} ברוטו</p><div class="rc-bars">${R.months.map((g, m) => `<i style="--h:${Math.max(3, g / maxM * 100)}%;--d:${m * 45}ms"${m === R.best.m ? ' class="on"' : ''}><em>${MONTHS[m].slice(0, 3)}</em></i>`).join('')}</div>`,
-    `<small>הסגנון שלך</small><h1 class="rc-word">${KIND_LINE[R.daily][0]}</h1><p>${KIND_LINE[R.daily][1]} היום הכי עמוס שלך: ${DAYS[R.topDay]}.</p>
-      <div class="rc-kinds">${['morning', 'noon', 'evening', 'night'].map((k, j) => `<div${k === R.daily ? ' class="on"' : ''}><i style="--w:${(R.kinds[k] || 0) / kindsTot * 100}%;--d:${j * 90}ms"></i><span>${KIND_SHORT[k]}</span><b class="num">${Math.round((R.kinds[k] || 0) / kindsTot * 100)}%</b></div>`).join('')}</div>`,
-    `<small>מעבר לשגרה</small><h1>${cnt(R.ot, 'hrs')}<em>שעות נוספות</em></h1><div class="rc-facts">${R.rest ? `<div><b class="num">${R.rest}</b><span>משמרות בשבת או בחג</span></div>` : ''}${R.tips ? `<div><b class="num">${money(R.tips)}</b><span>טיפים</span></div>` : ''}<div><b class="num">${money2(R.perHour)}</b><span>ממוצע לשעה</span></div></div>`,
-    `<small>הסיכום של ${y}</small><div class="rc-grid">
+    { html: `<small>השנה שלך באצבע</small><h1 class="num rc-year">${y}</h1><p>שנה שלמה של משמרות, במספרים. מוכנים?</p>` },
+    { html: `<small>שעות עבודה</small><h1>${cnt(R.hours)}</h1><p>${days ? `<span>יותר מ־${days} ימים שלמים בלי הפסקה.</span> ` : ''}<span>${R.count} משמרות ב־${R.workDays} ימי עבודה.</span></p>` },
+    { html: `<small>הרצף הכי ארוך</small><h1>${cnt(R.streak)}<em>ימים ברצף</em></h1><div class="rc-streak">${dots.join('')}</div><p>${R.streak > 1 ? `בלי יום חופש אחד, עד ${dShort(sEnd)}.` : 'אף פעם לא יותר מיום אחד ברצף. איזון יפה.'}</p>` },
+    { ms: 9000, html: `<small>החודשים שלך, לפי ברוטו</small>${rank(R.monthRank.map(r => ({ name: MONTHS[r.m], val: money(r.g), v: r.g })), R.monthRank[0]?.g || 1)}<p>${MONTHS[R.best.m]} במקום הראשון, ב־${R.monthRank[0]?.n || 0} משמרות.</p>` },
+    { ms: 8000, html: `<small>הימים שלך</small>${rank(R.dayRank.map(r => ({ name: DAYS[r.d], val: `${r.n} משמרות`, v: r.n })), R.dayRank[0]?.n || 1)}<p>${DAYS[R.topDay]} הוא היום שלך.</p>` },
+    { html: `<small>השעה שלך</small><h1 class="num">${pad(R.peak)}:00</h1><div class="rc-heat" dir="ltr">${R.hourH.map((h, k) => `<i class="${k === R.peak ? 'on' : ''}" style="--h:${Math.max(2, h / maxH * 100)}%;--d:${k * 30}ms"></i>`).join('')}<span style="left:0">00</span><span style="left:25%">06</span><span style="left:50%">12</span><span style="left:75%">18</span></div><p>בשעה הזאת היית בעבודה יותר מכל שעה אחרת ביום: ${hrs(R.hourH[R.peak])} שעות בשנה.</p>` },
+    { html: `<small>המשמרת הכי ארוכה</small><h1>${cnt(R.longest.p.hours, 'hrs')}<em>שעות</em></h1><div class="rc-dial-row">${line}<p>${DAYS[ls.getDay()]}<br>${dFull(R.longest.s.start)}${sameDay(R.longest.s.start, R.longest.s.end) ? '' : '<br><span class="rc-dim">עד למחרת</span>'}</p></div>` },
+    { ms: 8000, html: `<small>השיאים שלך</small><div class="rc-facts rc-rec">
+        <div style="--d:200ms"><span>המשמרת הכי משתלמת</span><b class="num">${money(R.bestShift.p.pay)}</b><em>${dShort(R.bestShift.s.start)}</em></div>
+        <div style="--d:650ms"><span>השבוע הכי עמוס</span><b class="num">${hrs(R.bestWeek.hours)} ש׳</b><em class="num" dir="ltr">${dShort(bw)}–${dShort(bwEnd)}</em></div>
+        <div style="--d:1100ms"><span>הכי מאוחר שסיימת</span><b class="num" dir="ltr">${tm(latestEnd)}</b><em>${dShort(R.latest.s.start)}</em></div></div>` },
+    { html: `<small>הרווחת השנה</small><h1>${cnt(R.gross, 'money')}</h1><p>ברוטו, כ־${money(R.net)} נטו. בממוצע ${money2(R.perHour)} לשעה.</p>` },
+    { html: `<small>הסגנון שלך</small><h1 class="rc-word">${KIND_LINE[R.daily][0]}</h1><p>${KIND_LINE[R.daily][1]}</p>
+      <div class="rc-kinds">${['morning', 'noon', 'evening', 'night'].map((k, j) => `<div${k === R.daily ? ' class="on"' : ''}><i style="--w:${(R.kinds[k] || 0) / kindsTot * 100}%;--d:${j * 90}ms"></i><span>${KIND_SHORT[k]}</span><b class="num">${Math.round((R.kinds[k] || 0) / kindsTot * 100)}%</b></div>`).join('')}</div>` },
+    { html: `<small>מעבר לשגרה</small><h1>${cnt(R.ot, 'hrs')}<em>שעות נוספות</em></h1><div class="rc-facts">${R.rest ? `<div><b class="num">${R.rest}</b><span>משמרות בשבת או בחג</span></div>` : ''}${R.tips ? `<div><b class="num">${money(R.tips)}</b><span>טיפים</span></div>` : ''}<div><b class="num">${money2(R.perHour)}</b><span>ממוצע לשעה</span></div></div>` },
+    { html: `<small>מההתחלה עד עכשיו</small><div class="rc-facts rc-rec">
+        <div style="--d:200ms"><span>המשמרת הראשונה של השנה</span><b class="num">${dShort(R.first.s.start)}</b><em class="num" dir="ltr">${tm(R.first.s.start)}</em></div>
+        <div style="--d:650ms"><span>והאחרונה עד עכשיו</span><b class="num">${dShort(R.last.s.start)}</b><em class="num" dir="ltr">${tm(R.last.s.start)}</em></div></div><p>ובאמצע: ${R.count} משמרות. כל הכבוד.</p>` },
+    { html: `<small>הסיכום של ${y}</small><div class="rc-grid">
       <div><b class="num">${Math.round(R.hours).toLocaleString('he-IL')}</b><span>שעות</span></div><div><b class="num">${R.count}</b><span>משמרות</span></div>
       <div><b class="num">${money(R.gross)}</b><span>ברוטו</span></div><div><b>${MONTHS[R.best.m]}</b><span>החודש הכי חזק</span></div>
-      <div><b class="num">${hrs(R.longest.p.hours)} ש׳</b><span>המשמרת הכי ארוכה</span></div><div><b>${KIND_LINE[R.daily][0]}</b><span>הסגנון</span></div></div>
-      <button class="rc-share" id="rc-share">${I.share}שיתוף</button>`,
+      <div><b class="num">${R.streak}</b><span>ימים ברצף</span></div><div><b class="num">${pad(R.peak)}:00</b><span>השעה שלך</span></div></div>
+      <button class="rc-share" id="rc-share">${I.share}שיתוף</button>` },
   ];
   const ov = document.createElement('div'); ov.className = 'recap'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'השנה שלך באצבע');
-  ov.innerHTML = `${rcPrint()}<div class="rc-prog">${slides.map(() => '<i><b></b></i>').join('')}</div><button class="rc-x" aria-label="סגירה">${I.x}</button><div class="rc-slide" aria-live="polite"></div>
+  ov.innerHTML = `${rcPrint()}<div class="rc-prog">${slides.map(x => `<i style="--ms:${x.ms || RC_MS}ms"><b></b></i>`).join('')}</div><button class="rc-x" aria-label="סגירה">${I.x}</button><div class="rc-slide" aria-live="polite"></div>
     <div class="rc-hint">${EN ? 'Tap the right side for next' : 'הקשה בצד שמאל להמשך'}</div>`;
   document.body.appendChild(ov);
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let i = 0, timer, left = RC_MS, began = 0, held = false, pressAt = 0;
   const run = ms => { clearTimeout(timer); began = Date.now(); left = ms; if (i < slides.length - 1) timer = setTimeout(() => show(i + 1), ms); };
+  const msOf = k => slides[k].ms || RC_MS;
   const countUp = sl => {
     if (still) return;
     $$('.rc-count', sl).forEach(el => {
@@ -1522,10 +1569,11 @@ function openRecap(y) {
     i = Math.max(0, Math.min(slides.length - 1, n));
     const c = RECAP_PAL[i % RECAP_PAL.length], [px, py, sc, rot] = RC_POS[i % RC_POS.length];
     for (const [k, v] of Object.entries({ '--rc-bg': c.bg, '--rc-fg': c.fg, '--rc-ac': c.ac, '--px': px + '%', '--py': py + '%', '--sc': sc, '--rot': rot + 'deg' })) ov.style.setProperty(k, v);
-    const sl = $('.rc-slide', ov); sl.innerHTML = slides[i]; sl.classList.remove('in'); void sl.offsetWidth; sl.classList.add('in');
+    const sl = $('.rc-slide', ov); sl.innerHTML = slides[i].html; sl.classList.remove('in'); void sl.offsetWidth; sl.classList.add('in');
     $$('.rc-prog i', ov).forEach((p, k) => { p.className = k < i ? 'done' : k === i ? 'now' : ''; });
     ov.classList.remove('paused'); ov.classList.toggle('first', i === 0);
-    countUp(sl); run(RC_MS);
+    countUp(sl); run(msOf(i));
+    if (i === slides.length - 1 && !still) celebrate('goal');   // the end: a little confetti
     $('#rc-share', ov) && ($('#rc-share', ov).onclick = e => { e.stopPropagation(); shareRecap(R); });
   };
   const close = () => { clearTimeout(timer); ov.remove(); };
@@ -1643,7 +1691,7 @@ function sumYear(el) {
   const H = items.reduce((a, x) => (a[0] += x.h[0], a[1] += x.h[1], a[2] += x.h[2], a), [0, 0, 0]);
   const k = (l, v, s = '') => `<div class="kpi"><small>${l}</small><b class="num">${v}</b>${s ? `<em>${s}</em>` : ''}</div>`;
   el.innerHTML = `<div class="monthbar"><button class="ibtn" data-yn="-1" aria-label="שנה קודמת">${I.chevR}</button><b class="num">${viewY}</b><button class="ibtn" data-yn="1" aria-label="שנה הבאה">${I.chevL}</button></div>
-    ${T.count ? `<button class="recap-btn${recapOpen() ? '' : ' locked'}" id="openRecap"><span class="grow"><b>השנה שלך באצבע</b><small>${recapOpen() ? 'סיכום השנה כמו סטורי, עם תמונה לשיתוף' : earlyWhen('recap')}</small></span>${recapOpen() ? I.chevL : I.lock}</button>` : ''}
+    ${T.count && viewY === RECAP_YEAR ? `<button class="recap-btn${recapOpen() ? '' : ' locked'}" id="openRecap"><span class="grow"><b>השנה שלך באצבע</b><small>${recapOpen() ? 'סיכום השנה כמו סטורי, עם תמונה לשיתוף' : earlyWhen('recap')}</small></span>${recapOpen() ? I.chevL : I.lock}</button>` : ''}
     ${T.count ? `<div class="kpis" style="margin-top:12px">
       ${k('ברוטו שנתי', money(T.gross))}${k('נטו משוער', money(T.net), `מס הכנסה ${money(T.tax)}`)}
       ${k('שעות', hm(T.hours), `${T.count} משמרות`)}${k('ממוצע לשעה', money2(T.hours ? T.gross / T.hours : 0), 'כולל תוספות')}

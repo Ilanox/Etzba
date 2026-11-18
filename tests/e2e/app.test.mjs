@@ -361,7 +361,7 @@ test('the year in Etzba: early for supporters, stories, and a picture to share',
   assert.ok(await page.locator('#openRecap').isVisible(), 'a recap button in the year view');
   await page.click('#openRecap'); await wait(page, 600);
   assert.ok(await page.locator('.recap').isVisible(), 'stories open');
-  for (let k = 0; k < 7; k++) { await page.mouse.click(80, 500); await wait(page, 150); }   // Hebrew: the left side is next
+  for (let k = 0; k < 12; k++) { await page.mouse.click(80, 500); await wait(page, 150); }   // Hebrew: the left side is next
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.click('#rc-share')]);
   assert.match(dl.suggestedFilename(), /\.png$/);
   assert.deepEqual(errors, []); await ctx.close();
