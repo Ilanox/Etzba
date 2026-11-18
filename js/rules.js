@@ -11,7 +11,7 @@ const KEY = 'etzba.rules', CHECKED = 'etzba.rules.checked', DAY = 864e5;
 
 // keep in step with data/rules.json
 export const BUILT_IN = {
-  version: 4,
+  version: 5,
   minWage: [{ from: '2025-04-01', hourly: 34.32 }, { from: '2026-04-01', hourly: 35.40 }],
   elections: [{ date: '2026-10-27', name: 'בחירות לכנסת' }],
   travelMaxDaily: 22.6,

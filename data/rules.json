@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "updated": "2026-11-18",
   "note": "Yearly figures for אצבע. The app ships with this file built in and works offline; when online it fetches the newest copy from GitHub Pages. Edit, bump version, push.",
   "minWage": [
