@@ -53,6 +53,12 @@ if (push) {
   const sh = c => execSync(c, { stdio: 'inherit' });
   sh(`git add ${JSON_P} ${JS_P}`);
   sh(`git -c user.name="Ilan Levy (Ilanox)" -c user.email="ilanox@users.noreply.github.com" commit -qm "Early access: ${name} ${date}"`);
-  sh('git -c push.negotiate=true push -q origin main');
-  console.log('Pushed. Phones get it within a day.');
+  try {
+    sh('git pull --rebase -q origin main');
+    sh('git -c push.negotiate=true push -q origin main');
+    console.log('Pushed. Phones get it within a day.');
+  } catch {
+    console.error('\nSaved and committed here, but the push failed. Sign in to GitHub once (gh auth login, then gh auth setup-git) and run: git push');
+    process.exit(1);
+  }
 }
