@@ -37,6 +37,8 @@ export function defaultJob(name = 'עבודה') {
     tipsMode: 'own',          // 'own': tips are yours, on top of pay | 'wage': through the employer, topped up to the hourly rate
     startDate: '',            // first day at this job (YYYY-MM-DD), for sick and vacation days; empty = first shift
     vacDays: 0,               // vacation days for a full year; 0 = by law for the work week
+    leaveMode: 'hours',       // a vacation or sick day's pay: 'hours' = rate × leaveHours | 'avg' = average day of the 3 months before
+    leaveHours: 8,
   };
 }
 
@@ -158,7 +160,7 @@ export function shiftPay(sh, job, place, weekRegBefore = 0) {
    [{ until: ISO, rules: {...} }] — a shift that starts before `until` uses those rules
    (the earliest version whose `until` is still after the shift). */
 export const RULE_KEYS = ['election', 'rate', 'weekDays', 'regHours', 'shortDay', 'shortHours', 'weeklyRule', 'weeklyLimit', 'nightRule', 'nightRegHours',
-  'ot1Hours', 'r', 'restMode', 'fixedStart', 'fixedEnd', 'chag', 'shabbatOn', 'otOn', 'holidayPay', 'holidayPayHours', 'travel', 'travelMode', 'travelMonthCap', 'tipsMode'];
+  'ot1Hours', 'r', 'restMode', 'fixedStart', 'fixedEnd', 'chag', 'shabbatOn', 'otOn', 'holidayPay', 'holidayPayHours', 'travel', 'travelMode', 'travelMonthCap', 'tipsMode', 'leaveMode', 'leaveHours'];
 export const rulesOf = job => JSON.parse(JSON.stringify(Object.fromEntries(RULE_KEYS.map(k => [k, job[k]]))));
 export function jobAt(job, when) {
   const vs = job.versions; if (!vs || !vs.length) return job;

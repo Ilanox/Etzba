@@ -47,8 +47,10 @@ export function runStarts(absences) {
   return out;
 }
 
-/** Average pay (hours only: no travel, tips or bonus) per day worked in the 90 days before `date`. */
+/** A day's pay for a vacation or sick day: the rate × the job's hours for a day, or (if the job says so)
+    the average pay (hours only: no travel, tips or bonus) per day worked in the 90 days before `date`. */
 export function dayValue(job, worked, date) {
+  if (job.leaveMode !== 'avg') return (+job.leaveHours || 8) * (+job.rate || 0);   // the usual way: a day of hours at the rate
   const t = +fromKey(date), from = t - 90 * DAY, days = new Map();
   for (const { start, base } of worked) {
     const s = +new Date(start); if (s < from || s >= t) continue;

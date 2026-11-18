@@ -317,6 +317,12 @@ export default {
     'משמרת': 'Shift',
     'שעות בתעריף מיוחד': 'Special-rate hours',
     'ריק: לפי הגדרות העבודה': 'Empty: from the job settings',
+    'תשלום על יום חופשה או מחלה': 'Pay for a vacation or sick day',
+    'שעות × תעריף': 'Hours × rate',
+    'ממוצע 3 חודשים': '3-month average',
+    'שעות ליום': 'Hours a day',
+    'השכר בשלושת החודשים שלפני החופשה, חלקי ימי העבודה בהם. כך מחשבים בחלק מהמקומות לעובדים לפי שעה.': 'Pay in the three months before the time off, divided by the days worked in them. Some workplaces work it out this way for hourly workers.',
+    'ימים שלא עבדת ושמשלמים עליהם. כל יום משולם לפי הגדרות העבודה, בדרך כלל שעות של יום × התעריף.': 'Days you didn\'t work and get paid for. Each day is paid by the job settings, usually a day\'s hours × the rate.',
   },
   templates: [
     ['· ₪{} לשעה', '· ₪{1} an hour'],
@@ -451,6 +457,7 @@ export default {
   ['משמרת מיוחדת: כל השעות ב־{}%, בלי חישוב של שעות נוספות, שבת או חג.', 'Special shift: every hour at {1}%, with no overtime, Shabbat or holiday rules.'],
   ['תעריף מיוחד {}%', 'Special rate {1}%'],
   ['{} · {}%', '{1} · {2}%'],
+  ['כל יום שווה {} שעות × ₪{} = {}.', 'Each day is worth {1} hours × ₪{2} = {3}.'],
 ],
 
   words: {

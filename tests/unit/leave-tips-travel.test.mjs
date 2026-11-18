@@ -43,10 +43,15 @@ test('sick pay: first day nothing, second and third half, then full; a gap start
   assert.deepEqual(Object.values(sickShares(ab)), [0, 0.5, 0.5, 1, 0]);
 });
 
-test('an ordinary day is the average pay per day worked in the 90 days before', () => {
+test('a vacation or sick day: rate × hours of a day, by default', () => {
+  near(dayValue(job({ rate: 45 }), [{ start: '2026-10-01T06:00:00Z', base: 999 }], '2026-11-01'), 360, '8 h × ₪45');
+  near(dayValue(job({ rate: 45, leaveHours: 6 }), [], '2026-11-01'), 270, '6 h × ₪45');
+});
+
+test('or the average pay per day worked in the 90 days before', () => {
   const worked = [{ start: '2026-10-01T06:00:00Z', base: 300 }, { start: '2026-10-02T06:00:00Z', base: 100 }, { start: '2026-10-02T14:00:00Z', base: 100 }, { start: '2026-01-01T06:00:00Z', base: 9999 }];
-  near(dayValue(job(), worked, '2026-11-01'), 250, 'two days');
-  near(dayValue(job({ rate: 40, regHours: 8 }), [], '2026-11-01'), 320, 'no history: a regular day');
+  near(dayValue(job({ leaveMode: 'avg' }), worked, '2026-11-01'), 250, 'two days');
+  near(dayValue(job({ leaveMode: 'avg', rate: 40, regHours: 8 }), [], '2026-11-01'), 320, 'no history: a regular day');
 });
 
 test('vacation: a full year for 200 days, in proportion below; sick 1.5 a full month', () => {

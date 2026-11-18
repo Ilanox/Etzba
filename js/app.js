@@ -1039,7 +1039,7 @@ function openLeaveSheet(pre = {}) {
   let kind = pre.kind || 'sick', jobId = pre.jobId || (S.settings.lastJob && S.jobs.some(j => j.id === S.settings.lastJob) ? S.settings.lastJob : S.jobs[0].id);
   const today = new Date(), inView = viewY === today.getFullYear() && viewM === today.getMonth();
   const d0 = pre.date || dateKey(inView ? today : new Date(viewY, viewM, 1));
-  openSheet(`<h2>יום מחלה או חופשה</h2><p class="shsub">ימים שלא עבדת ושמשלמים עליהם. התשלום לפי שכר יום עבודה רגיל שלך בשלושת החודשים שלפני.</p>
+  openSheet(`<h2>יום מחלה או חופשה</h2><p class="shsub">ימים שלא עבדת ושמשלמים עליהם. כל יום משולם לפי הגדרות העבודה, בדרך כלל שעות של יום × התעריף.</p>
     ${S.jobs.length > 1 ? `<div class="chips" id="lv-jobs" style="margin-top:14px">${S.jobs.map(j => `<button type="button" class="chip" data-j="${j.id}"><span class="dot" style="background:${j.color}"></span>${nm(j.name)}</button>`).join('')}</div>` : ''}
     <div class="seg" id="lv-kind" style="margin-top:14px"><button type="button" data-k="sick">מחלה</button><button type="button" data-k="vac">חופשה</button></div>
     <div class="grid2">
@@ -1627,6 +1627,10 @@ function openJobSheet(job, isNew) {
       <label class="field"><span>ימי חופשה בשנה</span><input class="input num" type="number" step="1" inputmode="numeric" data-k="vacDays" value="${+j.vacDays || ''}" placeholder="${+j.weekDays === 6 ? 14 : 12}"></label>
     </div>
     <p class="hint">ריק: מהמשמרת הראשונה, וימי החופשה לפי החוק לשנים הראשונות. ימי מחלה נצברים לבד: 1.5 לחודש מלא, ופחות בחודש חלקי.</p>
+    <div class="field"><span>תשלום על יום חופשה או מחלה</span>
+      <div class="seg" id="j-leave"><button type="button" data-m="hours">שעות × תעריף</button><button type="button" data-m="avg">ממוצע 3 חודשים</button></div></div>
+    <div id="j-lhours">${K('leaveHours', 'שעות ליום', 0.5)}</div>
+    <p class="hint" id="j-lhint"></p>
     ${native.geo.available() ? `<h3>מיקום העבודה</h3>
     <div class="card pad" id="j-place"></div>
     <p class="hint">כשמגיעים לעבודה (אחרי כ־3 דקות במקום) תגיע התראה שמציעה להתחיל משמרת, וכשיוצאים באמצע משמרת, הצעה לסיים אותה. הטלפון עצמו עוקב אחרי האזור, כך שזה כמעט לא צורך סוללה.</p>` : ''}
@@ -1644,6 +1648,11 @@ function openJobSheet(job, isNew) {
       $$('#j-brk button', root).forEach(b => b.classList.toggle('on', +b.dataset.b === +j.breakMin));
       $$('#j-tmode button', root).forEach(b => b.classList.toggle('on', b.dataset.t === (j.travelMode || 'day')));
       $$('#j-tips button', root).forEach(b => b.classList.toggle('on', b.dataset.m === (j.tipsMode || 'own')));
+      $$('#j-leave button', root).forEach(b => b.classList.toggle('on', b.dataset.m === (j.leaveMode || 'hours')));
+      $('#j-lhours', root).classList.toggle('hidden', j.leaveMode === 'avg');
+      $('#j-lhint', root).textContent = j.leaveMode === 'avg'
+        ? 'השכר בשלושת החודשים שלפני החופשה, חלקי ימי העבודה בהם. כך מחשבים בחלק מהמקומות לעובדים לפי שעה.'
+        : `כל יום שווה ${hm(+v('leaveHours').value || 0)} שעות × ₪${+v('rate').value || 0} = ${money2((+v('leaveHours').value || 0) * (+v('rate').value || 0))}.`;
       $('#rule-tips', root).classList.toggle('off', !v('tipsOn').checked);
       $('#tips-body', root).classList.toggle('hidden', !v('tipsOn').checked);
       $('#j-tipshint', root).textContent = j.tipsMode === 'wage'
@@ -1671,6 +1680,7 @@ function openJobSheet(job, isNew) {
     $$('#j-brk button', root).forEach(b => b.onclick = () => { j.breakMin = +b.dataset.b; ui(); });
     $$('#j-tmode button', root).forEach(b => b.onclick = () => { j.travelMode = b.dataset.t; ui(); });
     $$('#j-tips button', root).forEach(b => b.onclick = () => { j.tipsMode = b.dataset.m; ui(); });
+    $$('#j-leave button', root).forEach(b => b.onclick = () => { j.leaveMode = b.dataset.m; ui(); });
     $$('#j-week button', root).forEach(b => b.onclick = () => {
       j.weekDays = +b.dataset.w; const five = j.weekDays === 5;
       v('regHours').value = five ? 8.6 : 8; v('shortHours').value = five ? 7.6 : 7; v('shortDay').value = five ? 4 : 5; ui();
@@ -1680,7 +1690,7 @@ function openJobSheet(job, isNew) {
     if ($('#j-place', root)) drawPlace(root, j);
     $('#j-save', root).onclick = () => {
       j.name = v('name').value.trim() || 'עבודה';
-      for (const k of ['rate', 'travel', 'travelMonthCap', 'vacDays', 'regHours', 'shortHours', 'shortDay', 'ot1Hours', 'weeklyLimit', 'nightRegHours', 'holidayPayHours']) j[k] = Math.max(0, +v(k).value || 0);
+      for (const k of ['rate', 'travel', 'travelMonthCap', 'vacDays', 'leaveHours', 'regHours', 'shortHours', 'shortDay', 'ot1Hours', 'weeklyLimit', 'nightRegHours', 'holidayPayHours']) j[k] = Math.max(0, +v(k).value || 0);
       for (const k of ['otOn', 'shabbatOn', 'chag', 'election', 'holidayPay', 'weeklyRule', 'nightRule', 'tipsOn']) j[k] = v(k).checked;
       j.startDate = /^\d{4}-\d{2}-\d{2}$/.test(v('startDate').value) ? v('startDate').value : '';
       j.fixedStart = { day: +v('fsDay').value, time: v('fsTime').value || '16:00' };
