@@ -1409,7 +1409,8 @@ function openRecap(y) {
   // the longest shift on a 24-hour line
   const ls = new Date(R.longest.s.start), le = new Date(R.longest.s.end), f0 = (ls.getHours() + ls.getMinutes() / 60) / 24, len = Math.min(1, R.longest.p.hours / 24);
   const segs = f0 + len > 1 ? [[f0, 1 - f0], [0, f0 + len - 1]] : [[f0, len]];
-  const line = `<div class="rc-day" dir="ltr">${segs.map(([a, w]) => `<i style="left:${a * 100}%;width:${w * 100}%"></i>`).join('')}<span style="left:0">00</span><span style="left:25%">06</span><span style="left:50%">12</span><span style="left:75%">18</span><span style="left:100%">24</span></div>`;
+  // the day runs the same way as the stories: right to left in Hebrew
+  const line = `<div class="rc-day">${segs.map(([a, w]) => `<i style="inset-inline-start:${a * 100}%;width:${w * 100}%"></i>`).join('')}${['00', '06', '12', '18', '24'].map((t, k) => `<span class="num" style="inset-inline-start:${k * 25}%">${t}</span>`).join('')}</div>`;
   const kindsTot = Object.values(R.kinds).reduce((a, b) => a + b, 0) || 1;
   const slides = [
     `<small>השנה שלך באצבע</small><h1 class="num rc-year">${y}</h1><p>בוא נראה מה עשית השנה.</p>`,

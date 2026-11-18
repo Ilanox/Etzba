@@ -1027,7 +1027,7 @@ html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;an
   padding:calc(env(safe-area-inset-top,0px) + 14px) 26px calc(env(safe-area-inset-bottom,0px) + 30px)}
 .rc-print{position:absolute;width:150vmax;height:150vmax;left:var(--px,50%);top:var(--py,50%);pointer-events:none;
   transform:translate(-50%,-50%) rotate(var(--rot,0deg)) scale(var(--sc,1));transition:left .9s cubic-bezier(.6,0,.2,1),top .9s cubic-bezier(.6,0,.2,1),transform .9s cubic-bezier(.6,0,.2,1)}
-.rc-print path{fill:none;stroke:var(--rc-ac,#FF6A3D);stroke-width:.9;stroke-linecap:round;opacity:.38;transition:stroke .55s}
+.rc-print path{fill:none;stroke:var(--rc-ac,#FF6A3D);stroke-width:.6;stroke-linecap:round;opacity:.38;transition:stroke .55s}
 .recap>*:not(.rc-print){position:relative}
 .rc-prog{display:flex;gap:4px;z-index:1}.rc-prog i{flex:1;height:3px;border-radius:2px;background:color-mix(in srgb,var(--rc-fg) 28%,transparent);overflow:hidden}
 .rc-prog i b{display:block;height:100%;width:0;background:var(--rc-fg)}
@@ -1053,6 +1053,7 @@ html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;an
 .rc-day i{position:absolute;top:0;bottom:0;border-radius:6px;background:var(--rc-fg);transform-origin:left;animation:rcgrow .9s .3s cubic-bezier(.2,.8,.2,1) both}
 .rc-day span{position:absolute;top:18px;transform:translateX(-50%);font-size:.75rem;opacity:.65;font-variant-numeric:tabular-nums}
 @keyframes rcgrow{from{transform:scaleX(0)}}
+[dir=rtl] .rc-day i{transform-origin:right}[dir=rtl] .rc-day span{transform:translateX(50%)}
 .rc-bars{display:flex;align-items:flex-end;gap:5px;height:150px;margin-top:8px}
 .rc-bars i{flex:1;height:var(--h);position:relative;background:color-mix(in srgb,var(--rc-fg) 30%,transparent);border-radius:4px 4px 1px 1px;transform-origin:bottom;animation:rcup .8s var(--d) cubic-bezier(.2,.8,.2,1) both}
 .rc-bars i.on{background:var(--rc-fg)}
