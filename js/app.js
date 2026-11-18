@@ -84,6 +84,7 @@ function applyTheme() {
   const bg = { light: '#F1EEE6', dark: '#141518', blurple: '#1E1F22', gold: '#15130E', night: '#0C1322', sunset: '#F7EEE8', forest: '#0F1712', ocean: '#0B1A1E', plum: '#171021', ember: '#1A100C', sand: '#F2EDDF', dev: '#07090B', aurora: '#101531', dawn: '#FBEFE8', neon: '#0A0712', rosegold: '#F6EAE4' }[r];
   document.querySelectorAll('meta[name=theme-color]').forEach(m => { m.removeAttribute('media'); m.content = bg; });
   document.documentElement.classList.toggle('supporter', !!S.settings.supported);
+  const tag = document.getElementById('devTag'); if (tag) tag.hidden = !S.settings.owner;
   native.setBars(!['light', 'sunset', 'sand', 'dawn', 'rosegold'].includes(r));
   try { syncWidget(); } catch {}
 }

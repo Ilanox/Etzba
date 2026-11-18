@@ -890,7 +890,6 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
   --g-acc-a:#C23A5E;--g-acc-b:#EF7A6A;--g-money-a:#7A4FD0;--g-money-b:#A98AF0;--g-ot-a:#D06A2A;--g-ot-b:#F0A060;--g-hot-a:#A0283E;--g-hot-b:#D2486A;
   --k-morning:#6B5357;--k-noon:#6B5357;--k-evening:#6B5357;--k-night:#2B1D20;--k-shabbat:#C9832A;--k-chag:#C9832A;
   --c1:#7A4FD0;--c2:#D2486A;--c3:#C9832A;--pen-ink:#7A4FD0;--gold-ink:#9A5F12;--accent-ink:#C23A5E;--shadow:none}
-:root[data-theme=gold] .hero,:root[data-theme=night] .hero{background:linear-gradient(180deg,color-mix(in srgb,var(--surface2) 70%,var(--bg)),var(--surface))}
 :root[data-theme=gold] .k-night.kic,:root[data-theme=night] .k-night.kic{background:var(--ink);color:var(--bg)}
 .themes{grid-template-columns:repeat(4,1fr)}
 .themes button{position:relative}
@@ -915,7 +914,6 @@ html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;an
   --g-acc-a:#3E9B66;--g-acc-b:#7FD6A0;--g-money-a:#3E9B66;--g-money-b:#7FD6A0;--g-ot-a:#C98A3A;--g-ot-b:#F2B866;--g-hot-a:#B9503E;--g-hot-b:#F08A70;
   --k-morning:#A9C2AF;--k-noon:#A9C2AF;--k-evening:#A9C2AF;--k-night:#E4EFE6;--k-shabbat:#D9C27A;--k-chag:#D9C27A;
   --c1:#7FD6A0;--c2:#F2B866;--c3:#D9C27A;--pen-ink:#7FD6A0;--gold-ink:#D9C27A;--accent-ink:#7FD6A0;--shadow:none}
-:root[data-theme=forest] .hero{background:linear-gradient(180deg,color-mix(in srgb,var(--surface2) 70%,var(--bg)),var(--surface))}
 :root[data-theme=forest] .k-night.kic{background:var(--ink);color:var(--bg)}
 .sp-other .qchips button.on{background:#D9534F;color:#fff}
 .sp-pay{background:#D9534F!important;border-color:#D9534F!important;color:#fff!important}
@@ -928,7 +926,6 @@ html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;an
   --g-acc-a:#2B9A9C;--g-acc-b:#5FD3D0;--g-money-a:#2B9A9C;--g-money-b:#5FD3D0;--g-ot-a:#C98A3A;--g-ot-b:#F2B866;--g-hot-a:#B9503E;--g-hot-b:#F08A70;
   --k-morning:#A3C7CB;--k-noon:#A3C7CB;--k-evening:#A3C7CB;--k-night:#E2F2F3;--k-shabbat:#E8C873;--k-chag:#E8C873;
   --c1:#5FD3D0;--c2:#F2B866;--c3:#E8C873;--pen-ink:#5FD3D0;--gold-ink:#E8C873;--accent-ink:#5FD3D0;--shadow:none}
-:root[data-theme=ocean] .hero{background:linear-gradient(180deg,color-mix(in srgb,var(--surface2) 70%,var(--bg)),var(--surface))}
 :root[data-theme=ocean] .k-night.kic{background:var(--ink);color:var(--bg)}
 :root[data-theme=plum]{
   --bg:#171021;--surface:#20172D;--surface2:#2B203B;--ink:#F0E8F8;--ink2:#C3B3D6;--ink3:#8C7AA3;--line:#382A4C;
@@ -936,7 +933,6 @@ html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;an
   --g-acc-a:#7E52C9;--g-acc-b:#C49BFF;--g-money-a:#7E52C9;--g-money-b:#C49BFF;--g-ot-a:#C98A3A;--g-ot-b:#F2B866;--g-hot-a:#B9503E;--g-hot-b:#F08A70;
   --k-morning:#C3B3D6;--k-noon:#C3B3D6;--k-evening:#C3B3D6;--k-night:#F0E8F8;--k-shabbat:#EAC77A;--k-chag:#EAC77A;
   --c1:#C49BFF;--c2:#F2B866;--c3:#EAC77A;--pen-ink:#C49BFF;--gold-ink:#EAC77A;--accent-ink:#C49BFF;--shadow:none}
-:root[data-theme=plum] .hero{background:linear-gradient(180deg,color-mix(in srgb,var(--surface2) 70%,var(--bg)),var(--surface))}
 :root[data-theme=plum] .k-night.kic{background:var(--ink);color:var(--bg)}
 :root[data-theme=ember]{
   --bg:#1A100C;--surface:#241612;--surface2:#301E18;--ink:#F7E9E0;--ink2:#D2B4A4;--ink3:#9A7B6C;--line:#3D2820;
@@ -944,7 +940,6 @@ html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;an
   --g-acc-a:#D9581F;--g-acc-b:#FF9A5C;--g-money-a:#D9581F;--g-money-b:#FF9A5C;--g-ot-a:#C98A3A;--g-ot-b:#F2B866;--g-hot-a:#B9503E;--g-hot-b:#F08A70;
   --k-morning:#D2B4A4;--k-noon:#D2B4A4;--k-evening:#D2B4A4;--k-night:#F7E9E0;--k-shabbat:#F2C064;--k-chag:#F2C064;
   --c1:#FF8A4C;--c2:#F2B866;--c3:#F2C064;--pen-ink:#FF8A4C;--gold-ink:#F2C064;--accent-ink:#FF8A4C;--shadow:none}
-:root[data-theme=ember] .hero{background:linear-gradient(180deg,color-mix(in srgb,var(--surface2) 70%,var(--bg)),var(--surface))}
 :root[data-theme=ember] .k-night.kic{background:var(--ink);color:var(--bg)}
 :root[data-theme=sand]{
   --bg:#F2EDDF;--surface:#FBF8EF;--surface2:#E6DEC9;--ink:#2A2618;--ink2:#5E5741;--ink3:#8D856B;--line:#DCD2B8;
@@ -958,9 +953,7 @@ html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;an
   --g-acc-a:#1FA866;--g-acc-b:#39D98A;--g-money-a:#1FA866;--g-money-b:#39D98A;--g-ot-a:#C98A3A;--g-ot-b:#F2B866;--g-hot-a:#B9503E;--g-hot-b:#F08A70;
   --k-morning:#8FBFA3;--k-noon:#8FBFA3;--k-evening:#8FBFA3;--k-night:#D7F5E3;--k-shabbat:#E6D15A;--k-chag:#E6D15A;
   --c1:#39D98A;--c2:#F2B866;--c3:#E6D15A;--pen-ink:#39D98A;--gold-ink:#E6D15A;--accent-ink:#39D98A;--shadow:none}
-:root[data-theme=dev] .hero{background:linear-gradient(180deg,color-mix(in srgb,var(--surface2) 70%,var(--bg)),var(--surface))}
 :root[data-theme=dev] .k-night.kic{background:var(--ink);color:var(--bg)}
-:root[data-theme=dev] .num{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;letter-spacing:-.02em}
 
 /* ================= gradient supporter themes ================= */
 :root[data-theme=aurora]{
@@ -1005,3 +998,10 @@ html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;an
 :root[data-theme=aurora] .goal-bar i,:root[data-theme=dawn] .goal-bar i,:root[data-theme=neon] .goal-bar i,:root[data-theme=rosegold] .goal-bar i{background:linear-gradient(90deg,var(--g-acc-a),var(--g-acc-b));border-radius:5px}
 :root[data-theme=aurora] .btn.primary,:root[data-theme=dawn] .btn.primary,:root[data-theme=neon] .btn.primary,:root[data-theme=rosegold] .btn.primary{background:linear-gradient(135deg,var(--g-acc-a),var(--g-acc-b));border:0;color:#fff}
 :root[data-theme=aurora] .fab,:root[data-theme=dawn] .fab,:root[data-theme=neon] .fab,:root[data-theme=rosegold] .fab{background:linear-gradient(135deg,var(--g-acc-a),var(--g-acc-b));color:#fff}
+.brand .devtag{font-size:.72rem;font-weight:600;color:var(--accent);margin-inline-start:4px;align-self:flex-end;margin-bottom:4px;letter-spacing:0}
+/* summary card in the dark supporter themes: the theme's own color, dark text */
+:root[data-theme=gold] .hero,:root[data-theme=night] .hero,:root[data-theme=forest] .hero,:root[data-theme=ocean] .hero,:root[data-theme=plum] .hero,:root[data-theme=ember] .hero,:root[data-theme=dev] .hero{background:linear-gradient(150deg,var(--g-acc-b),var(--g-acc-a));color:var(--bg)}
+:root[data-theme=gold] .hero :is(small,span,em,.sub,.meta),:root[data-theme=night] .hero :is(small,span,em,.sub,.meta),:root[data-theme=forest] .hero :is(small,span,em,.sub,.meta),:root[data-theme=ocean] .hero :is(small,span,em,.sub,.meta),:root[data-theme=plum] .hero :is(small,span,em,.sub,.meta),:root[data-theme=ember] .hero :is(small,span,em,.sub,.meta),:root[data-theme=dev] .hero :is(small,span,em,.sub,.meta){color:color-mix(in srgb,var(--bg) 78%,transparent)}
+:root[data-theme=rosegold] .hero{background:linear-gradient(135deg,#9A5463,#C7856A)}
+:root[data-theme=dawn] .hero{background:linear-gradient(135deg,#D9506F,#8E6BE0)}
+:root[data-theme=rosegold] .hero :is(small,span,em,.sub,.meta),:root[data-theme=dawn] .hero :is(small,span,em,.sub,.meta){color:rgba(255,255,255,.86)}
