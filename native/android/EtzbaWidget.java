@@ -101,7 +101,7 @@ public class EtzbaWidget extends AppWidgetProvider {
     private static final class State {
         final boolean active, rtl, otOn, running;
         final long start, now;
-        final String job, phase;
+        final String job, phase, style;
         final double rate, thr, ot1h, hours, earned, frac;
         final JSONObject l, theme, month;
         final JSONArray segs;
@@ -122,6 +122,7 @@ public class EtzbaWidget extends AppWidgetProvider {
             thr = x.optDouble("thr", 8.6);
             ot1h = x.optDouble("ot1", 2);
             otOn = x.optBoolean("otOn", true);
+            style = x.optString("wstyle", "classic");   // supporters: classic | glass | bold | accent
             JSONArray sg;
             try { sg = new JSONArray(p.getString("segs", "[]")); } catch (Exception e) { sg = new JSONArray(); }
             segs = sg;
@@ -179,8 +180,17 @@ public class EtzbaWidget extends AppWidgetProvider {
 
         // direction and colours follow the app
         v.setInt(root, "setLayoutDirection", s.rtl ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
-        if (Build.VERSION.SDK_INT >= 31) v.setColorStateList(root, "setBackgroundTintList", ColorStateList.valueOf(s.c("surface", 0xFF1D1F23)));
+        // supporters' styles: see-through, big numbers, or the theme's color as the background
+        int bg = s.c("surface", 0xFF1D1F23);
+        if (s.style.equals("glass")) bg = (bg & 0x00FFFFFF) | 0x8C000000;
+        if (s.style.equals("accent")) bg = s.c("accent", bg);
+        if (Build.VERSION.SDK_INT >= 31) v.setColorStateList(root, "setBackgroundTintList", ColorStateList.valueOf(bg));
         int ink = s.ink(), muted = s.muted(), pc = s.phaseText();
+        if (s.style.equals("accent")) { ink = s.c("bg", 0xFF141518); muted = (ink & 0x00FFFFFF) | 0xB3000000; pc = ink; }
+        if (s.style.equals("bold")) {
+            v.setTextViewTextSize(timer, android.util.TypedValue.COMPLEX_UNIT_SP, size == Size.SMALL ? 30 : 42);
+            if (size != Size.SMALL) v.setTextViewTextSize(amt, android.util.TypedValue.COMPLEX_UNIT_SP, 24);
+        }
         v.setTextColor(timer, ink);
         v.setTextColor(title, ink);
         v.setTextColor(line, s.running ? pc : muted);

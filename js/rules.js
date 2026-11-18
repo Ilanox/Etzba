@@ -11,10 +11,11 @@ const KEY = 'etzba.rules', CHECKED = 'etzba.rules.checked', DAY = 864e5;
 
 // keep in step with data/rules.json
 export const BUILT_IN = {
-  version: 2,
+  version: 3,
   minWage: [{ from: '2025-04-01', hourly: 34.32 }, { from: '2026-04-01', hourly: 35.40 }],
   elections: [{ date: '2026-10-27', name: 'בחירות לכנסת' }],
   travelMaxDaily: 22.6,
+  early: { recap: '2026-12-20' },   // early access: supporters get these now, everyone else from the date
   havraa: { 2025: 418, 2026: 451.5 },      // a recuperation day, private sector (extension order)
   havraaDays: [5, 6, 6, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 9, 9, 9, 9, 10],   // days a year after 1, 2, … 20+ years
   tax: {

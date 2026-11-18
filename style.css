@@ -1007,3 +1007,37 @@ html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;an
 :root[data-theme=rosegold] .hero :is(small,span,em,.sub,.meta),:root[data-theme=dawn] .hero :is(small,span,em,.sub,.meta){color:rgba(255,255,255,.86)}
 :root[data-theme=gold]{--ring-a:#B98A2A;--ring-b:#F3D27A}
 :root:is([data-theme=light],[data-theme=dark]){--ring-a:var(--accent);--ring-b:color-mix(in srgb,var(--accent) 55%,#fff)}
+
+/* the year in Etzba */
+.recap-btn{display:flex;align-items:center;gap:12px;width:100%;margin-top:12px;padding:16px;border-radius:var(--r-lg);text-align:start;color:#fff;
+  background:linear-gradient(120deg,#2B1055,#C33764 60%,#FF6A00);border:0}
+.recap-btn b{display:block;font-size:1.05rem;font-weight:800}.recap-btn small{display:block;opacity:.85;font-size:.8rem;margin-top:2px}
+.recap-btn svg{width:20px;height:20px}.recap-btn.locked{filter:saturate(.6)}
+.recap{position:fixed;inset:0;z-index:70;color:#fff;display:flex;flex-direction:column;transition:background .5s;user-select:none;
+  padding:calc(env(safe-area-inset-top,0px) + 14px) 22px calc(env(safe-area-inset-bottom,0px) + 30px)}
+.rc-prog{display:flex;gap:4px}.rc-prog i{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.3);overflow:hidden}
+.rc-prog i b{display:block;height:100%;width:0;background:#fff}
+.rc-prog i.done b{width:100%}.rc-prog i.now b{animation:rcbar 6.5s linear forwards}
+@keyframes rcbar{to{width:100%}}
+.rc-x{position:absolute;top:calc(env(safe-area-inset-top,0px) + 26px);inset-inline-end:16px;width:40px;height:40px;color:#fff;display:grid;place-items:center}
+.rc-x svg{width:22px;height:22px}
+.rc-slide{flex:1;display:flex;flex-direction:column;justify-content:center;gap:14px;padding-bottom:40px}
+.rc-slide small{font-size:1rem;font-weight:600;opacity:.85;letter-spacing:.02em}
+.rc-slide h1{font-size:clamp(3rem,15vw,5.5rem);font-weight:900;line-height:1.02;letter-spacing:-.03em}
+.rc-slide p{font-size:1.2rem;line-height:1.5;opacity:.92;max-width:22em}
+.rc-slide.in > *{animation:rcin .6s cubic-bezier(.2,.8,.2,1) both}
+.rc-slide.in > *:nth-child(2){animation-delay:.08s}.rc-slide.in > *:nth-child(3){animation-delay:.18s}.rc-slide.in > *:nth-child(4){animation-delay:.28s}
+@keyframes rcin{from{opacity:0;transform:translateY(22px)}}
+.rc-bars{display:flex;align-items:flex-end;gap:5px;height:120px;margin-top:10px}
+.rc-bars i{flex:1;background:rgba(255,255,255,.35);border-radius:3px 3px 0 0}.rc-bars i.on{background:#fff}
+.rc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.rc-grid div{background:rgba(255,255,255,.13);border-radius:16px;padding:14px}
+.rc-grid b{display:block;font-size:1.5rem;font-weight:800}.rc-grid span{font-size:.85rem;opacity:.85}
+.rc-share{margin-top:18px;display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border-radius:14px;background:#fff;color:#1a1a1a;font-weight:800;font-size:1rem}
+.rc-share svg{width:20px;height:20px}
+@media (prefers-reduced-motion:reduce){.rc-slide.in > *{animation:none}.rc-prog i.now b{animation:none;width:100%}}
+
+/* supporters: rings ripple from the dial on clock-in; confetti on the month's goal */
+.punch-btn .ripple{position:absolute;inset:0;border-radius:50%;border:3px solid var(--ring-a,var(--g-acc-a));pointer-events:none;animation:ripple 1.2s cubic-bezier(.2,.8,.2,1) both}
+@keyframes ripple{from{transform:scale(.92);opacity:.9}to{transform:scale(1.45);opacity:0}}
+.confetti{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:80}

@@ -551,6 +551,30 @@ function planReminders() {
   return out;
 }
 
+/* ================= supporters: a little celebration ================= */
+function celebrate(kind) {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  native.haptic(kind === 'goal' ? 'success' : 'heavy') || (() => { try { navigator.vibrate?.([30, 40, 60]); } catch {} })();
+  if (reduce) return;
+  if (kind === 'in') {   // rings ripple out from the dial
+    const b = $('#punchBtn'); if (!b) return;
+    for (let k = 0; k < 3; k++) { const r = document.createElement('i'); r.className = 'ripple'; r.style.animationDelay = k * 140 + 'ms'; b.appendChild(r); setTimeout(() => r.remove(), 1400); }
+    return;
+  }
+  // confetti in the theme's colors
+  const c = document.createElement('canvas'), x = c.getContext('2d'), dpr = devicePixelRatio || 1;
+  c.className = 'confetti'; c.width = innerWidth * dpr; c.height = innerHeight * dpr; document.body.appendChild(c); x.scale(dpr, dpr);
+  const cs = getComputedStyle(document.documentElement), cols = ['--g-acc-a', '--g-acc-b', '--gold', '--accent', '--pen'].map(v => cs.getPropertyValue(v).trim() || '#f5b');
+  const P = Array.from({ length: 120 }, () => ({ x: innerWidth / 2, y: innerHeight * .45, vx: (Math.random() - .5) * 14, vy: -Math.random() * 14 - 4, r: Math.random() * 6.28, vr: (Math.random() - .5) * .3, w: 6 + Math.random() * 6, c: cols[Math.floor(Math.random() * cols.length)] }));
+  const t0 = performance.now();
+  const step = t => {
+    x.clearRect(0, 0, innerWidth, innerHeight);
+    for (const p of P) { p.vy += .35; p.x += p.vx; p.y += p.vy; p.r += p.vr; x.save(); x.translate(p.x, p.y); x.rotate(p.r); x.fillStyle = p.c; x.fillRect(-p.w / 2, -p.w / 4, p.w, p.w / 2); x.restore(); }
+    if (t - t0 < 2200) requestAnimationFrame(step); else c.remove();
+  };
+  requestAnimationFrame(step);
+}
+
 /* ================= the month's goal ================= */
 /** What an ordinary shift pays: the average of the last 8 weeks, leaving out Shabbat, holiday and
     election-day shifts (they pay more and would make the count too hopeful). Hours, travel and bonus. */
@@ -670,7 +694,8 @@ function onPunch() {
     const plan = planNow(jobId);   // clocking in for a planned shift: it's happening, so it's no longer a plan
     if (plan) S.plans = S.plans.filter(x => x !== plan);
     if (!persist()) { S.active = null; if (plan) S.plans.push(plan); return; }
-    buzz(35); askPersist(); planNotifications(true);
+    if (S.settings.supported) celebrate('in'); else buzz(35);
+    askPersist(); planNotifications(true);
     announce(`משמרת התחילה ב־${tm(S.active.start)}`);
     toast(`נכנסת למשמרת ב־${tm(S.active.start)} · אפשר לשנות את השעה`, 'ok', { label: 'ביטול', fn: () => { S.active = null; persist(); renderHome(); toast('הכניסה בוטלה'); announce('הכניסה בוטלה'); } });
     renderHome();
@@ -682,8 +707,12 @@ function onPunch() {
     const sh = { id: uid(), jobId: a.jobId, start: a.start, end: end.toISOString(), breakMin: job.breakMin || 0, bonus: 0, note: '', rest: 'auto' };
     S.shifts.push(sh); S.active = null;
     const d = new Date(sh.start); viewY = d.getFullYear(); viewM = d.getMonth();
+    const g0 = goalState(withLive(monthCalc(viewY, viewM)));
     commit(); buzz(25); announce('המשמרת נשמרה');
     openShiftDone(sh, a);
+    // reaching the month's goal with this shift: a small celebration (supporters)
+    const g1 = goalState(monthCalc(viewY, viewM));
+    if (S.settings.supported && g0 && g1 && g0.left > 0 && g1.left <= 0) setTimeout(() => { celebrate('goal'); toast('הגעת ליעד של החודש!', 'ok'); }, 450);
   }
 }
 
@@ -1272,6 +1301,94 @@ async function openSupport() {
   });
 }
 
+/* ================= the year in Etzba (a Wrapped-style recap) ================= */
+// Early access: supporters get it right away, everyone else from the date in the yearly rules file.
+const earlyOpen = name => { const d = rules().early?.[name]; return !d || dateKey(new Date()) >= d; };
+const recapOpen = () => !!S.settings.supported || earlyOpen('recap');
+function recapStats(y) {
+  const list = S.shifts.filter(s => new Date(s.start).getFullYear() === y).map(s => ({ s, p: PAY.get(s.id) })).filter(x => x.p);
+  if (!list.length) return null;
+  const Ms = Array.from({ length: 12 }, (_, m) => monthCalc(y, m));
+  const gross = Ms.reduce((a, M) => a + M.gross, 0), net = Ms.reduce((a, M) => a + (M.gross ? M.net.net : 0), 0);
+  const hours = list.reduce((a, x) => a + x.p.hours, 0);
+  const longest = list.reduce((a, x) => x.p.hours > a.p.hours ? x : a);
+  const best = Ms.reduce((a, M) => M.gross > a.gross ? M : a, Ms[0]);
+  const kinds = {}; for (const x of list) { const k = shiftKind(x.s, x.p); kinds[k] = (kinds[k] || 0) + 1; }
+  const day = [0, 0, 0, 0, 0, 0, 0]; for (const x of list) day[new Date(x.s.start).getDay()]++;
+  const topDay = day.indexOf(Math.max(...day));
+  const daily = ['morning', 'noon', 'evening', 'night'].sort((a, b) => (kinds[b] || 0) - (kinds[a] || 0))[0];
+  const rest = list.filter(x => x.p.restHours > 0.01);
+  const ot = list.reduce((a, x) => a + x.p.otHours, 0);
+  const tips = list.reduce((a, x) => a + (x.p.tips || 0), 0);
+  const first = list.reduce((a, x) => new Date(x.s.start) < new Date(a.s.start) ? x : a);
+  const jobs = {}; for (const x of list) jobs[x.s.jobId] = (jobs[x.s.jobId] || 0) + x.p.hours;
+  const topJob = jobById(Object.entries(jobs).sort((a, b) => b[1] - a[1])[0][0]);
+  return { y, count: list.length, hours, gross, net, longest, best, kinds, topDay, daily, rest: rest.length, restHours: rest.reduce((a, x) => a + x.p.restHours, 0),
+    ot, tips, first, topJob, months: Ms.map(M => M.gross), perHour: hours ? gross / hours : 0 };
+}
+const hrs = h => { const r = Math.round(h * 2) / 2; return (r % 1 ? r.toFixed(1) : String(r)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+const RECAP_BG = ['linear-gradient(160deg,#2B1055,#7597DE)', 'linear-gradient(160deg,#0F2027,#2C5364)', 'linear-gradient(160deg,#F7971E,#FFD200)', 'linear-gradient(160deg,#1D976C,#93F9B9)',
+  'linear-gradient(160deg,#EE0979,#FF6A00)', 'linear-gradient(160deg,#4568DC,#B06AB3)', 'linear-gradient(160deg,#141E30,#243B55)', 'linear-gradient(160deg,#C33764,#1D2671)', 'linear-gradient(160deg,#000428,#004E92)'];
+const KIND_LINE = { morning: ['טיפוס של בוקר', 'רוב המשמרות שלך התחילו לפני 11 בבוקר.'], noon: ['טיפוס של צהריים', 'רוב המשמרות שלך התחילו באמצע היום.'],
+  evening: ['טיפוס של ערב', 'רוב המשמרות שלך התחילו אחרי הצהריים.'], night: ['ינשוף לילה', 'רוב המשמרות שלך היו בלילה.'] };
+function openRecap(y) {
+  const R = recapStats(y);
+  if (!R) return toast(`אין משמרות ב־${y}`);
+  const days = Math.floor(R.hours / 24), maxM = Math.max(...R.months, 1);
+  const slides = [
+    `<small>${y}</small><h1>השנה שלך באצבע</h1><p>בוא נראה מה עשית השנה.</p>`,
+    `<small>שעות עבודה</small><h1 class="num">${Math.round(R.hours).toLocaleString('he-IL')}</h1><p>${days ? `יותר מ־${days} ימים שלמים בלי הפסקה, ב־${R.count} משמרות.` : `ב־${R.count} משמרות.`}</p>`,
+    `<small>המשמרת הכי ארוכה</small><h1 class="num">${hrs(R.longest.p.hours)} שעות</h1><p>${DAYS[new Date(R.longest.s.start).getDay()]} ${dFull(R.longest.s.start)}, <span dir="ltr" class="num">${tm(R.longest.s.start)}–${tm(R.longest.s.end)}</span>.</p>`,
+    `<small>הרווחת השנה</small><h1 class="num">${money(R.gross)}</h1><p>ברוטו, כ־${money(R.net)} נטו. בממוצע ${money2(R.perHour)} לשעה.</p>`,
+    `<small>החודש הכי חזק</small><h1>${MONTHS[R.best.m]}</h1><p class="num">${money(R.best.gross)} ברוטו</p><div class="rc-bars">${R.months.map((g, m) => `<i style="height:${Math.max(4, g / maxM * 100)}%"${m === R.best.m ? ' class="on"' : ''}></i>`).join('')}</div>`,
+    `<small>הסגנון שלך</small><h1>${KIND_LINE[R.daily][0]}</h1><p><span>${KIND_LINE[R.daily][1]}</span> <span>היום הכי עמוס שלך: ${DAYS[R.topDay]}.</span></p>`,
+    `<small>מעבר לשגרה</small><h1 class="num">${hrs(R.ot)}</h1><p><span>שעות נוספות.</span>${R.rest ? ` <span>${R.rest} משמרות בשבת או בחג.</span>` : ''}${R.tips ? ` <span>ועוד ${money(R.tips)} טיפים.</span>` : ''}</p>`,
+    `<small>הסיכום של ${y}</small><div class="rc-grid">
+      <div><b class="num">${Math.round(R.hours)}</b><span>שעות</span></div><div><b class="num">${R.count}</b><span>משמרות</span></div>
+      <div><b class="num">${money(R.gross)}</b><span>ברוטו</span></div><div><b>${MONTHS[R.best.m]}</b><span>החודש הכי חזק</span></div>
+      <div><b class="num">${hrs(R.longest.p.hours)} ש׳</b><span>המשמרת הכי ארוכה</span></div><div><b>${KIND_LINE[R.daily][0]}</b><span>הסגנון</span></div></div>
+      <button class="rc-share" id="rc-share">${I.share}שיתוף</button>`,
+  ];
+  const ov = document.createElement('div'); ov.className = 'recap'; ov.setAttribute('role', 'dialog');
+  ov.innerHTML = `<div class="rc-prog">${slides.map(() => '<i><b></b></i>').join('')}</div><button class="rc-x" aria-label="סגירה">${I.x}</button><div class="rc-slide"></div>`;
+  document.body.appendChild(ov);
+  let i = 0, timer;
+  const show = n => {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    ov.style.background = RECAP_BG[i % RECAP_BG.length];
+    const sl = $('.rc-slide', ov); sl.innerHTML = slides[i]; sl.classList.remove('in'); void sl.offsetWidth; sl.classList.add('in');
+    $$('.rc-prog i', ov).forEach((p, k) => { p.className = k < i ? 'done' : k === i ? 'now' : ''; });
+    clearTimeout(timer); if (i < slides.length - 1) timer = setTimeout(() => show(i + 1), 6500);
+    $('#rc-share', ov) && ($('#rc-share', ov).onclick = e => { e.stopPropagation(); shareRecap(R); });
+  };
+  const close = () => { clearTimeout(timer); ov.remove(); };
+  $('.rc-x', ov).onclick = e => { e.stopPropagation(); close(); };
+  ov.onclick = e => { const back = (e.clientX < innerWidth / 3) !== EN; show(i + (back ? -1 : 1)); buzz(5); };
+  show(0);
+}
+async function shareRecap(R) {
+  const W = 1080, H = 1920, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d'), g = x.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, '#2B1055'); g.addColorStop(.55, '#C33764'); g.addColorStop(1, '#FF6A00');
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  try { await document.fonts.load('800 80px Heebo'); } catch {}
+  x.direction = EN ? 'ltr' : 'rtl'; x.textAlign = 'center'; x.fillStyle = '#fff';
+  const T = t => tr(t), F = (w, s) => `${w} ${s}px Heebo, sans-serif`;
+  x.font = F(500, 44); x.globalAlpha = .85; x.fillText(T('השנה שלי באצבע'), W / 2, 230); x.globalAlpha = 1;
+  x.font = F(800, 170); x.fillText(String(R.y), W / 2, 420);
+  const cells = [[String(Math.round(R.hours)), T('שעות')], [String(R.count), T('משמרות')], [money(R.gross), T('ברוטו')], [T(MONTHS[R.best.m]), T('החודש הכי חזק')],
+    [`${hrs(R.longest.p.hours)} ${T('ש׳')}`, T('המשמרת הכי ארוכה')], [T(KIND_LINE[R.daily][0]), T('הסגנון')]];
+  cells.forEach(([v, l], k) => {
+    const cx = k % 2 ? W * .28 : W * .72, cy = 640 + Math.floor(k / 2) * 330;
+    x.fillStyle = 'rgba(255,255,255,.12)'; x.beginPath(); x.roundRect(cx - 220, cy - 120, 440, 260, 36); x.fill();
+    x.fillStyle = '#fff'; x.font = F(800, v.length > 8 ? 62 : 84); x.fillText(v, cx, cy + 20);
+    x.globalAlpha = .8; x.font = F(500, 38); x.fillText(l, cx, cy + 90); x.globalAlpha = 1;
+  });
+  x.globalAlpha = .75; x.font = F(500, 36); x.fillText('Etzba · etzba.ilanox.dev', W / 2, H - 120); x.globalAlpha = 1;
+  const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  await deliver(`etzba-${R.y}.png`, new Uint8Array(await blob.arrayBuffer()), 'image/png');
+}
+
 /* ================= STATS ================= */
 const GROUPS = ['רגיל', 'נוספות', 'שבת וחג'];
 function agg(list) {
@@ -1336,6 +1453,7 @@ function sumYear(el) {
   const H = items.reduce((a, x) => (a[0] += x.h[0], a[1] += x.h[1], a[2] += x.h[2], a), [0, 0, 0]);
   const k = (l, v, s = '') => `<div class="kpi"><small>${l}</small><b class="num">${v}</b>${s ? `<em>${s}</em>` : ''}</div>`;
   el.innerHTML = `<div class="monthbar"><button class="ibtn" data-yn="-1" aria-label="שנה קודמת">${I.chevR}</button><b class="num">${viewY}</b><button class="ibtn" data-yn="1" aria-label="שנה הבאה">${I.chevL}</button></div>
+    ${T.count ? `<button class="recap-btn${recapOpen() ? '' : ' locked'}" id="openRecap"><span class="grow"><b>השנה שלך באצבע</b><small>${recapOpen() ? 'סיכום השנה כמו סטורי, עם תמונה לשיתוף' : `ייפתח לכולם ב־${dFull(rules().early.recap + 'T12:00:00')} · לתומכים כבר עכשיו`}</small></span>${recapOpen() ? I.chevL : I.lock}</button>` : ''}
     ${T.count ? `<div class="kpis" style="margin-top:12px">
       ${k('ברוטו שנתי', money(T.gross))}${k('נטו משוער', money(T.net), `מס הכנסה ${money(T.tax)}`)}
       ${k('שעות', hm(T.hours), `${T.count} משמרות`)}${k('ממוצע לשעה', money2(T.hours ? T.gross / T.hours : 0), 'כולל תוספות')}
@@ -1351,6 +1469,7 @@ function sumYear(el) {
     : `<div class="card" style="margin-top:12px"><div class="empty"><div class="eic">${I.receipt}</div>אין משמרות ב־${viewY}</div></div>`}
     <p class="fine">הנטו השנתי הוא סכום ההערכות החודשיות. החישוב הסופי נעשה בתיאום מס שנתי.</p>`;
   $$('[data-yn]', el).forEach(b => b.onclick = () => { viewY += +b.dataset.yn; renderSum(); });
+  $('#openRecap', el) && ($('#openRecap', el).onclick = () => recapOpen() ? openRecap(viewY) : (native.billing.available() ? openSupport() : toast(`ייפתח ב־${dFull(rules().early.recap + 'T12:00:00')}`)));
   if (!T.count) return;
   mountChart($('#yrChart', el), items, viewY === new Date().getFullYear() ? new Date().getMonth() : undefined); bindMetric(el);
   $$('[data-gm]', el).forEach(b => b.onclick = () => { viewM = +b.dataset.gm; S.ui.sumView = 'month'; persist(); renderSum(); scrollTo(0, 0); });
@@ -1493,6 +1612,7 @@ function renderSet() {
     <div class="sec"><span>${secIc('noon', 'gold')}מראה</span></div>
     <div class="card pad"><div class="themes" id="s-theme">${THEMES.map(themeBtn).join('')}</div>
       ${native.billing.available() || st.supported ? `<div class="themes-h">${st.owner ? `${I.gear}מצב מפתח` : `${I.heart}${st.supported ? 'בתודה על התמיכה' : 'לתומכים באצבע'}`}</div><div class="themes" id="s-theme2">${[...THEMES_SUPPORT, ...(st.owner ? [THEME_DEV] : [])].map(themeBtn).join('')}</div>` : ''}
+      ${st.supported && native.PLATFORM === 'android' ? `<div class="themes-h">סגנון הווידג׳ט</div><div class="seg" id="s-wstyle">${[['classic', 'רגיל'], ['glass', 'שקוף'], ['bold', 'מספרים גדולים'], ['accent', 'צבעוני']].map(([k, n]) => `<button data-w="${k}" class="${(st.widgetStyle || 'classic') === k ? 'on' : ''}">${n}</button>`).join('')}</div>` : ''}
       ${st.supported && (native.billing.available() || native.PLATFORM === 'android') ? `<div class="themes-h">אייקון האפליקציה</div><div class="icons" id="s-icon">${ICONS.map(([k, n, f]) => `<button data-ic="${k}" class="${(st.icon || 'default') === k ? 'on' : ''}"><img src="icons/${f}" alt="">${n}</button>`).join('')}</div>` : ''}
       <div class="field"><span>שפה</span><div class="seg" id="s-lang">${LANGS.map(l => `<button data-l="${l.code}" class="${l.code === LANG ? 'on' : ''}" data-keep>${l.name}</button>`).join('')}</div></div></div>
 
@@ -1547,6 +1667,7 @@ function renderSet() {
     if (THEMES_SUPPORT.some(t => t[0] === b.dataset.t) && !S.settings.supported) return openSupport();
     S.settings.theme = b.dataset.t; applyTheme(); commit();
   });
+  $$('#s-wstyle button', el).forEach(b => b.onclick = () => { S.settings.widgetStyle = b.dataset.w; persist(); renderSet(); toast('הווידג׳ט יתעדכן בעוד רגע', 'ok'); });
   $$('#s-icon button', el).forEach(b => b.onclick = async () => {
     try { await native.billing.setIcon(b.dataset.ic); S.settings.icon = b.dataset.ic; persist(); renderSet(); toast('האייקון יתחלף בעוד רגע במסך הבית', 'ok'); }
     catch (e) { report(e); toast('לא הצלחתי להחליף את האייקון', 'err'); }
@@ -2208,10 +2329,10 @@ function syncWidget() {
   }
   const now = new Date(), M = monthCalc(now.getFullYear(), now.getMonth());
   const theme = Object.fromEntries([['bg', '--bg'], ['surface', '--surface'], ['line', '--line'], ['ink', '--ink'], ['ink3', '--ink3'],
-    ['rega', '--g-money-a'], ['regb', '--g-money-b'], ['ot1a', '--g-ot-a'], ['ot1b', '--g-ot-b'], ['ot2a', '--g-hot-a'], ['ot2b', '--g-hot-b'], ['hub', '--g-acc-a']]
+    ['accent', '--accent'], ['rega', '--g-money-a'], ['regb', '--g-money-b'], ['ot1a', '--g-ot-a'], ['ot1b', '--g-ot-b'], ['ot2a', '--g-hot-a'], ['ot2b', '--g-hot-b'], ['hub', '--g-acc-a']]
     .map(([k, v]) => [k, cssHex(v)]));
   const state = { active: !!a, start: a ? +new Date(a.start) : 0, job: job?.name || '', rate: +job?.rate || 0, rtl: document.documentElement.dir === 'rtl', segs,
-    extra: { thr, ot1: job?.ot1Hours ?? 2, otOn: job?.otOn !== false, theme: S.settings.supported ? { ...theme, ring: (S.settings.theme === 'gold' ? '#D9A93F' : cssHex('--accent')) } : theme, month: { name: MONTHS[now.getMonth()], gross: money(M.gross), count: M.shifts.length } },
+    extra: { thr, ot1: job?.ot1Hours ?? 2, otOn: job?.otOn !== false, theme: S.settings.supported ? { ...theme, ring: (S.settings.theme === 'gold' ? '#D9A93F' : cssHex('--accent')) } : theme, wstyle: S.settings.supported ? (S.settings.widgetStyle || 'classic') : 'classic', month: { name: MONTHS[now.getMonth()], gross: money(M.gross), count: M.shifts.length } },
     labels: EN
       ? { idle: 'Not on shift', starts: 'Starts ', since: 'since ', perHour: 'per hour', toOt: 'Overtime in {t}', now: 'Now: ', shortReg: 'regular', shortOt: 'overtime',
           tapStart: 'Tap the dial to clock in', tapShort: 'Tap to start', gross: 'gross', shifts: 'shifts' }

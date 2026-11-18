@@ -343,3 +343,19 @@ test('planned shifts: a shift ahead is saved as a plan; one that passed asks if 
   assert.equal(st.plans.length, 0); assert.equal(st.shifts.length, 1, 'added as a shift');
   assert.deepEqual(errors, []); await ctx.close();
 });
+
+test('the year in Etzba: early for supporters, stories, and a picture to share', async () => {
+  const { page, ctx, errors } = await open();
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('etzba.v1')); const j = s.jobs[0]; const y = new Date().getFullYear(); s.shifts = [];
+    for (let m = 0; m < 3; m++) for (let d = 2; d < 20; d += 3) { const st = new Date(y, m, d, 9); s.shifts.push({ id: crypto.randomUUID(), jobId: j.id, start: st.toISOString(), end: new Date(+st + 8 * 36e5).toISOString(), breakMin: 0, bonus: 0, note: '', rest: 'auto' }); }
+    s.settings.supported = true; s.ui = { ...(s.ui || {}), sumView: 'year' }; localStorage.setItem('etzba.v1', JSON.stringify(s)); });
+  await page.reload(); await wait(page, 700);
+  await page.click('[data-v=sum]'); await wait(page, 500);
+  assert.ok(await page.locator('#openRecap').isVisible(), 'a recap button in the year view');
+  await page.click('#openRecap'); await wait(page, 600);
+  assert.ok(await page.locator('.recap').isVisible(), 'stories open');
+  for (let k = 0; k < 7; k++) { await page.mouse.click(300, 500); await wait(page, 150); }
+  const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.click('#rc-share')]);
+  assert.match(dl.suggestedFilename(), /\.png$/);
+  assert.deepEqual(errors, []); await ctx.close();
+});
