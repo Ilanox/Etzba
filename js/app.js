@@ -80,7 +80,7 @@ const darkMQ = matchMedia('(prefers-color-scheme: dark)');
 function applyTheme() {
   const t = S.settings.theme || 'auto', r = t === 'auto' ? (darkMQ.matches ? 'dark' : 'light') : t;
   document.documentElement.dataset.theme = r;
-  const bg = { light: '#F1EEE6', dark: '#141518', blurple: '#1E1F22', gold: '#15130E', night: '#0C1322', sunset: '#F7EEE8' }[r];
+  const bg = { light: '#F1EEE6', dark: '#141518', blurple: '#1E1F22', gold: '#15130E', night: '#0C1322', sunset: '#F7EEE8', forest: '#0F1712' }[r];
   document.querySelectorAll('meta[name=theme-color]').forEach(m => { m.removeAttribute('media'); m.content = bg; });
   document.documentElement.classList.toggle('supporter', !!S.settings.supported);
   native.setBars(r !== 'light' && r !== 'sunset');
@@ -1251,7 +1251,7 @@ async function openSupport() {
   };
   openSheet(`<div class="sp-ic">${I.heart}</div><h2 style="text-align:center">תמיכה באצבע</h2>
     <p class="shsub" style="text-align:center">אצבע חינמית, בלי פרסומות, והנתונים שלך נשארים בטלפון. אם היא עוזרת לך, אפשר לתמוך בפיתוח בתשלום חד־פעמי.</p>
-    <div class="note info" style="margin-top:12px">${I.heart}<span>בתודה: שלוש ערכות צבע מיוחדות, אייקונים אחרים לאפליקציה וטבעת זהב סביב החוגה. רק המראה משתנה: כל החישובים והזכויות זמינים לכולם.</span></div>
+    <div class="note info" style="margin-top:12px">${I.heart}<span>בתודה: ארבע ערכות צבע מיוחדות, אייקונים אחרים לאפליקציה וטבעת זהב סביב החוגה. רק המראה משתנה: כל החישובים והזכויות זמינים לכולם.</span></div>
     <div class="sp-main" id="sp-main"></div>
     <details class="sp-other"><summary>סכום אחר</summary><div class="qchips" id="sp-more"></div></details>
     <p class="hint" style="text-align:center">התשלום דרך Google Play. אפשר לתמוך כמה פעמים שרוצים.</p>`, root => {
@@ -1443,8 +1443,8 @@ function rightsEN(y, low, w, qa) {
 /* ================= SETTINGS ================= */
 const THEMES = [['auto', 'אוטומטי', 'linear-gradient(90deg,#F1EEE6 50%,#141518 50%)'], ['light', 'בהיר', '#F1EEE6'], ['dark', 'כהה', '#141518'], ['blurple', 'בלרפל', 'linear-gradient(90deg,#1E1F22 60%,#5865F2 60%)']];
 // for supporters, as a thank-you: looks only, never anything that changes pay
-const THEMES_SUPPORT = [['gold', 'זהב', 'linear-gradient(135deg,#15130E 55%,#E2B65A 55%)'], ['night', 'לילה', 'linear-gradient(135deg,#0C1322 55%,#8DB8FF 55%)'], ['sunset', 'שקיעה', 'linear-gradient(135deg,#F7EEE8 55%,#D2486A 55%)']];
-const ICONS = [['default', 'רגיל', 'app-default.png'], ['gold', 'זהב', 'app-gold.png'], ['night', 'לילה', 'app-night.png'], ['paper', 'נייר', 'app-paper.png']];
+const THEMES_SUPPORT = [['gold', 'זהב', 'linear-gradient(135deg,#15130E 55%,#E2B65A 55%)'], ['night', 'לילה', 'linear-gradient(135deg,#0C1322 55%,#8DB8FF 55%)'], ['sunset', 'שקיעה', 'linear-gradient(135deg,#F7EEE8 55%,#D2486A 55%)'], ['forest', 'יער', 'linear-gradient(135deg,#0F1712 55%,#7FD6A0 55%)']];
+const ICONS = [['default', 'רגיל', 'app-default.png'], ['gold', 'זהב', 'app-gold.png'], ['night', 'לילה', 'app-night.png'], ['paper', 'נייר', 'app-paper.png'], ['forest', 'יער', 'app-forest.png']];
 const themeBtn = ([k, n, bg]) => { const locked = THEMES_SUPPORT.some(t => t[0] === k) && !S.settings.supported;
   return `<button data-t="${k}" class="${(S.settings.theme || 'auto') === k ? 'on' : ''}${locked ? ' locked' : ''}"><i style="background:${bg}"></i>${n}${locked ? `<span class="lk">${I.lock}</span>` : ''}</button>`; };
 // a small colored icon before a section title; the same colors as the rows below it

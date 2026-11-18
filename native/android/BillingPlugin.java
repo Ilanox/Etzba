@@ -111,13 +111,13 @@ public class BillingPlugin extends Plugin implements PurchasesUpdatedListener {
     }
 
     /**
-     * A supporter's app icon: 'default', 'gold', 'night' or 'paper'. Each is an activity-alias in the
+     * A supporter's app icon: 'default', 'gold', 'night', 'paper' or 'forest'. Each is an activity-alias in the
      * manifest (scripts/native-setup.mjs); the chosen one is switched on first, so there's always one.
      */
     @PluginMethod
     public void setIcon(PluginCall call) {
         String want = call.getString("name", "default");
-        String[] all = { "Default", "Gold", "Night", "Paper" };
+        String[] all = { "Default", "Gold", "Night", "Paper", "Forest" };
         PackageManager pm = getContext().getPackageManager();
         String pkg = getContext().getPackageName();
         try {

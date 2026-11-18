@@ -159,7 +159,7 @@ export const billing = {
   products: ids => withP('Billing', b => b.products({ ids })).then(r => r?.products || []),
   /** { ok, cancelled } */
   buy: id => withP('Billing', b => b.buy({ id })),
-  /** A supporter's app icon: 'default' | 'gold' | 'night' | 'paper'. */
+  /** A supporter's app icon: 'default' | 'gold' | 'night' | 'paper' | 'forest'. */
   setIcon: name => withP('Billing', b => b.setIcon({ name })),
 };
 
