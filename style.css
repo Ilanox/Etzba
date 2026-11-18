@@ -1135,8 +1135,31 @@ button.today{width:100%;border-inline-end:1px solid var(--line)}
 button.hero-amt{display:block;width:100%;padding:0}
 #steps,#f-explain{scroll-margin-top:120px}
 
-/* large system fonts: keep the header and labels on one line, let shift rows wrap instead of cutting the date */
+/* large system fonts (Android text zoom, measured into --tz): one-line header and tabs, wrapping rows */
 .brand,.brand .devtag,.chip-net small,.chip-net b{white-space:nowrap}
 .tabs button .tl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;padding:0 2px}
 .srow .mid .tline{flex-wrap:wrap;white-space:normal}
 .srow .t1{min-width:0}
+/* things with a fixed size keep it: the time wheels (rows are 44px) */
+.wi{font-size:calc(1.35rem / var(--tz,1))}
+/* 130% and up: a roomier layout */
+html.tz-big .brand .devtag{display:none}
+html.tz-big .chip-net small{display:none}
+html.tz-big .tabs button .tl{display:none}
+html.tz-big .tiles{grid-template-columns:1fr}
+html.tz-big .tiles .today,html.tz-big button.today{border-inline-end:0;border-bottom:1px solid var(--line)}
+html.tz-big .grid2,html.tz-big .grid3{grid-template-columns:1fr}
+html.tz-big .seg{flex-wrap:wrap}
+html.tz-big .seg button{min-width:calc(50% - 4px);height:auto;min-height:44px;padding:6px 8px;line-height:1.25}
+html.tz-big .srow{flex-wrap:wrap}
+html.tz-big .srow .mid{flex-basis:calc(100% - 60px)}
+html.tz-big .srow .end{margin-inline-start:auto}
+html.tz-big .qchips button{height:auto;min-height:32px;padding:4px 12px}
+html.tz-big .tp{grid-template-columns:1fr;justify-items:center}
+html.tz-big .tp-arrow{display:none}
+html.tz-big .tp-col{width:100%}
+html.tz-big .punch-btn{width:min(48vw,190px)}
+html.tz-big .cell{flex-wrap:wrap}
+/* 165% and up: the biggest numbers stop growing so they still fit the width */
+html.tz-huge .punch-time,html.tz-huge .today b,html.tz-huge .hero .big,html.tz-huge .earn{font-size:calc(2rem / var(--tz,1) * 1.4)}
+html.tz-huge .rc-slide h1{font-size:calc(clamp(3.4rem,19vw,7rem) / var(--tz,1) * 1.2)}

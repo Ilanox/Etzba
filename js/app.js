@@ -2988,6 +2988,25 @@ step('notifications', () => {
     native.openNotificationSettings();
   });
 });
+/** How much the phone enlarges text (Android's font size): big text gets a roomier layout, and a few
+    fixed-size things (time wheels, the big clock digits) stay their size. etzba.tz in storage simulates it. */
+function measureTextZoom() {
+  let z = 1;
+  try {
+    const o = +localStorage.getItem('etzba.tz');
+    if (o) { z = o; document.documentElement.style.fontSize = (o * 100) + '%'; }
+    else {
+      const t = document.createElement('span');
+      t.style.cssText = 'position:absolute;visibility:hidden;font:100px/1 sans-serif;white-space:nowrap';
+      t.textContent = '0'; document.body.appendChild(t); z = t.getBoundingClientRect().height / 100; t.remove();
+    }
+  } catch { }
+  z = Math.max(1, Math.round(z * 100) / 100);
+  const h = document.documentElement;
+  h.style.setProperty('--tz', z); h.classList.toggle('tz-big', z >= 1.3); h.classList.toggle('tz-huge', z >= 1.65);
+  dbg.log('info', 'text zoom ' + z);
+}
+step('textzoom', measureTextZoom);
 step('a11y', () => { setSpeech(S.settings.speech || 'en', LANGS.find(l => l.code === 'en')?.pack); startA11y(); });
 step('rules', () => {
   // newer yearly figures from the internet (once a day at most); everything works without them
