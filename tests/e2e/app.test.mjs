@@ -194,13 +194,9 @@ test('release: no developer screens, one notifications switch', async () => {
   const { page, ctx, errors, state } = await open({ native: true });
   await page.click('[data-v=set]'); await wait(page);
   assert.equal(await page.locator('#s-debug, #s-dev').count(), 0, 'no diagnostics or developer tools');
-  for (let i = 0; i < 7; i++) await page.click('#s-ver');
-  await wait(page, 400);
-  assert.ok(await page.locator('#ow-code').isVisible(), 'asks for the developer code');
-  await page.fill('#ow-code', 'NOPE-NOPE-NOPE'); await page.click('#ow-go'); await wait(page);
-  assert.ok(!(await state()).settings.owner, 'a wrong code does nothing');
-  await page.evaluate(() => document.querySelector('#scrim').click()); await wait(page, 400);
-  assert.equal(await page.locator('#s-dev').count(), 0, 'still no developer tools');
+  for (let i = 0; i < 8; i++) await page.click('#s-ver');
+  await wait(page); assert.equal(await page.locator('#s-dev').count(), 0, 'tapping the version does nothing');
+  assert.equal(await page.locator('#ow-code').count(), 0, 'no code to type: developer mode comes only from npm run dev-unlock');
   assert.equal(await page.locator('#s-notif').count(), 1);
   await page.locator('label:has(#s-notif)').click(); await wait(page);
   assert.deepEqual((await state()).settings.notif, { rates: false, rest: false, long: false });

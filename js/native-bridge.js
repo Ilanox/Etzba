@@ -178,7 +178,7 @@ export const geo = {
 
 /* ---- things that open the app with something to do, and the home-screen widget (native/android/AppActionsPlugin.java) ---- */
 export const appActions = {
-  /** cb({ action: 'toggle' | 'start' | 'end' | 'ask_start' | 'ask_end', jobId }) — from the widget or an arrival/leaving notification. */
+  /** cb({ action: 'toggle' | 'start' | 'end' | 'ask_start' | 'ask_end' | 'dev_unlock', jobId, sig }) — from the widget or an arrival/leaving notification. */
   async onAction(cb) {
     if (PLATFORM !== 'android') return;
     await loaded;
@@ -186,6 +186,8 @@ export const appActions = {
     const take = async () => { try { const r = await a.take(); if (r && r.action) cb(r); } catch (e) { warn('app action')(e); } };
     take(); a.addListener('action', take);
   },
+  /** This phone's Android ID (for developer mode: the signature from `npm run dev-unlock` is made for it). */
+  deviceId: () => withP('AppActions', a => a.deviceId()).then(r => r?.id || '').catch(() => ''),
   /** Keeps the widget showing the running shift. Android draws the ticking timer itself. */
   updateWidget(state) {
     if (PLATFORM !== 'android') return;

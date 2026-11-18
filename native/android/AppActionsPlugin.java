@@ -34,10 +34,19 @@ public class AppActionsPlugin extends Plugin {
         JSObject a = new JSObject();
         a.put("action", intent.getStringExtra("etzba_action"));
         a.put("jobId", intent.getStringExtra("etzba_job") != null ? intent.getStringExtra("etzba_job") : "");
+        a.put("sig", intent.getStringExtra("etzba_sig") != null ? intent.getStringExtra("etzba_sig") : "");   // developer mode, from npm run dev-unlock
         pending = a;
-        intent.removeExtra("etzba_action");
+        intent.removeExtra("etzba_action"); intent.removeExtra("etzba_sig");
         try { androidx.core.app.NotificationManagerCompat nm = androidx.core.app.NotificationManagerCompat.from(getContext()); nm.cancel(1); nm.cancel(2); } catch (Exception ignored) { }
         return true;
+    }
+
+    /** The phone's Android ID, which developer-mode signatures are made for. */
+    @PluginMethod
+    public void deviceId(PluginCall call) {
+        JSObject r = new JSObject();
+        r.put("id", android.provider.Settings.Secure.getString(getContext().getContentResolver(), android.provider.Settings.Secure.ANDROID_ID));
+        call.resolve(r);
     }
 
     @PluginMethod

@@ -89,7 +89,8 @@ ${plugins.map(p => `        registerPlugin(${p}.class);`).join('\n')}
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity-alias>`;
-  block('icons', [alias('Default', 'ic_launcher', true), alias('Gold', 'ic_launcher_gold', false), alias('Night', 'ic_launcher_night', false), alias('Paper', 'ic_launcher_paper', false), alias('Forest', 'ic_launcher_forest', false)].join('\n'), SUPPORT);
+  block('icons', [alias('Default', 'ic_launcher', true), alias('Gold', 'ic_launcher_gold', false), alias('Night', 'ic_launcher_night', false), alias('Paper', 'ic_launcher_paper', false), alias('Forest', 'ic_launcher_forest', false),
+    ...['Sunset', 'Ocean', 'Plum', 'Ember', 'Sand'].map(n => alias(n, 'ic_launcher_' + n.toLowerCase(), false))].join('\n'), SUPPORT);
   writeFileSync(mf, x);
   if (!x.includes('etzba-share-in')) {
     const data = MIMES.map(m => `                <data android:mimeType="${m}" />`).join('\n');

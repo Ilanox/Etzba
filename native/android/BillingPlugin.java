@@ -117,7 +117,7 @@ public class BillingPlugin extends Plugin implements PurchasesUpdatedListener {
     @PluginMethod
     public void setIcon(PluginCall call) {
         String want = call.getString("name", "default");
-        String[] all = { "Default", "Gold", "Night", "Paper", "Forest" };
+        String[] all = { "Default", "Gold", "Night", "Paper", "Forest", "Sunset", "Ocean", "Plum", "Ember", "Sand" };
         PackageManager pm = getContext().getPackageManager();
         String pkg = getContext().getPackageName();
         try {

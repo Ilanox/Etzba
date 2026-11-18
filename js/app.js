@@ -13,6 +13,7 @@ import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
 import { balances, dayValue, sickShares, runStarts, dateKey, havraa } from './leave.js';
 import { drawReport, pagesToPDF } from './report.js';
+import DEV_KEY from './dev-key.js';
 import FEATURES from './features.js';
 
 const VERSION = '1.0.0';
@@ -80,10 +81,10 @@ const darkMQ = matchMedia('(prefers-color-scheme: dark)');
 function applyTheme() {
   const t = S.settings.theme || 'auto', r = t === 'auto' ? (darkMQ.matches ? 'dark' : 'light') : t;
   document.documentElement.dataset.theme = r;
-  const bg = { light: '#F1EEE6', dark: '#141518', blurple: '#1E1F22', gold: '#15130E', night: '#0C1322', sunset: '#F7EEE8', forest: '#0F1712' }[r];
+  const bg = { light: '#F1EEE6', dark: '#141518', blurple: '#1E1F22', gold: '#15130E', night: '#0C1322', sunset: '#F7EEE8', forest: '#0F1712', ocean: '#0B1A1E', plum: '#171021', ember: '#1A100C', sand: '#F2EDDF', dev: '#07090B', aurora: '#101531', dawn: '#FBEFE8', neon: '#0A0712', rosegold: '#F6EAE4' }[r];
   document.querySelectorAll('meta[name=theme-color]').forEach(m => { m.removeAttribute('media'); m.content = bg; });
   document.documentElement.classList.toggle('supporter', !!S.settings.supported);
-  native.setBars(r !== 'light' && r !== 'sunset');
+  native.setBars(!['light', 'sunset', 'sand', 'dawn', 'rosegold'].includes(r));
   try { syncWidget(); } catch {}
 }
 applyTheme(); darkMQ.addEventListener?.('change', applyTheme);
@@ -1255,7 +1256,7 @@ async function openSupport() {
   };
   openSheet(`<div class="sp-ic">${I.heart}</div><h2 style="text-align:center">תמיכה באצבע</h2>
     <p class="shsub" style="text-align:center">אצבע חינמית, בלי פרסומות, והנתונים שלך נשארים בטלפון. אם היא עוזרת לך, אפשר לתמוך בפיתוח בתשלום חד־פעמי.</p>
-    <div class="note info" style="margin-top:12px">${I.heart}<span>בתודה: ארבע ערכות צבע מיוחדות, אייקונים אחרים לאפליקציה וטבעת זהב סביב החוגה. רק המראה משתנה: כל החישובים והזכויות זמינים לכולם.</span></div>
+    <div class="note info" style="margin-top:12px">${I.heart}<span>בתודה: 12 ערכות צבע מיוחדות (גם עם מעברי צבע), אייקונים אחרים לאפליקציה וטבעת זהב סביב החוגה. רק המראה משתנה: כל החישובים והזכויות זמינים לכולם.</span></div>
     <div class="sp-main" id="sp-main"></div>
     <details class="sp-other"${SUPPORT_MORE.some(x => x[0] === chosen) ? ' open' : ''}><summary>סכום אחר</summary><div class="qchips" id="sp-more"></div></details>
     <div class="btnrow"><button class="btn primary sp-pay" id="sp-pay"></button></div>
@@ -1447,30 +1448,33 @@ function rightsEN(y, low, w, qa) {
 }
 
 /* ================= SETTINGS ================= */
-// developer status: the app's developer unlocks everything on his own phone with a private code
-// (7 taps on the version line). Only the code's hash is here.
-const OWNER_HASH = '64ae080dbf4c45fd17195aa9632812ab14763df24dcc77405c5c82dd21887a78';
+// developer status: no code in the app. On the developer's computer, `npm run dev-unlock` signs this
+// phone's ID with a private key that never leaves that computer, and opens the app with the signature;
+// the app checks it against the public key in js/dev-key.js. A signature for one phone doesn't work on another.
 const devOK = () => FEATURES.devTools || !!S.settings.owner;
-async function sha256(t) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
-function openOwnerCode() {
-  openSheet(`<h2>מצב מפתח</h2><p class="shsub">קוד המפתח פותח את כל האפשרויות במכשיר הזה.</p>
-    <label class="field"><span>קוד</span><input class="input num" id="ow-code" dir="ltr" autocomplete="off" autocapitalize="characters" placeholder="XXXX-XXXX-XXXX"></label>
-    <div class="btnrow"><button class="btn primary" id="ow-go">${I.check}אישור</button></div>`, root => {
-    const go = async () => {
-      const v = $('#ow-code', root).value.trim().toUpperCase().replace(/\s+/g, '');
-      if (await sha256('etzba:' + v) !== OWNER_HASH) { buzz(60); return toast('הקוד לא נכון', 'err'); }
-      S.settings.owner = true; S.settings.dev = true; S.settings.supported = true; S.settings.supportedAt ||= new Date().toISOString();
-      persist(); applyTheme(); closeSheet(); buzz(40); toast('מצב מפתח פעיל: הכול פתוח', 'ok'); renderSet();
-    };
-    $('#ow-go', root).onclick = go;
-    $('#ow-code', root).onkeydown = e => { if (e.key === 'Enter') go(); };
-    setTimeout(() => $('#ow-code', root).focus(), 300);
-  });
+async function devUnlock(sig) {
+  try {
+    if (!DEV_KEY || !sig) throw new Error(DEV_KEY ? 'no signature' : 'no public key in this build');
+    const id = await native.appActions.deviceId(); if (!id) throw new Error('no device id');
+    const key = await crypto.subtle.importKey('jwk', DEV_KEY, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+    const raw = Uint8Array.from(atob(sig.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+    const ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, raw, new TextEncoder().encode('etzba-dev:' + id));
+    if (!ok) throw new Error('bad signature');
+    S.settings.owner = true; S.settings.dev = true; S.settings.supported = true; S.settings.supportedAt ||= new Date().toISOString();
+    persist(); applyTheme(); buzz(40); toast('מצב מפתח פעיל: הכול פתוח', 'ok'); go('set');
+  } catch (e) { dbg.log('warn', 'dev unlock: ' + (e?.message || e)); toast('לא הצלחתי להפעיל מצב מפתח', 'err'); }
 }
 const THEMES = [['auto', 'אוטומטי', 'linear-gradient(90deg,#F1EEE6 50%,#141518 50%)'], ['light', 'בהיר', '#F1EEE6'], ['dark', 'כהה', '#141518'], ['blurple', 'בלרפל', 'linear-gradient(90deg,#1E1F22 60%,#5865F2 60%)']];
 // for supporters, as a thank-you: looks only, never anything that changes pay
-const THEMES_SUPPORT = [['gold', 'זהב', 'linear-gradient(135deg,#15130E 55%,#E2B65A 55%)'], ['night', 'לילה', 'linear-gradient(135deg,#0C1322 55%,#8DB8FF 55%)'], ['sunset', 'שקיעה', 'linear-gradient(135deg,#F7EEE8 55%,#D2486A 55%)'], ['forest', 'יער', 'linear-gradient(135deg,#0F1712 55%,#7FD6A0 55%)']];
-const ICONS = [['default', 'רגיל', 'app-default.png'], ['gold', 'זהב', 'app-gold.png'], ['night', 'לילה', 'app-night.png'], ['paper', 'נייר', 'app-paper.png'], ['forest', 'יער', 'app-forest.png']];
+const THEMES_SUPPORT = [['gold', 'זהב', 'linear-gradient(135deg,#15130E 55%,#E2B65A 55%)'], ['night', 'לילה', 'linear-gradient(135deg,#0C1322 55%,#8DB8FF 55%)'], ['sunset', 'שקיעה', 'linear-gradient(135deg,#F7EEE8 55%,#D2486A 55%)'], ['forest', 'יער', 'linear-gradient(135deg,#0F1712 55%,#7FD6A0 55%)'],
+  ['ocean', 'ים', 'linear-gradient(135deg,#0B1A1E 55%,#5FD3D0 55%)'], ['plum', 'שזיף', 'linear-gradient(135deg,#171021 55%,#C49BFF 55%)'],
+  ['ember', 'גחלים', 'linear-gradient(135deg,#1A100C 55%,#FF8A4C 55%)'], ['sand', 'חול', 'linear-gradient(135deg,#F2EDDF 55%,#6E7F2E 55%)'],
+  ['aurora', 'זוהר', 'linear-gradient(160deg,#2A1650,#0F3F55)'], ['dawn', 'שחר', 'linear-gradient(165deg,#FFE9DD,#FBE1EA,#E7E3FB)'],
+  ['neon', 'ניאון', 'linear-gradient(135deg,#4A0F5E,#0A0712 55%,#0F2E6B)'], ['rosegold', 'רוז גולד', 'linear-gradient(150deg,#F9EFE9,#EBD3C2)']];
+// only on the developer's own phone
+const THEME_DEV = ['dev', 'מפתח', 'linear-gradient(135deg,#07090B 55%,#39D98A 55%)'];
+const ICONS = [['default', 'רגיל', 'app-default.png'], ['gold', 'זהב', 'app-gold.png'], ['night', 'לילה', 'app-night.png'], ['paper', 'נייר', 'app-paper.png'], ['forest', 'יער', 'app-forest.png'],
+  ['sunset', 'שקיעה', 'app-sunset.png'], ['ocean', 'ים', 'app-ocean.png'], ['plum', 'שזיף', 'app-plum.png'], ['ember', 'גחלים', 'app-ember.png'], ['sand', 'חול', 'app-sand.png']];
 const themeBtn = ([k, n, bg]) => { const locked = THEMES_SUPPORT.some(t => t[0] === k) && !S.settings.supported;
   return `<button data-t="${k}" class="${(S.settings.theme || 'auto') === k ? 'on' : ''}${locked ? ' locked' : ''}"><i style="background:${bg}"></i>${n}${locked ? `<span class="lk">${I.lock}</span>` : ''}</button>`; };
 // a small colored icon before a section title; the same colors as the rows below it
@@ -1486,7 +1490,7 @@ function renderSet() {
 
     <div class="sec"><span>${secIc('noon', 'gold')}מראה</span></div>
     <div class="card pad"><div class="themes" id="s-theme">${THEMES.map(themeBtn).join('')}</div>
-      ${native.billing.available() || st.supported ? `<div class="themes-h">${I.heart}${st.supported ? 'בתודה על התמיכה' : 'לתומכים באצבע'}</div><div class="themes" id="s-theme2">${THEMES_SUPPORT.map(themeBtn).join('')}</div>` : ''}
+      ${native.billing.available() || st.supported ? `<div class="themes-h">${st.owner ? `${I.gear}מצב מפתח` : `${I.heart}${st.supported ? 'בתודה על התמיכה' : 'לתומכים באצבע'}`}</div><div class="themes" id="s-theme2">${[...THEMES_SUPPORT, ...(st.owner ? [THEME_DEV] : [])].map(themeBtn).join('')}</div>` : ''}
       ${st.supported && (native.billing.available() || native.PLATFORM === 'android') ? `<div class="themes-h">אייקון האפליקציה</div><div class="icons" id="s-icon">${ICONS.map(([k, n, f]) => `<button data-ic="${k}" class="${(st.icon || 'default') === k ? 'on' : ''}"><img src="icons/${f}" alt="">${n}</button>`).join('')}</div>` : ''}
       <div class="field"><span>שפה</span><div class="seg" id="s-lang">${LANGS.map(l => `<button data-l="${l.code}" class="${l.code === LANG ? 'on' : ''}" data-keep>${l.name}</button>`).join('')}</div></div></div>
 
@@ -1556,9 +1560,7 @@ function renderSet() {
   $('#s-dev', el) && ($('#s-dev', el).onclick = openDevTools);
   { let taps = 0, t; $('#s-ver', el).onclick = () => { clearTimeout(t); t = setTimeout(() => taps = 0, 1500);
       if (++taps < 7) return; taps = 0;
-      if (S.settings.owner) { if (!S.settings.dev) { S.settings.dev = true; persist(); renderSet(); } return toast('מצב מפתח פעיל', 'ok'); }
-      if (FEATURES.devTools && !S.settings.dev) { S.settings.dev = true; persist(); buzz(30); toast('מצב מפתח פעיל', 'ok'); return renderSet(); }
-      openOwnerCode(); }; }
+      if (devOK() && !S.settings.dev) { S.settings.dev = true; persist(); buzz(30); toast('מצב מפתח פעיל', 'ok'); renderSet(); } }; }
   $('#s-notif', el) && ($('#s-notif', el).onchange = e => {
     const on = e.target.checked; S.settings.notif = { rates: on, rest: on, long: on };
     persist(); if (on) planNotifications(true); drawNotifStatus();
@@ -2216,8 +2218,9 @@ function syncWidget() {
   const k = JSON.stringify(state); if (k === lastWidget) return; lastWidget = k;
   native.appActions.updateWidget(state);
 }
-function appAction({ action, jobId }) {
+function appAction({ action, jobId, sig }) {
   dbg.log('info', 'app action ' + action);
+  if (action === 'dev_unlock') return devUnlock(sig);
   if (action === 'toggle') {
     go('home');
     // a running shift: confirm before ending it. none: start on the last job.
@@ -2256,8 +2259,8 @@ function openDevTools() {
       <button class="cell" id="dv-one"><span class="grow">התראה אחת לבדיקה<div class="sub">מגיעה בעוד 3 שניות</div></span></button>
       <button class="cell" id="dv-soon"><span class="grow">משמרת שמגיעה לשעות נוספות בעוד 2 דקות<div class="sub">מתחילה משמרת אמיתית שהתחילה מוקדם, וההתראה תגיע כרגיל</div></span></button>
       <button class="cell" id="dv-pend"><span class="grow">ההתראות שמתוזמנות עכשיו</span></button>
-      <button class="cell" id="dv-geo-in"><span class="grow">התראת "הגעת לעבודה?" לבדיקה</span></button>
-      <button class="cell" id="dv-geo-out"><span class="grow">התראת "יצאת מהעבודה?" לבדיקה</span></button>
+      ${native.geo.available() ? `<button class="cell" id="dv-geo-in"><span class="grow">התראת "הגעת לעבודה?" לבדיקה</span></button>
+      <button class="cell" id="dv-geo-out"><span class="grow">התראת "יצאת מהעבודה?" לבדיקה</span></button>` : ''}
     </div>
     <div class="sec"><span>כל ההתראות של משמרת</span></div>
     <div class="seg" id="dv-scen">${Object.entries(scen).filter(([k]) => k !== 'current' || S.active).map(([k, [l]]) => `<button data-s="${k}">${l}</button>`).join('')}</div>
@@ -2294,8 +2297,8 @@ function openDevTools() {
       $('#dv-list', root).innerHTML = p.length ? p.map(x => `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>${esc(x.title)}</b> <span class="num" style="color:var(--ink3)">${x.at ? tm(x.at) : ''}</span><div style="color:var(--ink2);font-size:.9rem">${esc(x.body)}</div></div>`).join('') : `<div class="hint">${native.NATIVE ? 'אין התראות מתוזמנות' : 'רק באפליקציה לאנדרואיד'}</div>`;
     };
     const geoTest = kind => { if (!native.geo.available()) return toast('רק באפליקציה לאנדרואיד', 'err'); const j = jobById(jobId); syncGeo(true); setTimeout(() => native.geo.test(kind, j.id, j.name), 300); toast('נשלחה התראה', 'ok'); };
-    $('#dv-geo-in', root).onclick = () => geoTest('in');
-    $('#dv-geo-out', root).onclick = () => geoTest('out');
+    $('#dv-geo-in', root) && ($('#dv-geo-in', root).onclick = () => geoTest('in'));
+    $('#dv-geo-out', root) && ($('#dv-geo-out', root).onclick = () => geoTest('out'));
     $('#dv-onb', root).onclick = () => { closeSheet(); openOnboarding(); };
     $('#dv-demo', root).onclick = () => {
       const days = 90, out = []; const now = new Date();
