@@ -60,6 +60,18 @@ public class NotifyPlugin extends Plugin {
         } catch (Exception e) { call.reject("pending: " + e.getMessage()); }
     }
 
+    /** Features this person is waiting for: items [{ name, title, body }], checked on the website twice a day. */
+    @PluginMethod
+    public void watchEarly(PluginCall call) {
+        try {
+            JSArray items = call.getArray("items", new JSArray());
+            getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .putString("early", items.toString()).putString("early_url", call.getString("url", "")).apply();
+            NotifyReceiver.armEarly(getContext(), items.length() > 0);
+            call.resolve();
+        } catch (Exception e) { call.reject("watchEarly: " + e.getMessage()); }
+    }
+
     static PendingIntent pending(Context ctx, JSONObject x, int flag) {
         Intent i = new Intent(ctx, NotifyReceiver.class);
         i.putExtra("id", x.optInt("id")); i.putExtra("title", x.optString("title")); i.putExtra("body", x.optString("body"));

@@ -152,6 +152,11 @@ export async function testNotifications(items, gap = 6) {
     return true;
   }).catch(() => false)) || false;
 }
+/** Features this person is waiting for; the phone checks the website twice a day and says when one opens. */
+export async function watchEarly(url, items) {
+  if (!NATIVE || !window.Capacitor?.isPluginAvailable?.('Notify')) return;
+  await withP('Notify', n => n.watchEarly({ url, items })).catch(() => { /* older build */ });
+}
 export async function pendingNotifications() {
   if (!NATIVE) return [];
   if (window.Capacitor?.isPluginAvailable?.('Notify'))

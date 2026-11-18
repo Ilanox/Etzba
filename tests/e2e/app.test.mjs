@@ -66,9 +66,13 @@ test('first launch, offline: welcome, set up a job, no errors', async () => {
   assert.equal(await page.locator('#onboard').count(), 1, 'welcome shows');
   await page.click('#ob-next');
   await page.fill('#ob-name', 'קפה'); await page.fill('#ob-rate', '45');
-  await page.click('#ob-next'); await page.click('#ob-next'); await page.click('#ob-next'); await wait(page, 500);
+  await page.click('#ob-next'); await page.click('#ob-next');
+  await page.fill('#ob-start', '2024-03-01'); await page.click('[data-k=tipsOn] [data-v="1"]'); await page.click('[data-k=tipsMode] [data-v=wage]');
+  await page.click('#ob-next'); await page.fill('#ob-goal', '6000'); await page.click('#ob-next'); await wait(page, 500);
   const st = await page.evaluate(() => JSON.parse(localStorage.getItem('etzba.v1')));
   assert.equal(st.jobs[0].name, 'קפה'); assert.equal(+st.jobs[0].rate, 45); assert.ok(st.settings.onboarded);
+  assert.equal(st.jobs[0].startDate, '2024-03-01'); assert.ok(st.jobs[0].tipsOn); assert.equal(st.jobs[0].tipsMode, 'wage');
+  assert.equal(st.settings.goal.amount, 6000);
   assert.deepEqual(errors, []); await ctx.close();
 });
 
@@ -354,7 +358,7 @@ test('the year in Etzba: early for supporters, stories, and a picture to share',
   assert.ok(await page.locator('#openRecap').isVisible(), 'a recap button in the year view');
   await page.click('#openRecap'); await wait(page, 600);
   assert.ok(await page.locator('.recap').isVisible(), 'stories open');
-  for (let k = 0; k < 7; k++) { await page.mouse.click(300, 500); await wait(page, 150); }
+  for (let k = 0; k < 7; k++) { await page.mouse.click(80, 500); await wait(page, 150); }   // Hebrew: the left side is next
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.click('#rc-share')]);
   assert.match(dl.suggestedFilename(), /\.png$/);
   assert.deepEqual(errors, []); await ctx.close();

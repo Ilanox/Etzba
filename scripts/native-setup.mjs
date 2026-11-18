@@ -61,7 +61,9 @@ ${plugins.map(p => `        registerPlugin(${p}.class);`).join('\n')}
   // backups: shifts and settings are kept by Google backup and phone-to-phone transfer (res/xml/*_rules.xml)
   if (!x.includes('dataExtractionRules')) x = x.replace(/<application\b/, '<application android:dataExtractionRules="@xml/data_extraction_rules" android:fullBackupContent="@xml/backup_rules"');
   // workplace arrival needs location all the time, and re-arming after a reboot
-  for (const p of ['ACCESS_COARSE_LOCATION', 'ACCESS_FINE_LOCATION', 'ACCESS_BACKGROUND_LOCATION', 'RECEIVE_BOOT_COMPLETED']) setPerm(p, GEO);
+  for (const p of ['ACCESS_COARSE_LOCATION', 'ACCESS_FINE_LOCATION', 'ACCESS_BACKGROUND_LOCATION']) setPerm(p, GEO);
+  // scheduled notifications are put back after a reboot (NotifyReceiver)
+  setPerm('RECEIVE_BOOT_COMPLETED', true);
   const block = (name, xml, on) => {
     const re = new RegExp(`\\s*<!-- etzba:${name} -->[\\s\\S]*?<!-- /etzba:${name} -->`);
     x = x.replace(re, '');
@@ -74,7 +76,12 @@ ${plugins.map(p => `        registerPlugin(${p}.class);`).join('\n')}
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>`, GEO);
-  block('notify', `        <receiver android:name=".NotifyReceiver" android:exported="false" />`, true);
+  block('notify', `        <receiver android:name=".NotifyReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>`, true);
   block('widget', `        <receiver android:name=".EtzbaWidget" android:exported="false" android:label="@string/app_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

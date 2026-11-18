@@ -1339,6 +1339,9 @@ function announceEarly() {
     else if (locked.has(name) && !news && !pop.classList.contains('on') && !sheet.classList.contains('on')) { locked.delete(name); news = EARLY_NEWS[name]; }
   }
   try { localStorage.setItem('etzba.early.locked', JSON.stringify([...locked])); } catch {}
+  // with the app closed: the phone checks twice a day and sends a notification when one opens
+  const watch = [...locked].filter(n => EARLY_NEWS[n]).map(n => ({ name: n, title: tr(EARLY_NEWS[n].title), body: tr(EARLY_NEWS[n].body) })), wsig = JSON.stringify(watch);
+  if (wsig !== announceEarly.watched) { announceEarly.watched = wsig; native.watchEarly(EARLY_URL, watch); }
   if (!news) return;
   pop.innerHTML = `<div class="pop-ic">${I.cal}</div>
     <h2 id="pop-h">${news.title}</h2>
@@ -1374,64 +1377,121 @@ function recapStats(y) {
     ot, tips, first, topJob, months: Ms.map(M => M.gross), perHour: hours ? gross / hours : 0 };
 }
 const hrs = h => { const r = Math.round(h * 2) / 2; return (r % 1 ? r.toFixed(1) : String(r)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
-const RECAP_BG = ['linear-gradient(160deg,#2B1055,#7597DE)', 'linear-gradient(160deg,#0F2027,#2C5364)', 'linear-gradient(160deg,#F7971E,#FFD200)', 'linear-gradient(160deg,#1D976C,#93F9B9)',
-  'linear-gradient(160deg,#EE0979,#FF6A00)', 'linear-gradient(160deg,#4568DC,#B06AB3)', 'linear-gradient(160deg,#141E30,#243B55)', 'linear-gradient(160deg,#C33764,#1D2671)', 'linear-gradient(160deg,#000428,#004E92)'];
+// each story has its own colour field: background, text, and the fingerprint ridges behind it
+const RECAP_PAL = [
+  { bg: '#24102F', fg: '#FFF4EC', ac: '#FF6A3D' },   // plum and ember
+  { bg: '#FF6A3D', fg: '#2A0E06', ac: '#FFD9C7' },   // ember
+  { bg: '#0D3634', fg: '#EFFFF8', ac: '#62E0B6' },   // deep teal
+  { bg: '#FFC64A', fg: '#2E1A02', ac: '#FF8A2B' },   // sun
+  { bg: '#101A3A', fg: '#EEF3FF', ac: '#7FA6FF' },   // midnight
+  { bg: '#F2557F', fg: '#2B0716', ac: '#FFD1DF' },   // rose
+  { bg: '#1A1A1A', fg: '#FFFFFF', ac: '#FF6A3D' },   // ink
+  { bg: '#24102F', fg: '#FFF4EC', ac: '#FF6A3D' },   // back to the start
+];
+const RC_POS = [[50, 50, 1.25, 0], [88, 18, 1.1, 18], [10, 85, 1.3, -24], [92, 80, 1.05, 160], [8, 12, 1.2, 200], [80, 50, 1.4, -70], [20, 40, 1.15, 40], [50, 62, 1.35, 0]];
+const rcPrint = () => `<svg class="rc-print" viewBox="-2 -2 104 112" aria-hidden="true">${ridges(50, 54, 9, 5.6, 4).map(d => `<path d="${d}"/>`).join('')}</svg>`;
 const KIND_LINE = { morning: ['טיפוס של בוקר', 'רוב המשמרות שלך התחילו לפני 11 בבוקר.'], noon: ['טיפוס של צהריים', 'רוב המשמרות שלך התחילו באמצע היום.'],
   evening: ['טיפוס של ערב', 'רוב המשמרות שלך התחילו אחרי הצהריים.'], night: ['ינשוף לילה', 'רוב המשמרות שלך היו בלילה.'] };
+const KIND_SHORT = { morning: 'בוקר', noon: 'צהריים', evening: 'ערב', night: 'לילה' };
+const RC_MS = 6500;
 function openRecap(y) {
   const R = recapStats(y);
   if (!R) return toast(`אין משמרות ב־${y}`);
   const days = Math.floor(R.hours / 24), maxM = Math.max(...R.months, 1);
+  const cnt = (v, f = 'int') => `<b class="num rc-count" data-to="${v}" data-f="${f}">${f === 'money' ? money(v) : f === 'hrs' ? hrs(v) : Math.round(v).toLocaleString('he-IL')}</b>`;
+  // the longest shift on a 24-hour line
+  const ls = new Date(R.longest.s.start), le = new Date(R.longest.s.end), f0 = (ls.getHours() + ls.getMinutes() / 60) / 24, len = Math.min(1, R.longest.p.hours / 24);
+  const segs = f0 + len > 1 ? [[f0, 1 - f0], [0, f0 + len - 1]] : [[f0, len]];
+  const line = `<div class="rc-day" dir="ltr">${segs.map(([a, w]) => `<i style="left:${a * 100}%;width:${w * 100}%"></i>`).join('')}<span style="left:0">00</span><span style="left:25%">06</span><span style="left:50%">12</span><span style="left:75%">18</span><span style="left:100%">24</span></div>`;
+  const kindsTot = Object.values(R.kinds).reduce((a, b) => a + b, 0) || 1;
   const slides = [
-    `<small>${y}</small><h1>השנה שלך באצבע</h1><p>בוא נראה מה עשית השנה.</p>`,
-    `<small>שעות עבודה</small><h1 class="num">${Math.round(R.hours).toLocaleString('he-IL')}</h1><p>${days ? `יותר מ־${days} ימים שלמים בלי הפסקה, ב־${R.count} משמרות.` : `ב־${R.count} משמרות.`}</p>`,
-    `<small>המשמרת הכי ארוכה</small><h1 class="num">${hrs(R.longest.p.hours)} שעות</h1><p>${DAYS[new Date(R.longest.s.start).getDay()]} ${dFull(R.longest.s.start)}, <span dir="ltr" class="num">${tm(R.longest.s.start)}–${tm(R.longest.s.end)}</span>.</p>`,
-    `<small>הרווחת השנה</small><h1 class="num">${money(R.gross)}</h1><p>ברוטו, כ־${money(R.net)} נטו. בממוצע ${money2(R.perHour)} לשעה.</p>`,
-    `<small>החודש הכי חזק</small><h1>${MONTHS[R.best.m]}</h1><p class="num">${money(R.best.gross)} ברוטו</p><div class="rc-bars">${R.months.map((g, m) => `<i style="height:${Math.max(4, g / maxM * 100)}%"${m === R.best.m ? ' class="on"' : ''}></i>`).join('')}</div>`,
-    `<small>הסגנון שלך</small><h1>${KIND_LINE[R.daily][0]}</h1><p><span>${KIND_LINE[R.daily][1]}</span> <span>היום הכי עמוס שלך: ${DAYS[R.topDay]}.</span></p>`,
-    `<small>מעבר לשגרה</small><h1 class="num">${hrs(R.ot)}</h1><p><span>שעות נוספות.</span>${R.rest ? ` <span>${R.rest} משמרות בשבת או בחג.</span>` : ''}${R.tips ? ` <span>ועוד ${money(R.tips)} טיפים.</span>` : ''}</p>`,
+    `<small>השנה שלך באצבע</small><h1 class="num rc-year">${y}</h1><p>בוא נראה מה עשית השנה.</p>`,
+    `<small>שעות עבודה</small><h1>${cnt(R.hours)}</h1><p>${days ? `יותר מ־${days} ימים שלמים בלי הפסקה, ב־${R.count} משמרות.` : `ב־${R.count} משמרות.`}</p>`,
+    `<small>המשמרת הכי ארוכה</small><h1>${cnt(R.longest.p.hours, 'hrs')}<em>שעות</em></h1>${line}<p>${DAYS[ls.getDay()]} ${dFull(R.longest.s.start)}, <span dir="ltr" class="num">${tm(ls)}–${tm(le)}</span>.</p>`,
+    `<small>הרווחת השנה</small><h1>${cnt(R.gross, 'money')}</h1><p>ברוטו, כ־${money(R.net)} נטו. בממוצע ${money2(R.perHour)} לשעה.</p>`,
+    `<small>החודש הכי חזק</small><h1>${MONTHS[R.best.m]}</h1><p class="num">${money(R.best.gross)} ברוטו</p><div class="rc-bars">${R.months.map((g, m) => `<i style="--h:${Math.max(3, g / maxM * 100)}%;--d:${m * 45}ms"${m === R.best.m ? ' class="on"' : ''}><em>${MONTHS[m].slice(0, 3)}</em></i>`).join('')}</div>`,
+    `<small>הסגנון שלך</small><h1 class="rc-word">${KIND_LINE[R.daily][0]}</h1><p>${KIND_LINE[R.daily][1]} היום הכי עמוס שלך: ${DAYS[R.topDay]}.</p>
+      <div class="rc-kinds">${['morning', 'noon', 'evening', 'night'].map((k, j) => `<div${k === R.daily ? ' class="on"' : ''}><i style="--w:${(R.kinds[k] || 0) / kindsTot * 100}%;--d:${j * 90}ms"></i><span>${KIND_SHORT[k]}</span><b class="num">${Math.round((R.kinds[k] || 0) / kindsTot * 100)}%</b></div>`).join('')}</div>`,
+    `<small>מעבר לשגרה</small><h1>${cnt(R.ot, 'hrs')}<em>שעות נוספות</em></h1><div class="rc-facts">${R.rest ? `<div><b class="num">${R.rest}</b><span>משמרות בשבת או בחג</span></div>` : ''}${R.tips ? `<div><b class="num">${money(R.tips)}</b><span>טיפים</span></div>` : ''}<div><b class="num">${money2(R.perHour)}</b><span>ממוצע לשעה</span></div></div>`,
     `<small>הסיכום של ${y}</small><div class="rc-grid">
-      <div><b class="num">${Math.round(R.hours)}</b><span>שעות</span></div><div><b class="num">${R.count}</b><span>משמרות</span></div>
+      <div><b class="num">${Math.round(R.hours).toLocaleString('he-IL')}</b><span>שעות</span></div><div><b class="num">${R.count}</b><span>משמרות</span></div>
       <div><b class="num">${money(R.gross)}</b><span>ברוטו</span></div><div><b>${MONTHS[R.best.m]}</b><span>החודש הכי חזק</span></div>
       <div><b class="num">${hrs(R.longest.p.hours)} ש׳</b><span>המשמרת הכי ארוכה</span></div><div><b>${KIND_LINE[R.daily][0]}</b><span>הסגנון</span></div></div>
       <button class="rc-share" id="rc-share">${I.share}שיתוף</button>`,
   ];
-  const ov = document.createElement('div'); ov.className = 'recap'; ov.setAttribute('role', 'dialog');
-  ov.innerHTML = `<div class="rc-prog">${slides.map(() => '<i><b></b></i>').join('')}</div><button class="rc-x" aria-label="סגירה">${I.x}</button><div class="rc-slide"></div>`;
+  const ov = document.createElement('div'); ov.className = 'recap'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'השנה שלך באצבע');
+  ov.innerHTML = `${rcPrint()}<div class="rc-prog">${slides.map(() => '<i><b></b></i>').join('')}</div><button class="rc-x" aria-label="סגירה">${I.x}</button><div class="rc-slide" aria-live="polite"></div>
+    <div class="rc-hint">${EN ? 'Tap the right side for next' : 'הקשה בצד שמאל להמשך'}</div>`;
   document.body.appendChild(ov);
-  let i = 0, timer;
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let i = 0, timer, left = RC_MS, began = 0, held = false, pressAt = 0;
+  const run = ms => { clearTimeout(timer); began = Date.now(); left = ms; if (i < slides.length - 1) timer = setTimeout(() => show(i + 1), ms); };
+  const countUp = sl => {
+    if (still) return;
+    $$('.rc-count', sl).forEach(el => {
+      const to = +el.dataset.to, f = el.dataset.f, t0 = performance.now(), dur = 1100;
+      const fmt = v => f === 'money' ? money(v) : f === 'hrs' ? hrs(v) : Math.round(v).toLocaleString('he-IL');
+      const step = t => { const k = Math.min(1, (t - t0) / dur), e = 1 - (1 - k) ** 3; el.textContent = fmt(to * e); if (k < 1 && el.isConnected) requestAnimationFrame(step); };
+      requestAnimationFrame(step);
+    });
+  };
   const show = n => {
     i = Math.max(0, Math.min(slides.length - 1, n));
-    ov.style.background = RECAP_BG[i % RECAP_BG.length];
+    const c = RECAP_PAL[i % RECAP_PAL.length], [px, py, sc, rot] = RC_POS[i % RC_POS.length];
+    for (const [k, v] of Object.entries({ '--rc-bg': c.bg, '--rc-fg': c.fg, '--rc-ac': c.ac, '--px': px + '%', '--py': py + '%', '--sc': sc, '--rot': rot + 'deg' })) ov.style.setProperty(k, v);
     const sl = $('.rc-slide', ov); sl.innerHTML = slides[i]; sl.classList.remove('in'); void sl.offsetWidth; sl.classList.add('in');
     $$('.rc-prog i', ov).forEach((p, k) => { p.className = k < i ? 'done' : k === i ? 'now' : ''; });
-    clearTimeout(timer); if (i < slides.length - 1) timer = setTimeout(() => show(i + 1), 6500);
+    ov.classList.remove('paused'); ov.classList.toggle('first', i === 0);
+    countUp(sl); run(RC_MS);
     $('#rc-share', ov) && ($('#rc-share', ov).onclick = e => { e.stopPropagation(); shareRecap(R); });
   };
   const close = () => { clearTimeout(timer); ov.remove(); };
   $('.rc-x', ov).onclick = e => { e.stopPropagation(); close(); };
-  ov.onclick = e => { const back = (e.clientX < innerWidth / 3) !== EN; show(i + (back ? -1 : 1)); buzz(5); };
+  // like stories: hold to pause; tap the far side (the way the story moves) for next, the near side for back
+  ov.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    pressAt = Date.now(); held = false;
+    setTimeout(() => { if (pressAt && Date.now() - pressAt >= 240) { held = true; clearTimeout(timer); left -= Date.now() - began; ov.classList.add('paused'); } }, 250);
+  });
+  ov.addEventListener('pointerup', e => {
+    if (e.target.closest('button') || !pressAt) return;
+    pressAt = 0;
+    if (held) { held = false; ov.classList.remove('paused'); run(Math.max(400, left)); return; }
+    const third = innerWidth / 3, back = EN ? e.clientX < third : e.clientX > innerWidth - third;
+    show(i + (back ? -1 : 1)); buzz(5);
+  });
+  ov.addEventListener('pointercancel', () => { pressAt = 0; if (held) { held = false; ov.classList.remove('paused'); run(Math.max(400, left)); } });
+  addEventListener('keydown', function key(e) {
+    if (!ov.isConnected) return removeEventListener('keydown', key);
+    if (e.key === 'Escape') close();
+    if (e.key === 'ArrowLeft') show(i + (EN ? -1 : 1));
+    if (e.key === 'ArrowRight') show(i + (EN ? 1 : -1));
+  });
   show(0);
 }
 async function shareRecap(R) {
   const W = 1080, H = 1920, c = document.createElement('canvas'); c.width = W; c.height = H;
-  const x = c.getContext('2d'), g = x.createLinearGradient(0, 0, W, H);
-  g.addColorStop(0, '#2B1055'); g.addColorStop(.55, '#C33764'); g.addColorStop(1, '#FF6A00');
-  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  const x = c.getContext('2d');
+  x.fillStyle = '#24102F'; x.fillRect(0, 0, W, H);
+  // the fingerprint, large, off to one side
+  x.save(); x.translate(W * .78, H * .2); x.scale(13, 13); x.translate(-50, -54);
+  x.strokeStyle = 'rgba(255,106,61,.35)'; x.lineWidth = 1.1; x.lineCap = 'round';
+  for (const d of ridges(50, 54, 9, 5.6, 4)) x.stroke(new Path2D(d));
+  x.restore();
   try { await document.fonts.load('800 80px Heebo'); } catch {}
-  x.direction = EN ? 'ltr' : 'rtl'; x.textAlign = 'center'; x.fillStyle = '#fff';
-  const T = t => tr(t), F = (w, s) => `${w} ${s}px Heebo, sans-serif`;
-  x.font = F(500, 44); x.globalAlpha = .85; x.fillText(T('השנה שלי באצבע'), W / 2, 230); x.globalAlpha = 1;
-  x.font = F(800, 170); x.fillText(String(R.y), W / 2, 420);
-  const cells = [[String(Math.round(R.hours)), T('שעות')], [String(R.count), T('משמרות')], [money(R.gross), T('ברוטו')], [T(MONTHS[R.best.m]), T('החודש הכי חזק')],
-    [`${hrs(R.longest.p.hours)} ${T('ש׳')}`, T('המשמרת הכי ארוכה')], [T(KIND_LINE[R.daily][0]), T('הסגנון')]];
-  cells.forEach(([v, l], k) => {
-    const cx = k % 2 ? W * .28 : W * .72, cy = 640 + Math.floor(k / 2) * 330;
-    x.fillStyle = 'rgba(255,255,255,.12)'; x.beginPath(); x.roundRect(cx - 220, cy - 120, 440, 260, 36); x.fill();
-    x.fillStyle = '#fff'; x.font = F(800, v.length > 8 ? 62 : 84); x.fillText(v, cx, cy + 20);
-    x.globalAlpha = .8; x.font = F(500, 38); x.fillText(l, cx, cy + 90); x.globalAlpha = 1;
+  x.direction = EN ? 'ltr' : 'rtl'; x.textAlign = EN ? 'left' : 'right';
+  const T = t => tr(t), F = (w, s) => `${w} ${s}px Heebo, sans-serif`, X0 = EN ? 90 : W - 90;
+  x.fillStyle = '#FF6A3D'; x.font = F(700, 46); x.fillText(T('השנה שלי באצבע'), X0, 300);
+  x.fillStyle = '#FFF4EC'; x.font = F(900, 260); x.fillText(String(R.y), X0, 540);
+  const rows = [[Math.round(R.hours).toLocaleString('he-IL'), T('שעות')], [String(R.count), T('משמרות')], [money(R.gross), T('ברוטו')],
+    [T(MONTHS[R.best.m]), T('החודש הכי חזק')], [`${hrs(R.longest.p.hours)} ${T('ש׳')}`, T('המשמרת הכי ארוכה')], [T(KIND_LINE[R.daily][0]), T('הסגנון')]];
+  rows.forEach(([v, l], k) => {
+    const y0 = 760 + k * 170;
+    x.fillStyle = 'rgba(255,244,236,.14)'; x.fillRect(90, y0 - 112, W - 180, 2);
+    x.fillStyle = '#FFF4EC'; x.font = F(800, 84); x.fillText(v, X0, y0);
+    x.fillStyle = 'rgba(255,244,236,.7)'; x.font = F(500, 36); x.textAlign = EN ? 'right' : 'left'; x.fillText(l, EN ? W - 90 : 90, y0 - 8); x.textAlign = EN ? 'left' : 'right';
   });
-  x.globalAlpha = .75; x.font = F(500, 36); x.fillText('Etzba · etzba.ilanox.dev', W / 2, H - 120); x.globalAlpha = 1;
+  x.fillStyle = 'rgba(255,244,236,.6)'; x.font = F(500, 34); x.textAlign = 'center'; x.fillText('Etzba · etzba.ilanox.dev', W / 2, H - 110);
   const blob = await new Promise(r => c.toBlob(r, 'image/png'));
   await deliver(`etzba-${R.y}.png`, new Uint8Array(await blob.arrayBuffer()), 'image/png');
 }
@@ -2506,24 +2566,34 @@ async function askFirstPerms() {
 function openOnboarding() {
   const job = S.jobs[0];
   const d = { lang: LANG, name: job.name === 'העבודה שלי' ? '' : job.name, rate: job.rate, travel: job.travel || 0,
-    weekDays: job.weekDays, otOn: job.otOn !== false, shabbatOn: job.shabbatOn !== false, city: S.settings.city };
+    weekDays: job.weekDays, otOn: job.otOn !== false, shabbatOn: job.shabbatOn !== false, city: S.settings.city,
+    startDate: job.startDate || '', tipsOn: !!job.tipsOn, tipsMode: job.tipsMode || 'own', goal: +S.settings.goal?.amount || '' };
+  const LAST = 4;
   let step = 0;
   const el = document.createElement('div');
   el.id = 'onboard'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-labelledby', 'ob-title');
   document.body.appendChild(el);
   dbg.log('info', 'onboarding opened');
-  const dots = () => `<div class="ob-dots" aria-hidden="true">${[0, 1, 2, 3].map(i => `<i class="${i === step ? 'on' : ''}"></i>`).join('')}</div>`;
+  const dots = () => `<div class="ob-dots" aria-hidden="true">${[0, 1, 2, 3, 4].map(i => `<i class="${i === step ? 'on' : ''}"></i>`).join('')}</div>`;
   const yesNo = (k, on) => `<div class="seg" data-k="${k}"><button type="button" data-v="1" class="${on ? 'on' : ''}">כן</button><button type="button" data-v="0" class="${on ? '' : 'on'}">לא</button></div>`;
   const STEPS = [
-    () => `<div class="ob-hero">${mark({ ink: 'var(--ink)', accent: 'var(--accent)' })}</div>
+    () => `<div class="ob-hero sm">${mark({ ink: 'var(--ink)', accent: 'var(--accent)' })}</div>
       <h1 id="ob-title">ברוכים הבאים לאצבע</h1>
-      <p class="ob-sub">שמים אצבע כשנכנסים למשמרת, ושמים אצבע כשיוצאים. אצבע מחשבת את השכר לפי החוק: שעות נוספות, שבת, חגים ונסיעות.</p>
+      <p class="ob-sub">שמים אצבע כשנכנסים למשמרת, ושמים אצבע כשיוצאים. השאר עליה.</p>
+      <div class="ob-feats">
+        ${[[I.coins, 'orange', 'שכר לפי החוק', 'שעות נוספות, שבת, חגים, נסיעות וטיפים'],
+          [I.receipt, 'blue', 'נטו ודוח חודשי', 'מס, ביטוח לאומי ופנסיה, ודוח PDF להשוואה עם התלוש'],
+          [I.vac, 'teal', 'חופשה, מחלה והבראה', 'כמה ימים צברת וכמה מגיע לך'],
+          [I.cal, 'violet', 'יעד ומשמרות מתוכננות', 'כמה משמרות נשארו ליעד, ותזכורת לפני משמרת'],
+          [I.heart, 'red', 'חינם, בלי פרסומות ובלי חשבון', 'הכל נשמר בטלפון שלך']]
+          .map(([ic, t, h, sub]) => `<div class="ob-feat"><span class="cell-ic t-${t}">${ic}</span><span><b>${h}</b><small>${sub}</small></span></div>`).join('')}
+      </div>
       <div class="field"><span>שפה</span><div class="seg" id="ob-lang">${LANGS.map(l => `<button type="button" data-l="${l.code}" class="${l.code === LANG ? 'on' : ''}" data-keep>${l.name}</button>`).join('')}</div></div>`,
     () => `<h1 id="ob-title">איפה את/ה עובד/ת?</h1>
       <p class="ob-sub">אפשר להוסיף עוד מקומות עבודה אחר כך בהגדרות.</p>
       <label class="field"><span>שם מקום העבודה</span><input class="input" id="ob-name" type="text" autocomplete="organization" placeholder="למשל: קפה רחביה" value="${esc(d.name)}"></label>
       <label class="field"><span>שכר לשעה (₪)</span><input class="input num" id="ob-rate" type="number" step="0.01" inputmode="decimal" value="${d.rate}"><p class="hint" id="ob-minw"></p></label>
-      <label class="field"><span>נסיעות למשמרת (₪)</span><input class="input num" id="ob-travel" type="number" step="0.5" inputmode="decimal" value="${d.travel || ''}" placeholder="0"><p class="hint">אם המעסיק מחזיר נסיעות. אפשר להשאיר ריק.</p></label>`,
+      <label class="field"><span>נסיעות ליום עבודה (₪)</span><input class="input num" id="ob-travel" type="number" step="0.5" inputmode="decimal" value="${d.travel || ''}" placeholder="0"><p class="hint">לפי החוק נסיעות משולמות פעם אחת על כל יום עבודה, עד ₪${rules().travelMaxDaily} ליום. אם לא מחזירים לך, אפשר להשאיר ריק.</p></label>`,
     () => `<h1 id="ob-title">איך נראה שבוע העבודה?</h1>
       <p class="ob-sub">זה קובע מתי מתחילות שעות נוספות. לא בטוח/ה? אפשר להשאיר את מה שמסומן.</p>
       <div class="field"><span>ימי עבודה בשבוע</span><div class="seg" data-k="weekDays"><button type="button" data-v="5" class="${d.weekDays === 5 ? 'on' : ''}">5 ימים</button><button type="button" data-v="6" class="${d.weekDays === 6 ? 'on' : ''}">6 ימים</button></div>
@@ -2531,10 +2601,17 @@ function openOnboarding() {
       <div class="field"><span>משלמים לך שעות נוספות (125% / 150%)?</span>${yesNo('otOn', d.otOn)}<p class="hint">מגיע לפי חוק. יש מקומות שלא משלמים; אם כך, כדאי לדעת כמה זה יוצא.</p></div>
       <div class="field"><span>משלמים תוספת על שבת וחגים?</span>${yesNo('shabbatOn', d.shabbatOn)}</div>
       <label class="field"><span>העיר שלך (לזמני כניסת ויציאת שבת)</span><select class="input" id="ob-city">${Object.keys(CITIES).map(c => `<option value="${c}"${c === d.city ? ' selected' : ''}>${c}</option>`).join('')}</select></label>`,
+    () => `<h1 id="ob-title">עוד שני דברים</h1>
+      <p class="ob-sub">כדי לחשב חופשה, מחלה, הבראה וטיפים נכון.</p>
+      <label class="field"><span>מתי התחלת לעבוד שם?</span><input class="input num" id="ob-start" type="date" value="${esc(d.startDate)}" max="${dateKey(new Date())}"><p class="hint">אפשר בערך. ככה יודעים כמה ימי חופשה ומחלה צברת וכמה דמי הבראה מגיעים לך.</p></label>
+      <div class="field"><span>מקבלים טיפים?</span>${yesNo('tipsOn', d.tipsOn)}</div>
+      ${d.tipsOn ? `<div class="field"><span>איך הטיפים עובדים אצלך?</span><div class="seg" data-k="tipsMode"><button type="button" data-v="own" class="${d.tipsMode === 'own' ? 'on' : ''}">הטיפים שלי</button><button type="button" data-v="wage" class="${d.tipsMode === 'wage' ? 'on' : ''}">דרך המעסיק</button></div>
+        <p class="hint">${d.tipsMode === 'wage' ? 'הטיפים נכנסים לקופה ונחשבים לשכר. אם במשמרת הם פחות מהשכר לשעות, המעסיק משלים את ההפרש.' : 'הטיפים שלך במזומן או מהלקוחות, מעבר לשכר לשעה. הם לא חלק מהברוטו.'}</p></div>` : ''}`,
     () => `<div class="ob-hero">${mark({ ink: 'var(--ink)', accent: 'var(--accent)' })}</div>
       <h1 id="ob-title">הכל מוכן</h1>
       <p class="ob-sub">${esc(d.name || 'העבודה שלי')} · ₪${d.rate} לשעה${d.travel ? ` · נסיעות ₪${d.travel}` : ''} · שבוע של ${d.weekDays} ימים</p>
-      <div class="card" style="margin-top:18px">
+      <label class="field" style="margin-top:18px"><span>יעד נטו לחודש (₪, לא חובה)</span><input class="input num" id="ob-goal" type="number" step="50" inputmode="numeric" value="${d.goal || ''}" placeholder="למשל 5000"><p class="hint">נראה לך כמה משמרות נשארו כדי להגיע אליו.</p></label>
+      <div class="card" style="margin-top:6px">
         <button class="cell" id="ob-import"><span class="cell-ic t-blue">${I.file}</span><span class="grow">יש לי משמרות מאפליקציה אחרת<div class="sub">ייבוא מקובץ Excel או CSV</div></span><span class="chev">${I.chevL}</span></button>
       </div>
       <p class="ob-note">${I.info}<span>כל זה ניתן לשינוי בכל רגע: הגדרות ← מקום העבודה.</span></p>`,
@@ -2543,10 +2620,14 @@ function openOnboarding() {
     const v = id => el.querySelector(id);
     if (step === 1) { d.name = v('#ob-name').value.trim(); d.rate = Math.max(0, +v('#ob-rate').value || 0); d.travel = Math.max(0, +v('#ob-travel').value || 0); }
     if (step === 2) d.city = v('#ob-city').value;
+    if (step === 3) d.startDate = /^\d{4}-\d{2}-\d{2}$/.test(v('#ob-start').value) ? v('#ob-start').value : '';
+    if (step === LAST) d.goal = Math.max(0, +v('#ob-goal').value || 0);
   };
   const finish = (andImport = false) => {
     read();
-    Object.assign(job, { name: d.name || 'העבודה שלי', rate: d.rate || job.rate, travel: d.travel, weekDays: d.weekDays, otOn: d.otOn, shabbatOn: d.shabbatOn, chag: d.shabbatOn });
+    Object.assign(job, { name: d.name || 'העבודה שלי', rate: d.rate || job.rate, travel: d.travel, travelMode: 'day', weekDays: d.weekDays, otOn: d.otOn, shabbatOn: d.shabbatOn, chag: d.shabbatOn,
+      startDate: d.startDate, tipsOn: d.tipsOn, tipsMode: d.tipsMode });
+    if (d.goal > 0) S.settings.goal = { amount: d.goal, kind: 'net' };
     if (d.weekDays === 6) Object.assign(job, { regHours: 8, shortHours: 7, shortDay: 5 });
     else Object.assign(job, { regHours: 8.6, shortHours: 7.6, shortDay: 4 });
     S.settings.city = d.city; S.settings.onboarded = true;
@@ -2559,17 +2640,17 @@ function openOnboarding() {
     else toast('מוכן. שמים אצבע כדי להתחיל משמרת', 'ok');
   };
   const draw = () => {
-    el.innerHTML = `<div class="ob-top">${step ? `<button class="ob-link" id="ob-back">${I.chevR} חזרה</button>` : '<span></span>'}${dots()}<button class="ob-link" id="ob-skip">${step === 3 ? '' : 'דילוג'}</button></div>
+    el.innerHTML = `<div class="ob-top">${step ? `<button class="ob-link" id="ob-back">${I.chevR} חזרה</button>` : '<span></span>'}${dots()}<button class="ob-link" id="ob-skip">${step === LAST ? '' : 'דילוג'}</button></div>
       <div class="ob-body">${STEPS[step]()}</div>
-      <div class="ob-foot"><button class="btn primary" id="ob-next">${step === 0 ? 'מתחילים' : step === 3 ? 'לאפליקציה' : 'המשך'}</button></div>`;
+      <div class="ob-foot"><button class="btn primary" id="ob-next">${step === 0 ? 'מתחילים' : step === LAST ? 'לאפליקציה' : 'המשך'}</button></div>`;
     el.querySelector('.ob-body').scrollTop = 0;
     const $o = q => el.querySelector(q);
-    $o('#ob-next').onclick = () => { read(); if (step === 3) return finish(); step++; draw(); };
+    $o('#ob-next').onclick = () => { read(); if (step === LAST) return finish(); step++; draw(); };
     if ($o('#ob-back')) $o('#ob-back').onclick = () => { read(); step--; draw(); };
-    $o('#ob-skip').onclick = () => { if (step < 3) { S.settings.onboarded = true; persist(); el.remove(); dbg.log('info', 'onboarding skipped'); setTimeout(askFirstPerms, 400); } };
+    $o('#ob-skip').onclick = () => { if (step < LAST) { S.settings.onboarded = true; persist(); el.remove(); dbg.log('info', 'onboarding skipped'); setTimeout(askFirstPerms, 400); } };
     el.querySelectorAll('#ob-lang button').forEach(b => b.onclick = async () => { await setLang(b.dataset.l); d.lang = b.dataset.l; draw(); });
     el.querySelectorAll('.seg[data-k]').forEach(g => g.querySelectorAll('button').forEach(b => b.onclick = () => {
-      const k = g.dataset.k; d[k] = k === 'weekDays' ? +b.dataset.v : b.dataset.v === '1'; read(); draw(); buzz(8);
+      const k = g.dataset.k; read(); d[k] = k === 'weekDays' ? +b.dataset.v : k === 'tipsMode' ? b.dataset.v : b.dataset.v === '1'; draw(); buzz(8);
     }));
     if ($o('#ob-import')) $o('#ob-import').onclick = () => finish(true);
     const rate = $o('#ob-rate');
