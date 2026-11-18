@@ -84,7 +84,8 @@ function applyTheme() {
   const bg = { light: '#F1EEE6', dark: '#141518', blurple: '#1E1F22', gold: '#15130E', night: '#0C1322', sunset: '#F7EEE8', forest: '#0F1712', ocean: '#0B1A1E', plum: '#171021', ember: '#1A100C', sand: '#F2EDDF', dev: '#07090B', aurora: '#101531', dawn: '#FBEFE8', neon: '#0A0712', rosegold: '#F6EAE4' }[r];
   document.querySelectorAll('meta[name=theme-color]').forEach(m => { m.removeAttribute('media'); m.content = bg; });
   document.documentElement.classList.toggle('supporter', !!S.settings.supported);
-  const tag = document.getElementById('devTag'); if (tag) tag.hidden = !S.settings.owner;
+  const tag = document.getElementById('devTag');
+  if (tag) { tag.hidden = !S.settings.supported; tag.textContent = tr(S.settings.owner ? 'מצב מפתח' : 'תומך'); }
   native.setBars(!['light', 'sunset', 'sand', 'dawn', 'rosegold'].includes(r));
   try { syncWidget(); } catch {}
 }
@@ -1257,7 +1258,7 @@ async function openSupport() {
   };
   openSheet(`<div class="sp-ic">${I.heart}</div><h2 style="text-align:center">תמיכה באצבע</h2>
     <p class="shsub" style="text-align:center">אצבע חינמית, בלי פרסומות, והנתונים שלך נשארים בטלפון. אם היא עוזרת לך, אפשר לתמוך בפיתוח בתשלום חד־פעמי.</p>
-    <div class="note info" style="margin-top:12px">${I.heart}<span>בתודה: 12 ערכות צבע מיוחדות (גם עם מעברי צבע), אייקונים אחרים לאפליקציה וטבעת זהב סביב החוגה. רק המראה משתנה: כל החישובים והזכויות זמינים לכולם.</span></div>
+    <div class="note info" style="margin-top:12px">${I.heart}<span>בתודה: 12 ערכות צבע מיוחדות (גם עם מעברי צבע), אייקונים אחרים לאפליקציה וטבעת צבעונית סביב החוגה. רק המראה משתנה: כל החישובים והזכויות זמינים לכולם.</span></div>
     <div class="sp-main" id="sp-main"></div>
     <details class="sp-other"${SUPPORT_MORE.some(x => x[0] === chosen) ? ' open' : ''}><summary>סכום אחר</summary><div class="qchips" id="sp-more"></div></details>
     <div class="btnrow"><button class="btn primary sp-pay" id="sp-pay"></button></div>
@@ -2210,7 +2211,7 @@ function syncWidget() {
     ['rega', '--g-money-a'], ['regb', '--g-money-b'], ['ot1a', '--g-ot-a'], ['ot1b', '--g-ot-b'], ['ot2a', '--g-hot-a'], ['ot2b', '--g-hot-b'], ['hub', '--g-acc-a']]
     .map(([k, v]) => [k, cssHex(v)]));
   const state = { active: !!a, start: a ? +new Date(a.start) : 0, job: job?.name || '', rate: +job?.rate || 0, rtl: document.documentElement.dir === 'rtl', segs,
-    extra: { thr, ot1: job?.ot1Hours ?? 2, otOn: job?.otOn !== false, theme: S.settings.supported ? { ...theme, ring: '#D9A93F' } : theme, month: { name: MONTHS[now.getMonth()], gross: money(M.gross), count: M.shifts.length } },
+    extra: { thr, ot1: job?.ot1Hours ?? 2, otOn: job?.otOn !== false, theme: S.settings.supported ? { ...theme, ring: (S.settings.theme === 'gold' ? '#D9A93F' : cssHex('--accent')) } : theme, month: { name: MONTHS[now.getMonth()], gross: money(M.gross), count: M.shifts.length } },
     labels: EN
       ? { idle: 'Not on shift', starts: 'Starts ', since: 'since ', perHour: 'per hour', toOt: 'Overtime in {t}', now: 'Now: ', shortReg: 'regular', shortOt: 'overtime',
           tapStart: 'Tap the dial to clock in', tapShort: 'Tap to start', gross: 'gross', shifts: 'shifts' }

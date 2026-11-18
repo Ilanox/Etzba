@@ -368,7 +368,7 @@ export default {
     'לא הצלחתי להחליף את האייקון': 'Couldn\'t change the icon',
     'תומך/ת באצבע': 'Etzba supporter',
     'האפליקציה חינמית ובלי פרסומות. תומכים מקבלים ערכות צבע ואייקונים': 'The app is free and has no ads. Supporters get color themes and icons',
-    'בתודה: 12 ערכות צבע מיוחדות (גם עם מעברי צבע), אייקונים אחרים לאפליקציה וטבעת זהב סביב החוגה. רק המראה משתנה: כל החישובים והזכויות זמינים לכולם.': 'As a thank-you: 12 special color themes (some with gradients), other app icons and a gold ring around the dial. Only the look changes: every calculation and right is there for everyone.',
+    'בתודה: 12 ערכות צבע מיוחדות (גם עם מעברי צבע), אייקונים אחרים לאפליקציה וטבעת צבעונית סביב החוגה. רק המראה משתנה: כל החישובים והזכויות זמינים לכולם.': 'As a thank-you: 12 special color themes (some with gradients), other app icons and a colored ring around the dial. Only the look changes: every calculation and right is there for everyone.',
     'אצבע חינמית, בלי פרסומות, והנתונים שלך נשארים בטלפון. אם היא עוזרת לך, אפשר לתמוך בפיתוח בתשלום חד־פעמי.': 'Etzba is free, has no ads, and your data stays on your phone. If it helps you, you can support its development with a one-time payment.',
     'יער': 'Forest',
     'מצב מפתח': 'Developer mode',
@@ -388,6 +388,7 @@ export default {
     'שחר': 'Dawn',
     'ניאון': 'Neon',
     'רוז גולד': 'Rose gold',
+    'תומך': 'Supporter',
   },
   templates: [
     ['· ₪{} לשעה', '· ₪{1} an hour'],

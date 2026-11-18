@@ -900,7 +900,7 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
 .themes-h svg{width:14px;height:14px;color:#D9534F}
 /* supporters: a thin gold ring around the dial */
 html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;animation:none;border:0;z-index:1;position:absolute;inset:-7px;border-radius:50%;pointer-events:none;
-  background:conic-gradient(from 210deg,#B98A2A,#F3D27A,#C9932E,#F6DE98,#B98A2A);
+  background:conic-gradient(from 210deg,var(--ring-a,var(--g-acc-a)),var(--ring-b,var(--g-acc-b)),var(--ring-a,var(--g-acc-a)),var(--ring-b,var(--g-acc-b)),var(--ring-a,var(--g-acc-a)));
   -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px))}
 .icons{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .icons img{width:42px;height:42px}
@@ -1005,3 +1005,5 @@ html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;an
 :root[data-theme=rosegold] .hero{background:linear-gradient(135deg,#9A5463,#C7856A)}
 :root[data-theme=dawn] .hero{background:linear-gradient(135deg,#D9506F,#8E6BE0)}
 :root[data-theme=rosegold] .hero :is(small,span,em,.sub,.meta),:root[data-theme=dawn] .hero :is(small,span,em,.sub,.meta){color:rgba(255,255,255,.86)}
+:root[data-theme=gold]{--ring-a:#B98A2A;--ring-b:#F3D27A}
+:root:is([data-theme=light],[data-theme=dark]){--ring-a:var(--accent);--ring-b:color-mix(in srgb,var(--accent) 55%,#fff)}

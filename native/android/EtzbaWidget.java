@@ -282,7 +282,7 @@ public class EtzbaWidget extends AppWidgetProvider {
         p.setStyle(Paint.Style.FILL); p.setColor(s.c("bg", 0xFF141518)); c.drawCircle(100, 100, 99, p);
         p.setStyle(Paint.Style.STROKE);
         boolean on = s.running;
-        boolean gold = s.theme.has("ring");   // supporters: a gold ring when not on shift
+        boolean gold = s.theme.has("ring");   // supporters: a ring in the theme's color when not on shift (gold in the gold theme)
         p.setStrokeWidth(on ? 4f : gold ? 3f : 1.5f); p.setColor(on ? s.phaseColor() : gold ? s.c("ring", 0xFFD9A93F) : s.c("line", 0xFF2E3036));
         c.drawCircle(100, 100, on ? 97.5f : gold ? 98f : 98.5f, p);
         p.setStyle(Paint.Style.FILL); p.setColor(s.c("surface", 0xFF1D1F23)); c.drawCircle(100, 100, 90, p);
