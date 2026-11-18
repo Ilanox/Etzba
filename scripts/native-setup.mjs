@@ -21,13 +21,13 @@ function android() {
   if (!existsSync(app)) return console.log('android/ not found, run: npx cap add android');
   // 1. our plugins, and the activity that registers them (generated, so switched-off features leave no code behind)
   const pkgDir = join(app, 'src/main/java/com/edvinstudios/etzba'); mkdirSync(pkgDir, { recursive: true });
-  const files = { 'ShareInPlugin.java': true, 'AppActionsPlugin.java': true, 'EtzbaWidget.java': WIDGET, 'GeoPlugin.java': GEO, 'GeoReceiver.java': GEO, 'BillingPlugin.java': SUPPORT };
+  const files = { 'ShareInPlugin.java': true, 'AppActionsPlugin.java': true, 'EtzbaWidget.java': WIDGET, 'GeoPlugin.java': GEO, 'GeoReceiver.java': GEO, 'BillingPlugin.java': SUPPORT, 'NotifyPlugin.java': true, 'NotifyReceiver.java': true };
   for (const [f, on] of Object.entries(files)) {
     if (on) copyFileSync(join(root, 'native/android', f), join(pkgDir, f));
     else rmSync(join(pkgDir, f), { force: true });
   }
   if (!WIDGET) writeFileSync(join(pkgDir, 'EtzbaWidget.java'), `package com.edvinstudios.etzba;\n\n/** Widget switched off in features.json. */\nclass EtzbaWidget { static void refresh(android.content.Context c) { } }\n`);
-  const plugins = ['ShareInPlugin', 'AppActionsPlugin', ...(GEO ? ['GeoPlugin'] : []), ...(SUPPORT ? ['BillingPlugin'] : [])];
+  const plugins = ['ShareInPlugin', 'AppActionsPlugin', 'NotifyPlugin', ...(GEO ? ['GeoPlugin'] : []), ...(SUPPORT ? ['BillingPlugin'] : [])];
   writeFileSync(join(pkgDir, 'MainActivity.java'), `package com.edvinstudios.etzba;
 
 import android.os.Bundle;
@@ -74,6 +74,7 @@ ${plugins.map(p => `        registerPlugin(${p}.class);`).join('\n')}
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>`, GEO);
+  block('notify', `        <receiver android:name=".NotifyReceiver" android:exported="false" />`, true);
   block('widget', `        <receiver android:name=".EtzbaWidget" android:exported="false" android:label="@string/app_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

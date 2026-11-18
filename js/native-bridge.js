@@ -97,9 +97,7 @@ export async function notifyStatus() {
   if (!NATIVE) return { display: 'unsupported', exact: null };
   return withP('LocalNotifications', async n => {
     const { display } = await n.checkPermissions();
-    let exact = null;
-    try { exact = (await n.checkExactNotificationSetting()).exact_alarm === 'granted'; } catch { exact = null; }   // older Android: always exact
-    return { display, exact };
+    return { display, exact: null };
   }).catch(e => { warn('notify status')(e); return { display: 'error', exact: null }; });
 }
 export async function notifyAllowed(ask = false) {
@@ -116,6 +114,12 @@ export function openNotificationSettings() { return withP('AppActions', a => a.o
 /** Replaces every scheduled notification with `items` ([{ at: Date, title, body }]). Returns how many were scheduled. */
 export async function scheduleNotifications(items) {
   if (!NATIVE) return 0;
+  // the app's own scheduler (native/android/NotifyPlugin.java): no exact-alarm permission, never opens settings
+  if (window.Capacitor?.isPluginAvailable?.('Notify')) {
+    const list = items.filter(x => +x.at > Date.now() + 5000).slice(0, 30).map((x, i) => ({ id: 100 + i, at: +x.at, title: x.title, body: x.body }));
+    const r = await withP('Notify', n => n.schedule({ items: list }));
+    return r?.count ?? list.length;
+  }
   return withP('LocalNotifications', async n => {
     const { notifications: pend } = await n.getPending();
     const ours = pend.filter(x => x.id >= 100 && x.id < 900);
@@ -140,12 +144,18 @@ export async function testNotifications(items, gap = 6) {
     if (!ok) ok = (await n.requestPermissions()).display === 'granted';
     if (!ok) return false;
     const t0 = Date.now() + 3000;
+    if (window.Capacitor?.isPluginAvailable?.('Notify')) {   // the same scheduler the app uses (replaces what's waiting; the app plans again after)
+      await P('Notify').schedule({ items: items.map((x, i) => ({ id: 900 + i, at: t0 + i * gap * 1000, title: x.title, body: x.body })) });
+      return true;
+    }
     await n.schedule({ notifications: items.map((x, i) => ({ id: 900 + i, title: x.title, body: x.body, schedule: { at: new Date(t0 + i * gap * 1000), allowWhileIdle: true }, smallIcon: 'ic_stat_etzba', iconColor: '#FF6A3D' })) });
     return true;
   }).catch(() => false)) || false;
 }
 export async function pendingNotifications() {
   if (!NATIVE) return [];
+  if (window.Capacitor?.isPluginAvailable?.('Notify'))
+    return (await withP('Notify', n => n.pending()).catch(() => null))?.items?.map(x => ({ id: x.id, title: x.title, body: x.body, at: new Date(x.at) })) || [];
   return (await withP('LocalNotifications', async n => (await n.getPending()).notifications.map(x => ({ id: x.id, title: x.title, body: x.body, at: x.schedule?.at })))
     .catch(() => [])) || [];
 }

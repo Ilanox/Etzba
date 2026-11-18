@@ -2232,11 +2232,13 @@ function planNotifications(ask = false) {
     try {
       const a = S.active, N = { rates: true, rest: true, long: true, ...(S.settings.notif || {}) };
       const on = N.rates || N.rest || N.long, ahead = on ? planReminders() : [];
-      if (!on || (!a && !ahead.length)) { NOTIF = { state: 'off', next: null, exact: null }; await native.scheduleNotifications([]); return; }
+      if (!on || (!a && !ahead.length)) { NOTIF = { state: 'off', next: null, exact: null }; if (planNotifications.last !== '[]') await native.scheduleNotifications([]); planNotifications.last = '[]'; return; }
       if (!(await native.notifyAllowed(ask))) { NOTIF = { state: 'denied', next: null, exact: null }; dbg.log('warn', 'notifications: not allowed'); return; }
       const st = await native.notifyStatus();
       const items = [...(a ? buildNotifications(a, N) : []), ...ahead].filter(x => +x.at > Date.now() + 5000).sort((x, y) => x.at - y.at);
-      const n = await native.scheduleNotifications(items.map(x => ({ ...x, title: tr(x.title), body: tr(x.body) })));
+      const send = items.map(x => ({ ...x, title: tr(x.title), body: tr(x.body) })), sig = JSON.stringify(send.map(x => [+x.at, x.title, x.body]));
+      const n = sig === planNotifications.last ? items.length : await native.scheduleNotifications(send);
+      planNotifications.last = sig;
       NOTIF = { state: 'ok', next: items[0] || null, exact: st.exact, count: n };
       dbg.log('info', `notifications: ${n} scheduled`);
     } catch (e) {
@@ -2411,6 +2413,7 @@ function openDevTools() {
     $$('#dv-scen button', root).forEach(b => b.onclick = () => { pick = b.dataset.s; draw(); });
     const send = async list => { if (!native.NATIVE) return toast('התראות עובדות רק באפליקציה לאנדרואיד', 'err');
       const ok = await native.testNotifications(list.map(x => ({ title: tr(x.title), body: tr(x.body) })));
+      planNotifications.last = null;   // the test replaced the real ones: plan them again next time
       toast(ok ? `נשלחו ${list.length} התראות` : 'אין הרשאה להתראות. אפשר לאשר בהגדרות הטלפון', ok ? 'ok' : 'err'); };
     $('#dv-one', root).onclick = () => send([{ title: 'אצבע · בדיקה', body: 'ככה נראית התראה. אם רואים את זה, הכל עובד.' }]);
     $('#dv-send', root).onclick = () => send(items);
