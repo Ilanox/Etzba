@@ -1086,7 +1086,7 @@ function sumMonth(el) {
   const hol = holidaysOfGregorianYear(viewY).filter(h => h.date.getMonth() === viewM);
   el.innerHTML = `${monthBar()}
     <div class="card hero" style="margin-top:12px"><small>נטו משוער ל${MONTHS[viewM]}<button type="button" class="estimate" data-legal aria-label="הערכה: מה החישוב כן ולא">הערכה ⓘ</button></small><button type="button" class="big num hero-amt" id="netWhy" aria-label="איך מחושב הנטו">${money(n.net)}</button>
-      <div class="meta num"><b>ברוטו ${money(M.gross)}</b>${M.tipsOwn ? ` · טיפים ${money(M.tipsOwn)}` : ''}<br>${M.shifts.length} משמרות${M.live ? ' + המשמרת הנוכחית' : ''} · ${hm(M.hours)} שעות</div>
+      <div class="meta num"><b>ברוטו ${money(M.gross)}</b>${M.tipsOwn ? ` · <span>טיפים ${money(M.tipsOwn)}</span>` : ''}<br>${M.shifts.length} משמרות${M.live ? ' + המשמרת הנוכחית' : ''} · ${hm(M.hours)} שעות</div>
       ${M.gross ? `<div class="stack">${parts.map(([v, c]) => `<span style="flex:${v};background:${c}"></span>`).join('')}</div>
       <div class="legend">${parts.map(([, c, l]) => `<span><i style="background:${c}"></i>${l}</span>`).join('')}</div>` : ''}</div>
     ${M.gross ? `
@@ -2159,8 +2159,9 @@ function openJobSheet(job, isNew) {
         ? 'הטיפים נכנסים לקופה ונחשבים לשכר. אם במשמרת הם פחות מהשכר לשעות, המעסיק משלים את ההפרש.'
         : 'הטיפים שלך במזומן או מהלקוחות, מעבר לשכר לשעה. הם לא חלק מהברוטו.';
       const tr0 = +v('travel').value || 0, maxD = rules().travelMaxDaily;
-      $('#j-thint', root).textContent = (j.travelMode === 'shift' ? 'נסיעות על כל משמרת, גם כשיש שתיים באותו יום.' : 'לפי החוק נסיעות משולמות פעם אחת על כל יום עבודה.')
-        + (maxD && tr0 > maxD ? ` לפי צו ההרחבה ההחזר עד ₪${maxD} ליום.` : '') + ' התקרה לחודש: מחיר חופשי חודשי, אם זול יותר.';
+      // one sentence per span, so each is translated on its own
+      $('#j-thint', root).innerHTML = `<span>${j.travelMode === 'shift' ? 'נסיעות על כל משמרת, גם כשיש שתיים באותו יום.' : 'לפי החוק נסיעות משולמות פעם אחת על כל יום עבודה.'}</span>`
+        + (maxD && tr0 > maxD ? ` <span>לפי צו ההרחבה ההחזר עד ₪${maxD} ליום.</span>` : '') + ' <span>התקרה לחודש: מחיר חופשי חודשי, אם זול יותר.</span>';
       $('#j-fixed', root).classList.toggle('hidden', j.restMode !== 'fixed');
       const ot = v('otOn').checked;
       $('#rule-ot', root).classList.toggle('off', !ot);
