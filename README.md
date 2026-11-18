@@ -105,7 +105,7 @@ Two things update on phones by themselves, once a day when online, from GitHub P
 - **Yearly figures** (`data/rules.json`): edit, raise `version`, push.
 - **Translations** (`data/lang/<code>.json`, made from `languages/<code>.js`): edit the pack, run `npm run data` (also part of every build), commit and push. The version goes up on its own when the content changes.
 
-The app keeps working offline with what's built in, and only takes a download that's newer and passes its checks. GitHub Pages serves the repo at **https://etzba.ilanox.dev** (the `CNAME` file; Settings → Pages → Deploy from branch `main`, folder `/`). Older installs that still ask ilanox.github.io/Etzba are redirected there by GitHub.
+The app keeps working offline with what's built in, and only takes a download that's newer and passes its checks. **https://etzba.ilanox.dev** is published by `.github/workflows/pages.yml` on every push: the home page (`site/`) at `/`, the web app at `/app/`, `data/` and `privacy.html`. One-time setup: Settings → Pages → Source: **GitHub Actions**, custom domain `etzba.ilanox.dev`. The home page's phone pictures come from `node store/make-screenshots.mjs` (`site/img/`).
 
 ## Build switches
 `features.json` decides what goes into the app: `widget`, `arrivalDetection`, and `devTools` (diagnostics and developer tools in Settings). `arrivalDetection` (workplace arrival notifications) needs "location all the time", which Google Play reviews separately, so it's off for now. Change it, then `npm run android` or `npm run apk`.

@@ -1,0 +1,43 @@
+# Publishes etzba.ilanox.dev on every push to main:
+#   /          the home page (site/)
+#   /app/      the web app
+#   /data/     yearly figures and language packs the apps download
+#   /privacy.html
+# One-time setup: repo Settings → Pages → Source: "GitHub Actions"; Custom domain: etzba.ilanox.dev.
+name: Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the language data
+        run: node scripts/build-data.mjs
+      - name: Put the site together
+        run: |
+          mkdir -p _site/app
+          cp -r site/. _site/
+          cp -r data privacy.html CNAME _site/
+          cp -r index.html style.css manifest.webmanifest service-worker.js js languages icons _site/app/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -65,7 +65,11 @@ try {
     await page.evaluate(s => localStorage.setItem('etzba.v1', JSON.stringify(s)), sampleState(lang));
     await page.reload(); await page.waitForTimeout(1200);
     const shots = {};
-    const snap = async k => { await page.waitForTimeout(500); shots[k] = (await page.screenshot()).toString('base64'); };
+    mkdirSync(ROOT + `site/img/${lang}`, { recursive: true });
+    const snap = async k => {
+      await page.waitForTimeout(500); shots[k] = (await page.screenshot()).toString('base64');
+      await page.screenshot({ path: ROOT + `site/img/${lang}/${k}.jpg`, type: 'jpeg', quality: 86 });   // the plain screen, for the website
+    };
     await snap('home');
     await page.click('[data-v=sum]'); await snap('sum');
     await page.click('[data-v=shifts]'); await snap('shifts');

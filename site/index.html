@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>אצבע · משמרות ושכר לפי החוק בישראל</title>
+<meta name="description" content="אצבע: שמים אצבע כשנכנסים למשמרת ושמים אצבע כשיוצאים. שכר לפי החוק בישראל, עם שעות נוספות, שבת, חג ונטו. בלי חשבון, הכל נשמר בטלפון.">
+<meta name="theme-color" content="#141518">
+<link rel="icon" href="app/icons/icon-192.png">
+<meta property="og:title" content="אצבע · משמרות ושכר לפי החוק בישראל">
+<meta property="og:description" content="שמים אצבע כשנכנסים, ושמים אצבע כשיוצאים. השכר מחושב לפי החוק בישראל.">
+<meta property="og:image" content="https://etzba.ilanox.dev/img/he/home.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#141518;--surface:#1D1F23;--surface2:#24272C;--line:#2E3036;--ink:#ECE9E1;--ink2:#B9B4AA;--ink3:#8E8B85;--blue:#6C9BE8;--coral:#EB6E57}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;overflow-x:hidden;background:var(--bg);color:var(--ink);font:17px/1.6 Heebo,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+/* top bar */
+header{position:sticky;top:0;z-index:5;background:rgba(20,21,24,.86);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:12px;height:64px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:900;font-size:24px;letter-spacing:-.3px}
+.brand svg{width:34px;height:34px}
+.bar nav{margin-inline-start:auto;display:flex;align-items:center;gap:22px;font-size:15px}
+.bar nav a{text-decoration:none;color:var(--ink2)}.bar nav a:hover{color:var(--ink)}
+.lang{background:none;border:0;color:var(--ink2);font:inherit;cursor:pointer;padding:0}
+.lang:hover{color:var(--ink)}
+/* hero */
+.hero>*{min-width:0}
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;padding-block:72px 40px}
+h1{font-size:clamp(44px,7vw,84px);line-height:1;font-weight:900;letter-spacing:-1px;margin:0}
+.tag{font-size:clamp(21px,2.6vw,28px);font-weight:500;color:var(--ink);margin:18px 0 10px;line-height:1.3}
+.lead{color:var(--ink2);max-width:30em;margin:0}
+.ctas{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;height:52px;padding:0 24px;border-radius:14px;font-weight:700;font-size:16px;text-decoration:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);transition:transform .15s,background .15s}
+.btn:hover{transform:translateY(-1px);background:var(--surface2)}
+.btn.primary{background:var(--ink);color:#141518;border-color:var(--ink)}
+.btn.primary:hover{background:#fff}
+.btn svg{width:20px;height:20px}
+.soon{display:block;font-size:14px;color:var(--ink3);margin-top:12px}
+.back{display:none;font-size:15px;color:var(--ink2);margin-top:14px}
+.back a{color:var(--blue)}
+/* phones */
+.phones{position:relative;height:620px}
+.phone{position:absolute;width:280px;border-radius:38px;overflow:hidden;border:8px solid #26282D;box-shadow:0 40px 80px -30px rgba(0,0,0,.8);background:#000}
+.phone img{display:block;width:100%;height:auto}
+.phone.a{inset-inline-end:0;top:0;z-index:2}
+.phone.b{inset-inline-end:200px;top:70px;transform:scale(.9);opacity:.92;transform-origin:top}
+/* sections */
+section{padding:64px 0;border-top:1px solid var(--line)}
+h2{font-size:clamp(28px,3.6vw,40px);font-weight:800;letter-spacing:-.4px;margin:0 0 8px;line-height:1.15}
+.sub{color:var(--ink2);margin:0 0 36px;max-width:34em}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px}
+.item h3{font-size:20px;font-weight:700;margin:0 0 6px}
+.item p{margin:0;color:var(--ink2);font-size:16px}
+.item .k{direction:ltr;unicode-bidi:isolate;color:var(--blue);font-weight:800;font-size:15px;display:block;margin-bottom:10px;font-variant-numeric:tabular-nums}
+.item.coral .k{color:var(--coral)}
+html[dir=rtl] .item .k{text-align:right}
+/* gallery */
+.gallery{display:flex;gap:22px;overflow-x:auto;padding:4px 2px 18px;scroll-snap-type:x mandatory;scrollbar-width:none}
+.gallery::-webkit-scrollbar{display:none}
+.shot{flex:none;width:250px;scroll-snap-align:start}
+.shot img{width:100%;border-radius:28px;border:6px solid #26282D;display:block}
+.shot>span{display:block;margin-top:12px;font-size:15px;color:var(--ink2)}
+/* privacy */
+.private{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}
+.private ul{margin:0;padding:0;list-style:none}
+.private li{padding:14px 0;border-bottom:1px solid var(--line);color:var(--ink2)}
+.private li b{color:var(--ink);font-weight:700}
+.fine{font-size:14px;color:var(--ink3);margin-top:22px}
+footer{border-top:1px solid var(--line);padding:34px 0 50px;color:var(--ink3);font-size:15px}
+footer .row{display:flex;flex-wrap:wrap;gap:10px 26px;align-items:center}
+footer a{color:var(--ink2);text-decoration:none}footer a:hover{color:var(--ink)}
+footer .by{margin-inline-start:auto}
+/* language */
+[data-l]{display:none}
+html[lang=he] [data-l=he],html[lang=en] [data-l=en]{display:revert}
+@media (max-width:860px){
+  .hero{grid-template-columns:minmax(0,1fr);padding-top:44px;gap:20px}
+  .phones{height:auto;margin-top:10px}
+  .phone{width:220px;border-radius:30px;border-width:6px}
+  .phone.a{position:relative;inset:auto;margin:0 auto}
+  .phone.b{display:none}
+  .grid,.private{grid-template-columns:1fr;gap:24px}
+  .bar nav .hide-m{display:none}
+}
+</style>
+</head>
+<body>
+<header><div class="wrap bar">
+  <a class="brand" href="./"><svg viewBox="0 0 120 120" aria-hidden="true"><defs>
+    <clipPath id="fp0t"><ellipse cx="60" cy="60" rx="43" ry="53"/></clipPath>
+    <clipPath id="fp0w"><path d="M0 0H120V90.97Q60 72.97 0 94.97Z"/></clipPath></defs>
+    <g transform="translate(60 60) scale(0.93) translate(-60 -60) translate(0 3) rotate(-6 60 60)"><g clip-path="url(#fp0t)" fill="none" stroke="#ECE9E1" stroke-width="4.8" stroke-linecap="round">
+      <g clip-path="url(#fp0w)"><path d="M52.93 62.62A11 13.86 0 1 1 65.16 64.24"/><path d="M48.17 70.66A18.4 23.183999999999997 0 0 1 53.71 31.11"/><path d="M58.72 29.77A18.4 23.183999999999997 0 0 1 66.89 74.40"/><path d="M43.42 78.70A25.8 32.508 0 1 1 67.11 85.05"/><path d="M38.66 86.75A33.2 41.832 0 1 1 88.75 33.78"/><path d="M91.58 41.77A33.2 41.832 0 0 1 65.77 95.90"/><path d="M33.90 94.79A40.6 51.156 0 0 1 23.20 33.98"/><path d="M26.74 26.26A40.6 51.156 0 1 1 62.83 106.63"/><path d="M29.15 102.83A48 60.480000000000004 0 1 1 58.32 116.94"/></g><path d="M0 102 Q60 80 120 98"/><path d="M0 109.03 Q60 85.53 120 105.03"/><path d="M0 116.06 Q60 91.06 120 112.06"/></g>
+    <g stroke="#EB6E57" stroke-width="5.3999999999999995" stroke-linecap="round"><line x1="60" y1="52" x2="60" y2="43" transform="rotate(0 60 52)"/><line x1="60" y1="52" x2="60" y2="45.8" transform="rotate(90 60 52)"/></g></g></svg><span data-l="he">אצבע</span><span data-l="en">Etzba</span></a>
+  <nav>
+    <a class="hide-m" href="#features"><span data-l="he">מה יש בה</span><span data-l="en">Features</span></a>
+    <a class="hide-m" href="#privacy"><span data-l="he">פרטיות</span><span data-l="en">Privacy</span></a>
+    <button class="lang" id="lang" type="button"><span data-l="he">English</span><span data-l="en">עברית</span></button>
+  </nav>
+</div></header>
+
+<main>
+<div class="wrap hero">
+  <div>
+    <h1><span data-l="he">אצבע</span><span data-l="en">Etzba</span></h1>
+    <p class="tag"><span data-l="he">שמים אצבע כשנכנסים למשמרת,<br>ושמים אצבע כשיוצאים.</span><span data-l="en">Tap in when your shift starts.<br>Tap out when it ends.</span></p>
+    <p class="lead"><span data-l="he">אפליקציה לעובדים לפי שעה בישראל. השכר מחושב תוך כדי המשמרת, לפי החוק: שעות נוספות, שבת, חג, לילה, ועד כמה ייכנס לחשבון.</span><span data-l="en">A shift tracker for hourly workers in Israel. Your pay adds up during the shift, by Israeli law: overtime, Shabbat, holidays, nights, and what actually reaches your account.</span></p>
+    <div class="ctas">
+      <a class="btn primary" href="app/"><span data-l="he">לפתוח באתר</span><span data-l="en">Open in the browser</span></a>
+      <span class="btn" aria-disabled="true" style="cursor:default"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.6 2.2a1.2 1.2 0 0 0-.6 1.1v17.4c0 .5.2.9.6 1.1l9.6-9.8-9.6-9.8Zm10.8 11-2.3 2.3 6.9 4 .1.1 2.7-1.6c.8-.4.8-1.7 0-2.1l-2.8-1.6-4.6-1.1Zm-1.2-1.2 2.3-2.4-6.9-4-4.4-2.5 9 8.9Zm0 0"/></svg><span data-l="he">Google Play · בקרוב</span><span data-l="en">Google Play · soon</span></span>
+    </div>
+    <p class="back" id="back"><span data-l="he">כבר משתמשים באתר? <a href="app/">המשמרות שלך מחכות כאן</a>.</span><span data-l="en">Already using it here? <a href="app/">Your shifts are waiting</a>.</span></p>
+    <span class="soon"><span data-l="he">חינם. בלי חשבון, בלי פרסומות. עובד גם בלי אינטרנט.</span><span data-l="en">Free. No account, no ads. Works offline.</span></span>
+  </div>
+  <div class="phones" aria-hidden="true">
+    <div class="phone b"><img data-src="sum" alt=""></div>
+    <div class="phone a"><img data-src="home" alt=""></div>
+  </div>
+</div>
+
+<section id="features"><div class="wrap">
+  <h2><span data-l="he">כל דקה בתעריף הנכון</span><span data-l="en">Every minute at the right rate</span></h2>
+  <p class="sub"><span data-l="he">אצבע יודעת מתי נכנסת שבת בעיר שלך, מתי מתחילות שעות נוספות, ומה מגיע לך ביום הבחירות.</span><span data-l="en">Etzba knows when Shabbat starts in your city, when overtime begins, and what you're owed on election day.</span></p>
+  <div class="grid">
+    <div class="item"><span class="k">100% · 125% · 150%</span><h3><span data-l="he">שעות נוספות</span><span data-l="en">Overtime</span></h3><p><span data-l="he">ביום ובשבוע, עם יום מקוצר ומשמרות לילה. המכסה השבועית ניתנת לשינוי.</span><span data-l="en">Daily and weekly, with short days and night shifts. The weekly limit is adjustable.</span></p></div>
+    <div class="item coral"><span class="k">150% · 175% · 200%</span><h3><span data-l="he">שבת וחגים</span><span data-l="en">Shabbat and holidays</span></h3><p><span data-l="he">לפי זמני כניסת ויציאת השבת בעיר שלך, וכל החגים עד 2035, בלי אינטרנט.</span><span data-l="en">By candle-lighting and havdalah in your city, and every holiday to 2035, offline.</span></p></div>
+    <div class="item"><span class="k">₪5,211 → ₪4,989</span><h3><span data-l="he">ברוטו ונטו</span><span data-l="en">Gross and net</span></h3><p><span data-l="he">מס הכנסה, נקודות זיכוי, ביטוח לאומי, בריאות ופנסיה. סיכום לשבוע, לחודש ולשנה.</span><span data-l="en">Income tax, credit points, National Insurance, health tax and pension. By week, month and year.</span></p></div>
+    <div class="item"><span class="k">06:14:01</span><h3><span data-l="he">שעון משמרת</span><span data-l="en">Shift clock</span></h3><p><span data-l="he">נגיעה אחת כדי להתחיל, והסכום עולה לנגד העיניים. שכחת? משנים את שעת הכניסה.</span><span data-l="en">One tap to start, and watch the amount grow. Forgot? Change the start time.</span></p></div>
+    <div class="item"><span class="k">.xlsx · .csv</span><h3><span data-l="he">ייבוא מאקסל</span><span data-l="en">Import from Excel</span></h3><p><span data-l="he">משמרות מקבצי Excel ו־CSV, גם מאפליקציות אחרות, ישר מתפריט השיתוף.</span><span data-l="en">Shifts from Excel and CSV files, even from other apps, straight from the share menu.</span></p></div>
+    <div class="item"><span class="k"><span data-l="he">חוק שעות עבודה ומנוחה</span><span data-l="en">Hours of Work and Rest Law</span></span><h3><span data-l="he">מה מגיע לי</span><span data-l="en">Know your rights</span></h3><p><span data-l="he">הזכויות של עובדים לפי שעה, בשפה פשוטה. הפסקות, נסיעות, חגים ועוד.</span><span data-l="en">What hourly workers are owed, in plain words. Breaks, travel, holidays and more.</span></p></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2><span data-l="he">ככה זה נראה</span><span data-l="en">What it looks like</span></h2>
+  <p class="sub"><span data-l="he">כהה, נקי, ובעברית מימין לשמאל. יש גם אנגלית.</span><span data-l="en">Dark, clean, and right-to-left in Hebrew. In English too.</span></p>
+  <div class="gallery">
+    <div class="shot"><img data-src="home" alt="" loading="lazy"><span><span data-l="he">המשמרת שרצה עכשיו</span><span data-l="en">The shift running now</span></span></div>
+    <div class="shot"><img data-src="sum" alt="" loading="lazy"><span><span data-l="he">סיכום החודש, ברוטו ונטו</span><span data-l="en">The month, gross and net</span></span></div>
+    <div class="shot"><img data-src="shifts" alt="" loading="lazy"><span><span data-l="he">כל המשמרות, לפי שבועות</span><span data-l="en">All shifts, by week</span></span></div>
+    <div class="shot"><img data-src="detail" alt="" loading="lazy"><span><span data-l="he">למה כל שקל</span><span data-l="en">Why every shekel</span></span></div>
+    <div class="shot"><img data-src="rights" alt="" loading="lazy"><span><span data-l="he">מה מגיע לך</span><span data-l="en">Your rights</span></span></div>
+    <div class="shot"><img data-src="job" alt="" loading="lazy"><span><span data-l="he">ההגדרות של העבודה</span><span data-l="en">Your job's settings</span></span></div>
+  </div>
+</div></section>
+
+<section id="privacy"><div class="wrap private">
+  <div>
+    <h2><span data-l="he">הכל נשאר אצלך</span><span data-l="en">Everything stays with you</span></h2>
+    <p class="sub" style="margin:0"><span data-l="he">אין חשבון ואין שרת. המשמרות והשכר שלך נשמרים רק בטלפון, ואנחנו לא רואים אותם.</span><span data-l="en">No account and no server. Your shifts and pay stay on your phone, and we never see them.</span></p>
+  </div>
+  <ul>
+    <li><b><span data-l="he">בלי פרסומות ובלי מעקב.</span><span data-l="en">No ads, no tracking.</span></b> <span data-l="he">אין אנליטיקס ואין צד שלישי.</span><span data-l="en">No analytics, no third parties.</span></li>
+    <li><b><span data-l="he">עובד בלי אינטרנט.</span><span data-l="en">Works offline.</span></b> <span data-l="he">מהפעם הראשונה שפותחים.</span><span data-l="en">From the very first launch.</span></li>
+    <li><b><span data-l="he">גיבוי בידיים שלך.</span><span data-l="en">Backups are yours.</span></b> <span data-l="he">קובץ גיבוי מלא וייצוא לאקסל.</span><span data-l="en">A full backup file, and export to Excel.</span></li>
+    <li><b><span data-l="he">החישובים הם הערכה.</span><span data-l="en">Pay is an estimate.</span></b> <span data-l="he">לפי החוק וההגדרות שלך, לא תלוש שכר רשמי.</span><span data-l="en">By the law and your settings, not an official payslip.</span></li>
+  </ul>
+</div></section>
+</main>
+
+<footer><div class="wrap row">
+  <a href="privacy.html"><span data-l="he">מדיניות פרטיות</span><span data-l="en">Privacy policy</span></a>
+  <a href="mailto:ilan@edvin.co.il">ilan@edvin.co.il</a>
+  <a href="app/"><span data-l="he">לאפליקציה</span><span data-l="en">Open the app</span></a>
+  <span class="by">An Edvin Studios Project</span>
+</div></footer>
+
+<script>
+(function () {
+  var h = document.documentElement, KEY = 'etzba.site.lang';
+  function set(l) {
+    h.lang = l; h.dir = l === 'he' ? 'rtl' : 'ltr';
+    document.title = l === 'he' ? 'אצבע · משמרות ושכר לפי החוק בישראל' : 'Etzba · Shifts and pay by Israeli law';
+    document.querySelectorAll('img[data-src]').forEach(function (i) { i.src = 'img/' + l + '/' + i.dataset.src + '.jpg'; });
+    try { localStorage.setItem(KEY, l); } catch (e) {}
+  }
+  var saved = null, appLang = null;
+  try { saved = localStorage.getItem(KEY); var s = JSON.parse(localStorage.getItem('etzba.v1') || 'null'); appLang = s && s.settings && s.settings.lang; if (s && (s.shifts && s.shifts.length || s.active)) document.getElementById('back').style.display = 'block'; } catch (e) {}
+  set(saved || appLang || (/^he|^iw/.test(navigator.language || '') ? 'he' : (navigator.language ? 'en' : 'he')));
+  document.getElementById('lang').onclick = function () { set(h.lang === 'he' ? 'en' : 'he'); };
+})();
+</script>
+</body>
+</html>
