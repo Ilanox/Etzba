@@ -755,6 +755,9 @@ function openShiftSheet(sh, mode) {
   const job = jobById(sh.jobId);
   const st0 = new Date(sh.start), en0 = new Date(sh.end), today = new Date(); today.setHours(0, 0, 0, 0);
   const T = { date: new Date(st0.getFullYear(), st0.getMonth(), st0.getDate()), s: [st0.getHours(), st0.getMinutes()], e: [en0.getHours(), en0.getMinutes()], active: mode === 'end' ? 'e' : 's' };
+  // ends the next day: automatic when the end time is earlier than the start; can also be set by hand (a shift of 24 hours or more)
+  { const d0 = new Date(st0.getFullYear(), st0.getMonth(), st0.getDate()), d1 = new Date(en0.getFullYear(), en0.getMonth(), en0.getDate());
+    T.next = d1 > d0 && (T.e[0] * 60 + T.e[1]) >= (T.s[0] * 60 + T.s[1]); }
   const mstep = [T.s[1], T.e[1]].every(x => x % 5 === 0) ? 5 : 1;
   const wheel = (id, n, st) => `<div class="wheel" id="w-${id}" data-step="${st}">${Array.from({ length: n / st }, (_, i) => `<div class="wi num" data-v="${i * st}">${pad(i * st)}</div>`).join('')}</div>`;
   const title = mode === 'end' ? 'סיום משמרת' : mode === 'new' ? 'משמרת חדשה' : 'עריכת משמרת';
@@ -788,7 +791,7 @@ function openShiftSheet(sh, mode) {
     <div class="tp">
       <div class="tp-col"><div class="tp-cap">כניסה</div><div class="wheels" dir="ltr">${wheel('sh', 24, 1)}<span class="colon">:</span>${wheel('sm', 60, mstep)}</div></div>
       <div class="tp-arrow">${I.chevL}</div>
-      <div class="tp-col"><div class="tp-cap">יציאה <em id="tNext"></em></div><div class="wheels" dir="ltr">${wheel('eh', 24, 1)}<span class="colon">:</span>${wheel('em', 60, mstep)}</div></div>
+      <div class="tp-col"><div class="tp-cap">יציאה</div><div class="wheels" dir="ltr">${wheel('eh', 24, 1)}<span class="colon">:</span>${wheel('em', 60, mstep)}</div><button type="button" class="tp-next" id="tNext" aria-pressed="false">${I.check}<span>למחרת</span></button></div>
     </div>
     <div class="tp-sum">סה״כ <b class="num" id="tDur"></b> שעות · גוללים כדי לשנות</div>
     <h3>הפסקה לא בתשלום</h3>
@@ -817,7 +820,7 @@ function openShiftSheet(sh, mode) {
     const read = () => {
       const st = new Date(T.date); st.setHours(T.s[0], T.s[1], 0, 0);
       const en = new Date(T.date); en.setHours(T.e[0], T.e[1], 0, 0);
-      if (en < st) en.setDate(en.getDate() + 1);
+      if (en <= st || T.next) en.setDate(en.getDate() + 1);
       return { ...sh, jobId, start: st.toISOString(), end: en.toISOString(),
         breakMin: Math.max(0, +$('#f-break', root).value || 0), bonus: +$('#f-bonus', root).value || 0,
         tips: jobById(jobId).tipsOn || +$('#f-tips', root).value ? Math.max(0, +$('#f-tips', root).value || 0) || undefined : undefined, note: $('#f-note', root).value.trim(), rest,
@@ -828,7 +831,7 @@ function openShiftSheet(sh, mode) {
     const upd = () => {
       const s = read();
       $$('.wheels', root).forEach(w => w.classList.remove('bad'));
-      $('#tNext', root).textContent = sameDay(s.start, s.end) ? '' : '· למחרת';
+      { const nx = !sameDay(s.start, s.end), b = $('#tNext', root); b.classList.toggle('on', nx); b.setAttribute('aria-pressed', String(nx)); }
       $('#tDur', root).textContent = hm((new Date(s.end) - new Date(s.start)) / 3.6e6);
       for (const id in W) $$('.wi', $('#w-' + id, root)).forEach(it => it.classList.toggle('on', +it.dataset.v === W[id][0][W[id][1]]));
       $$('.day', root).forEach(b => b.classList.toggle('on', +b.dataset.d === +T.date));
@@ -857,6 +860,10 @@ function openShiftSheet(sh, mode) {
       $$('.wi', w).forEach(it => it.onclick = () => { W[id][0][W[id][1]] = +it.dataset.v; setWheel(id, true); upd(); });
     }
     $$('.day', root).forEach(b => b.onclick = () => { T.date = new Date(+b.dataset.d); upd(); });
+    $('#tNext', root).onclick = () => {
+      if (T.e[0] * 60 + T.e[1] <= T.s[0] * 60 + T.s[1]) return toast('שעת היציאה מוקדמת משעת הכניסה, אז היציאה למחרת');
+      T.next = !T.next; buzz(8); upd();
+    };
     $$('#f-jobs .chip', root).forEach(b => b.onclick = () => { jobId = b.dataset.j; upd(); });
     $$('#f-rest button', root).forEach(b => b.onclick = () => { rest = b.dataset.r; upd(); });
     $$('#f-bq button', root).forEach(b => b.onclick = () => { $('#f-break', root).value = b.dataset.b; upd(); });

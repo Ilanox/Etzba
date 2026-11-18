@@ -400,6 +400,8 @@ export default {
     'ינשוף לילה': 'A night owl',
     'רוב המשמרות שלך היו בלילה.': 'Most of your shifts were at night.',
     'השנה שלך באצבע': 'Your year in Etzba',
+    'למחרת': 'Next day',
+    'שעת היציאה מוקדמת משעת הכניסה, אז היציאה למחרת': 'The end time is earlier than the start, so it ends the next day',
     "שמים אצבע כשנכנסים למשמרת, ושמים אצבע כשיוצאים. השאר עליה.": "Tap in when your shift starts, tap out when it ends. Etzba does the rest.",
     "שכר לפי החוק": "Pay by the law",
     "שעות נוספות, שבת, חגים, נסיעות וטיפים": "Overtime, Shabbat, holidays, travel and tips",
