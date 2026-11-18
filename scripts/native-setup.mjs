@@ -9,8 +9,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 const only = process.argv[2];
 // build-time switches (features.json): what goes into the Android app
-const features = { arrivalDetection: false, widget: true, ...JSON.parse(readFileSync(join(root, 'features.json'), 'utf8')) };
-const GEO = features.arrivalDetection, WIDGET = features.widget;
+const features = { arrivalDetection: false, widget: true, support: true, ...JSON.parse(readFileSync(join(root, 'features.json'), 'utf8')) };
+const GEO = features.arrivalDetection, WIDGET = features.widget, SUPPORT = features.support;
 const [maj, min, pat] = pkg.version.split('.').map(Number);
 const versionCode = maj * 1000000 + min * 1000 + pat;        // 1.0.0 → 1000000 (above every 1.x test build), always increasing
 const MIMES = ['text/csv', 'text/comma-separated-values', 'application/csv', 'text/tab-separated-values', 'text/plain',
@@ -21,13 +21,13 @@ function android() {
   if (!existsSync(app)) return console.log('android/ not found, run: npx cap add android');
   // 1. our plugins, and the activity that registers them (generated, so switched-off features leave no code behind)
   const pkgDir = join(app, 'src/main/java/com/edvinstudios/etzba'); mkdirSync(pkgDir, { recursive: true });
-  const files = { 'ShareInPlugin.java': true, 'AppActionsPlugin.java': true, 'EtzbaWidget.java': WIDGET, 'GeoPlugin.java': GEO, 'GeoReceiver.java': GEO };
+  const files = { 'ShareInPlugin.java': true, 'AppActionsPlugin.java': true, 'EtzbaWidget.java': WIDGET, 'GeoPlugin.java': GEO, 'GeoReceiver.java': GEO, 'BillingPlugin.java': SUPPORT };
   for (const [f, on] of Object.entries(files)) {
     if (on) copyFileSync(join(root, 'native/android', f), join(pkgDir, f));
     else rmSync(join(pkgDir, f), { force: true });
   }
   if (!WIDGET) writeFileSync(join(pkgDir, 'EtzbaWidget.java'), `package com.edvinstudios.etzba;\n\n/** Widget switched off in features.json. */\nclass EtzbaWidget { static void refresh(android.content.Context c) { } }\n`);
-  const plugins = ['ShareInPlugin', 'AppActionsPlugin', ...(GEO ? ['GeoPlugin'] : [])];
+  const plugins = ['ShareInPlugin', 'AppActionsPlugin', ...(GEO ? ['GeoPlugin'] : []), ...(SUPPORT ? ['BillingPlugin'] : [])];
   writeFileSync(join(pkgDir, 'MainActivity.java'), `package com.edvinstudios.etzba;
 
 import android.os.Bundle;
@@ -114,6 +114,10 @@ ${data}
     const loc = "    implementation 'com.google.android.gms:play-services-location:21.3.0'";
     if (GEO && !g.includes('play-services-location')) g = g.replace(/dependencies\s*\{/, m => `${m}\n${loc}`);
     if (!GEO) g = g.replace(/\n\s*implementation 'com\.google\.android\.gms:play-services-location:[^']*'/, '');
+    // Google Play payments, for the "support the app" button
+    const bill = "    implementation 'com.android.billingclient:billing:7.1.1'";
+    if (SUPPORT && !g.includes('com.android.billingclient')) g = g.replace(/dependencies\s*\{/, m => `${m}\n${bill}`);
+    if (!SUPPORT) g = g.replace(/\n\s*implementation 'com\.android\.billingclient:billing:[^']*'/, '');
     // release signing, from keystore.properties in the project folder (made by npm run release)
     if (!g.includes('// etzba-signing')) g += `
 // etzba-signing: release builds are signed with the key in keystore.properties (project folder, never committed)

@@ -152,6 +152,15 @@ export async function pendingNotifications() {
     .catch(() => [])) || [];
 }
 
+/* ---- supporting the app: Google Play one-time payments (see native/android/BillingPlugin.java) ---- */
+export const billing = {
+  available: () => PLATFORM === 'android' && !!window.Capacitor?.isPluginAvailable?.('Billing'),
+  /** [{ id, price, micros }] in the person's currency, for the products that exist in Play Console. */
+  products: ids => withP('Billing', b => b.products({ ids })).then(r => r?.products || []),
+  /** { ok, cancelled } */
+  buy: id => withP('Billing', b => b.buy({ id })),
+};
+
 /* ---- workplace arrival / departure (Android geofencing; see native/android/GeoPlugin.java) ---- */
 const callGeo = (m, arg) => withP('Geo', g => g[m](arg)).catch(e => { throw e; });
 export const geo = {

@@ -2,5 +2,6 @@
   "arrivalDetection": false,
   "widget": true,
   "devTools": false,
-  "_note": "Build switches. arrivalDetection: workplace arrival notifications (needs 'location all the time', which Google Play reviews separately). devTools: the diagnostics screen and developer tools in Settings. After changing, rebuild (npm run android / npm run apk / npm run release)."
+  "support": true,
+  "_note": "Build switches. arrivalDetection: workplace arrival notifications (needs 'location all the time', which Google Play reviews separately). devTools: the diagnostics screen and developer tools in Settings. support: the 'support Etzba' payments (Google Play in-app products, see store/support-products.md). After changing, rebuild (npm run android / npm run apk / npm run release)."
 }

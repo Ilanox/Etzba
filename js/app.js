@@ -1221,6 +1221,45 @@ async function buildReport(y, m, jobId, withNet) {
   return pagesToPDF(pages);
 }
 
+/* ================= supporting the app ================= */
+// Google Play in-app products (consumable). Three main amounts, and more to choose from.
+const SUPPORT_MAIN = [['support_10', 10], ['support_20', 20], ['support_50', 50]];
+const SUPPORT_MORE = [['support_5', 5], ['support_15', 15], ['support_30', 30], ['support_75', 75], ['support_100', 100], ['support_200', 200]];
+async function openSupport() {
+  const all = [...SUPPORT_MAIN, ...SUPPORT_MORE];
+  let prices = new Map();
+  const price = (id, n) => prices.get(id) || `₪${n}`;
+  const draw = root => {
+    $('#sp-main', root).innerHTML = SUPPORT_MAIN.map(([id, n], i) => `<button type="button" class="sp-amt${i === 1 ? ' mid' : ''}" data-id="${id}"${prices.size && !prices.has(id) ? ' disabled' : ''}>
+      <b class="num">${price(id, n)}</b><small>${['קפה', 'ארוחה קלה', 'תמיכה גדולה'][i]}</small></button>`).join('');
+    $('#sp-more', root).innerHTML = SUPPORT_MORE.filter(([id]) => !prices.size || prices.has(id)).map(([id, n]) => `<button type="button" class="num" data-id="${id}">${price(id, n)}</button>`).join('');
+    $$('[data-id]', root).forEach(b => b.onclick = () => pay(b.dataset.id, b));
+  };
+  const pay = async (id, btn) => {
+    $$('[data-id]', sheet).forEach(b => b.disabled = true);
+    try {
+      const r = await native.billing.buy(id);
+      if (r?.ok) {
+        S.settings.supported = true; S.settings.supportCount = (S.settings.supportCount || 0) + 1; persist();
+        closeSheet(); buzz(40); toast('תודה רבה! זה עוזר להמשיך לפתח את אצבע', 'ok'); if (view === 'set') renderSet();
+      } else if (r?.why === 'pending') toast('התשלום ממתין לאישור. תודה!', 'ok');
+      else if (!r?.cancelled) toast('התשלום לא עבר. אפשר לנסות שוב', 'err');
+    } catch (e) { report(e); toast('לא הצלחתי לפתוח את Google Play', 'err'); }
+    finally { $$('[data-id]', sheet).forEach(b => b.disabled = false); }
+  };
+  openSheet(`<div class="sp-ic">${I.heart}</div><h2 style="text-align:center">תמיכה באצבע</h2>
+    <p class="shsub" style="text-align:center">אצבע חינמית, בלי פרסומות, והנתונים שלך נשארים בטלפון. אם היא עוזרת לך, אפשר לתמוך בפיתוח בתשלום חד־פעמי. שום דבר לא ננעל או נפתח בגלל זה.</p>
+    <div class="sp-main" id="sp-main"></div>
+    <details class="sp-other"><summary>סכום אחר</summary><div class="qchips" id="sp-more"></div></details>
+    <p class="hint" style="text-align:center">התשלום דרך Google Play. אפשר לתמוך כמה פעמים שרוצים.</p>`, root => {
+    draw(root);
+    native.billing.products(all.map(x => x[0])).then(list => {
+      if (!list.length) return;
+      prices = new Map(list.map(p => [p.id, p.price])); draw(root);
+    }).catch(e => dbg.log('warn', 'billing: ' + (e?.message || e)));
+  });
+}
+
 /* ================= STATS ================= */
 const GROUPS = ['רגיל', 'נוספות', 'שבת וחג'];
 function agg(list) {
@@ -1451,6 +1490,7 @@ function renderSet() {
     ${native.NATIVE ? `<div class="card" style="margin-top:12px"><label class="cell"><span class="cell-ic t-orange">${I.bell}</span><span class="grow">התראות במשמרת<div class="sub">כשמתחילות שעות נוספות, בכניסת שבת וחג, ואם שכחת לצאת</div></span><span class="switch"><input type="checkbox" id="s-notif"${notifOn() ? ' checked' : ''}><i></i></span></label><div id="s-nstat"></div></div>` : ''}
     ${FEATURES.devTools ? `<div class="card" style="margin-top:12px"><button class="cell" id="s-debug"><span class="cell-ic t-violet">${I.info}</span><span class="grow">אבחון ותקלות<div class="sub">${dbg.lastCrash() ? 'האפליקציה נסגרה בפעם הקודמת · פרטים כאן' : 'מידע טכני לשליחה כשמשהו לא עובד'}</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
     ${FEATURES.devTools && S.settings.dev ? `<div class="card" style="margin-top:12px" data-keep><button class="cell" id="s-dev"><span class="cell-ic t-gray">${I.gear}</span><span class="grow">כלי פיתוח<div class="sub">בדיקת התראות, משמרות לדוגמה ועוד</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
+    ${native.billing.available() ? `<div class="card" style="margin-top:12px"><button class="cell" id="s-support"><span class="cell-ic t-red">${I.heart}</span><span class="grow">תמיכה באצבע<div class="sub">${S.settings.supported ? 'תודה שתמכת! אפשר לתמוך שוב מתי שרוצים' : 'האפליקציה חינמית ובלי פרסומות'}</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
     <div class="card" style="margin-top:12px"><button class="cell" id="s-legal"><span class="cell-ic t-gray">${I.lock}</span><span class="grow">פרטיות ומשפטי<div class="sub">מה נשמר, ומה החישוב כן ולא</div></span><span class="chev">${I.chevL}</span></button></div>
     <p class="fine" id="s-ver"><b>אצבע</b> · גרסה ${VERSION}<br>An Edvin Studios Project</p>`;
   $$('[data-job]', el).forEach(b => b.onclick = () => openJobSheet(jobById(b.dataset.job), false));
@@ -1479,6 +1519,7 @@ function renderSet() {
   drawNotifStatus();
   $('#s-backup', el).onclick = () => backupNow();
   $('#s-legal', el).onclick = openLegal;
+  $('#s-support', el) && ($('#s-support', el).onclick = openSupport);
   $('#s-fimport', el).onclick = openFileImport;
   persistState().then(v => { const pl = $('#persistLine', el); if (pl && v !== null) pl.textContent = v ? 'הדפדפן אישר אחסון קבוע, כך שלא ימחק את הנתונים כשחסר מקום.' : 'הדפדפן עוד לא אישר אחסון קבוע, ועלול למחוק נתונים כשחסר מקום בטלפון.'; });
 }
