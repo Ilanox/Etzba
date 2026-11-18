@@ -80,6 +80,16 @@ npm run release
 ```
 Makes `etzba-<version>.aab` (upload to Play) and a signed `etzba-<version>.apk` to try first. The first run creates your upload key (`etzba-upload.jks` + `keystore.properties`, never committed): back them up. Store texts, answers and screenshots: [`store/`](store/listing.md).
 
+## Logs from the phone
+With the phone on USB (USB debugging on):
+```
+npm run logs              # live: the app's own log, JavaScript errors, Android crashes
+npm run logs -- --start   # restarts the app first, to catch everything from launch
+```
+Also saved to `logs/` (not committed), so the file can be sent.
+
+To install over a Play/release install (same key, keeps data): `npm run release && npm run install-release`.
+
 ## Tests
 ```
 npm test                 # unit tests, no packages needed

@@ -13,3 +13,4 @@ etzba.apk
 languages/missing-*.txt
 *.aab
 etzba-*.apk
+logs/

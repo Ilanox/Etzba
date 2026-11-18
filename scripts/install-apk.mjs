@@ -1,25 +1,28 @@
-// Installs etzba.apk on a phone connected by USB (USB debugging on):  npm run install-apk
-// Finds adb in the Android SDK even if it isn't on PATH.
+// Installs the app on a phone connected by USB (USB debugging on).
+//   npm run install-apk        the test build (etzba.apk)
+//   npm run install-release    the Play build (etzba-<version>.apk), which installs over a Play/release install
+// A test build and a release build are signed with different keys: one can't be installed over the other
+// without uninstalling first (which deletes the app's data), so use the one that matches what's on the phone.
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { adb, requirePhone } from './adb.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const apk = join(root, 'etzba.apk');
-if (!existsSync(apk)) { console.error('No etzba.apk yet. Run: npm run apk'); process.exit(1); }
-const exe = process.platform === 'win32' ? 'adb.exe' : 'adb';
-const adb = [process.env.ANDROID_HOME, process.env.ANDROID_SDK_ROOT, join(homedir(), 'Android/Sdk'), join(homedir(), 'Library/Android/sdk'),
-  join(homedir(), 'AppData/Local/Android/Sdk'), '/opt/android-sdk']
-  .filter(Boolean).map(d => join(d, 'platform-tools', exe)).find(existsSync) || 'adb';
+const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
+const release = process.argv[2] === 'release';
+const apk = join(root, release ? `etzba-${version}.apk` : 'etzba.apk');
+if (!existsSync(apk)) { console.error(`No ${apk.split('/').pop()} yet. Run: npm run ${release ? 'release' : 'apk'}`); process.exit(1); }
+requirePhone();
 
-const devices = spawnSync(adb, ['devices'], { encoding: 'utf8' });
-if (devices.error) { console.error('adb not found. Open Android Studio → SDK Manager → SDK Tools → install "Android SDK Platform-Tools".'); process.exit(1); }
-const list = devices.stdout.split('\n').slice(1).filter(l => l.trim());
-if (!list.length) { console.error('No phone found. Connect it by USB, turn on USB debugging (Settings → Developer options), and tap "Allow" on the phone.'); process.exit(1); }
-if (list.some(l => l.includes('unauthorized'))) { console.error('The phone is asking for permission: unlock it and tap "Allow USB debugging", then run this again.'); process.exit(1); }
-
-const r = spawnSync(adb, ['install', '-r', apk], { stdio: 'inherit' });
+const r = spawnSync(adb, ['install', '-r', apk], { encoding: 'utf8' });
+process.stdout.write(r.stdout || ''); process.stderr.write(r.stderr || '');
+if (/UPDATE_INCOMPATIBLE|signatures do not match/.test((r.stdout || '') + (r.stderr || ''))) {
+  console.error(`\n✗ The phone has the ${release ? 'test' : 'release'} build, signed with a different key.`);
+  console.error(`  Use: npm run ${release ? 'install-apk' : 'release && npm run install-release'}  (keeps your data)`);
+  console.error('  Uninstalling the app would also work, but deletes its data: back up first (Settings → Data & backup).');
+  process.exit(1);
+}
 if (r.status === 0) console.log('\n✓ Installed. Open אצבע on the phone.');
 process.exit(r.status || 0);

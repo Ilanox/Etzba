@@ -23,5 +23,6 @@
       "smallIcon": "ic_stat_etzba",
       "iconColor": "#FF6A3D"
     }
-  }
+  },
+  "loggingBehavior": "production"
 }

@@ -29,6 +29,8 @@ function save(now) {
 export function log(k, m, d) {
   try {
     entries.push({ t: Date.now(), k, m: String(m).slice(0, 300), ...(d !== undefined ? { d } : {}) });
+    // also to the console: on the phone it shows up in `npm run logs`
+    if (k !== 'begin' && k !== 'end') (k === 'error' ? console.error : k === 'warn' ? console.warn : console.info)(`[etzba] ${k}: ${String(m).slice(0, 300)}`);
     if (entries.length > MAX * 1.5) entries = entries.slice(-MAX);
     // begin/boot are written at once: if the page dies right after, the line is already saved
     save(k === 'begin' || k === 'boot' || k === 'error');

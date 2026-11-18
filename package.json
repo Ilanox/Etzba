@@ -17,7 +17,9 @@
     "check:translations": "node scripts/check-translations.mjs",
     "test": "node scripts/test.mjs",
     "test:e2e": "node scripts/test.mjs e2e",
-    "release": "node scripts/build-apk.mjs release"
+    "release": "node scripts/build-apk.mjs release",
+    "install-release": "node scripts/install-apk.mjs release",
+    "logs": "node scripts/logs.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
