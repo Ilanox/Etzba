@@ -60,14 +60,25 @@ export function tr(s) {
 
 /* Originals are remembered so switching back to Hebrew restores the exact text. */
 const ORIG = new WeakMap(), ORIG_ATTR = new WeakMap();
+/* What we wrote last, per node: our own change also reaches the observer, and must not be translated again
+   (a text that keeps some Hebrew, like a name, would otherwise be rewritten forever and freeze the app). */
+const MINE = new WeakMap(), MINE_ATTR = new WeakMap();
+function setAttr(el, a, v) {
+  const mine = MINE_ATTR.get(el) || {};
+  if (mine[a] === v) return;                       // our own write coming back
+  const t = tr(v); if (t === v) return;            // nothing to change: don't touch it (touching fires the observer)
+  const o = ORIG_ATTR.get(el) || {}; o[a] = v; ORIG_ATTR.set(el, o);
+  mine[a] = t; MINE_ATTR.set(el, mine);
+  el.setAttribute(a, t);
+}
 const ATTRS = ['aria-label', 'placeholder', 'title'];
 function walk(node) {
   if (node.nodeType === 3) {
-    const v = node.nodeValue; if (!HEB.test(v)) return;
-    const t = tr(v); if (t !== v) { ORIG.set(node, v); node.nodeValue = t; } return;
+    const v = node.nodeValue; if (!HEB.test(v) || MINE.get(node) === v) return;
+    const t = tr(v); if (t !== v) { ORIG.set(node, v); MINE.set(node, t); node.nodeValue = t; } return;
   }
   if (node.nodeType !== 1 || node.hasAttribute('data-keep') || /^(SCRIPT|STYLE|TEXTAREA)$/.test(node.tagName)) return;
-  for (const a of ATTRS) { const v = node.getAttribute(a); if (v && HEB.test(v)) { const m = ORIG_ATTR.get(node) || {}; m[a] = v; ORIG_ATTR.set(node, m); node.setAttribute(a, tr(v)); } }
+  for (const a of ATTRS) { const v = node.getAttribute(a); if (v && HEB.test(v)) setAttr(node, a, v); }
   for (const c of node.childNodes) walk(c);
 }
 let observer = null;
@@ -78,7 +89,7 @@ export function startTranslating() {
     try {
       for (const m of list) {
         if (m.type === 'characterData') walk(m.target);
-        else if (m.type === 'attributes') { const v = m.target.getAttribute(m.attributeName); if (v && HEB.test(v) && !m.target.closest('[data-keep]')) { const o = ORIG_ATTR.get(m.target) || {}; o[m.attributeName] = v; ORIG_ATTR.set(m.target, o); m.target.setAttribute(m.attributeName, tr(v)); } }
+        else if (m.type === 'attributes') { const v = m.target.getAttribute(m.attributeName); if (v && HEB.test(v) && !m.target.closest('[data-keep]')) setAttr(m.target, m.attributeName, v); }
         else for (const n of m.addedNodes) if (!(n.parentElement && n.parentElement.closest('[data-keep]'))) walk(n);
       }
     } catch {}

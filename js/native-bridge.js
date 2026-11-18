@@ -20,6 +20,7 @@ const plugins = {};
 function P(name) {
   if (!NATIVE) return null;
   if (plugins[name]) return plugins[name];
+  if (core && core[name] && typeof core[name] === 'object') return (plugins[name] = core[name]);   // built into Capacitor (SystemBars…): don't register twice
   const reg = (core && core.registerPlugin) || (typeof window.Capacitor?.registerPlugin === 'function' && window.Capacitor.registerPlugin);
   const p = reg ? reg(name) : window.Capacitor?.Plugins?.[name];
   return p ? (plugins[name] = p) : null;

@@ -1693,6 +1693,14 @@ function openDevTools() {
 
 /* ================= first open: welcome and job setup =================
    Four short steps, every one skippable. Nothing here is required: the defaults already work. */
+/** Once, right after the welcome (or on the first start of this version): the phone's notification permission. */
+async function askFirstPerms() {
+  if (!native.NATIVE || S.settings.askedPerms) return;
+  S.settings.askedPerms = true; persist();
+  const ok = await native.notifyAllowed(true);
+  dbg.log('info', 'notification permission: ' + (ok ? 'allowed' : 'not allowed'));
+  planNotifications();
+}
 function openOnboarding() {
   const job = S.jobs[0];
   const d = { lang: LANG, name: job.name === 'העבודה שלי' ? '' : job.name, rate: job.rate, travel: job.travel || 0,
@@ -1743,6 +1751,7 @@ function openOnboarding() {
     commit();
     el.classList.add('out'); setTimeout(() => el.remove(), 250);
     dbg.log('info', 'onboarding done');
+    setTimeout(askFirstPerms, 600);
     go('home');
     if (andImport) { go('set'); openFileImport(); }
     else toast('מוכן. שמים אצבע כדי להתחיל משמרת', 'ok');
@@ -1755,7 +1764,7 @@ function openOnboarding() {
     const $o = q => el.querySelector(q);
     $o('#ob-next').onclick = () => { read(); if (step === 3) return finish(); step++; draw(); };
     if ($o('#ob-back')) $o('#ob-back').onclick = () => { read(); step--; draw(); };
-    $o('#ob-skip').onclick = () => { if (step < 3) { S.settings.onboarded = true; persist(); el.remove(); dbg.log('info', 'onboarding skipped'); } };
+    $o('#ob-skip').onclick = () => { if (step < 3) { S.settings.onboarded = true; persist(); el.remove(); dbg.log('info', 'onboarding skipped'); setTimeout(askFirstPerms, 400); } };
     el.querySelectorAll('#ob-lang button').forEach(b => b.onclick = async () => { await setLang(b.dataset.l); d.lang = b.dataset.l; draw(); });
     el.querySelectorAll('.seg[data-k]').forEach(g => g.querySelectorAll('button').forEach(b => b.onclick = () => {
       const k = g.dataset.k; d[k] = k === 'weekDays' ? +b.dataset.v : b.dataset.v === '1'; read(); draw(); buzz(8);
@@ -1974,6 +1983,7 @@ step('back', () => native.onBack(() => {
   return true;
 }));
 step('splash', native.ready);
+step('perms', () => { if (S.settings.onboarded) setTimeout(askFirstPerms, 1200); });
 step('notifications', () => {
   planNotifications();
   document.addEventListener('click', e => {

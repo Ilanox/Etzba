@@ -1,5 +1,6 @@
 // Live log from the app on a phone connected by USB:  npm run logs
 //   npm run logs -- --start    also (re)start the app, to catch everything from launch
+//   npm run logs -- --verbose  also every call between the app and Android
 // Shows the app's own log ([etzba] …), JavaScript errors and console output, and Android crashes, in colour.
 // Everything is also saved to logs/etzba-<date-time>.log, so you can send the file.
 import { spawn, spawnSync } from 'node:child_process';
@@ -11,6 +12,7 @@ import { adb, APP, requirePhone } from './adb.mjs';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 requirePhone();
 const start = process.argv.includes('--start');
+const verbose = process.argv.includes('--verbose');   // also every call between the app and Android
 
 const d = new Date(), z = n => String(n).padStart(2, '0');
 const stamp = `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}`;
@@ -38,6 +40,9 @@ lc.stdout.on('data', d => {
     const line = raw.replace(/\r$/, ''); if (!line.trim()) continue;
     // ActivityManager is noisy: keep only lines about this app
     if (/ActivityManager/.test(line) && !line.includes(APP)) continue;
+    // Capacitor's echo of every native call and its result: noise unless --verbose
+    if (!verbose && (/Capacitor\/Plugin/.test(line) || /Msg: (\[object Object\]|undefined|\{.*\})$/.test(line) && /File:\s+- Line/.test(line))) { out.write(line + '\n'); continue; }
+    if (!verbose && /tile memory limits exceeded|Seed missing signature|Failed to read DnsConfig|android_setCpu|overlays are enabled|public\/plugins/.test(line)) continue;
     out.write(line + '\n');
     const m = line.match(/^(\S+ \S+) ([VDIWEF])\/([^(]+)\(\s*\d+\): (.*)$/);
     if (!m) { console.log(crashing ? col(RED, line) : line); continue; }

@@ -211,3 +211,16 @@ test('Android: English survives a restart', async () => {
   assert.match(await page.locator('#tabs').innerText(), /Settings/);
   assert.deepEqual(errors, []); await ctx.close();
 });
+
+test('English with a Hebrew job name never freezes (translating its own output in a loop)', async () => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block', timezoneId: 'Asia/Jerusalem' });
+  const page = await ctx.newPage();
+  await page.goto(URL_);
+  await page.evaluate(() => localStorage.setItem('etzba.v1', JSON.stringify({ settings: { lang: 'en', onboarded: true }, jobs: [{ id: 'a', name: 'בולה', rate: 40 }],
+    shifts: [{ id: 's1', jobId: 'a', start: '2026-11-16T08:00:00+02:00', end: '2026-11-16T16:00:00+02:00' }] })));
+  page.reload().catch(() => {});
+  await new Promise(r => setTimeout(r, 2500));
+  const alive = await Promise.race([page.evaluate(() => document.querySelector('#tabs').innerText), new Promise(r => setTimeout(() => r(null), 4000))]);
+  assert.ok(alive && /Settings/.test(alive), 'the page still responds, in English');
+  await ctx.close();
+});
