@@ -39,6 +39,12 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
 ${plugins.map(p => `        registerPlugin(${p}.class);`).join('\n')}
+        // a widget tap or notification is acted on once. Android hands the same launch back when the app is
+        // reopened from recents, restored after being killed, or recreated (dark mode, font size): drop it then.
+        android.content.Intent in = getIntent();
+        if (in != null && (savedInstanceState != null || (in.getFlags() & android.content.Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0)) {
+            in.removeExtra("etzba_action"); in.removeExtra("etzba_token"); in.removeExtra("etzba_sig"); in.removeExtra("etzba_job");
+        }
         super.onCreate(savedInstanceState);
         // follow the phone's font size, up to 200% (the app switches to a roomier layout for large text: html.tz-big)
         try {

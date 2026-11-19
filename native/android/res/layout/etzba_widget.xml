@@ -16,7 +16,7 @@
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:gravity="bottom" android:orientation="horizontal">
                 <Chronometer android:id="@+id/w_timer" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:includeFontPadding="false" android:textColor="#FFF2EDE4" android:textSize="32sp" android:fontFamily="sans-serif-light" />
+                    android:includeFontPadding="false" android:textColor="#FFF2EDE4" android:textSize="32sp" android:fontFamily="sans-serif-medium" />
                 <TextView android:id="@+id/w_title" android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:includeFontPadding="false" android:maxLines="1" android:ellipsize="end"
                     android:textColor="#FFF2EDE4" android:textSize="22sp" android:textStyle="bold" android:visibility="gone" />
@@ -27,7 +27,7 @@
             </LinearLayout>
 
             <TextView android:id="@+id/w_line" android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:layout_marginTop="5dp" android:maxLines="1" android:ellipsize="end" android:textColor="#FF9C978E" android:textSize="12.5sp" />
+                android:layout_marginTop="5dp" android:maxLines="1" android:ellipsize="end" android:fontFamily="sans-serif-medium" android:textColor="#FFB9B3A9" android:textSize="12.5sp" />
         </LinearLayout>
     </LinearLayout>
 
