@@ -1190,3 +1190,18 @@ html.tz-huge .rc-slide h1{font-size:calc(clamp(3.4rem,19vw,7rem) / var(--tz,1) *
 .rc-rec div b{grid-column:2;text-align:end;font-size:1.9rem}
 .rc-rec div em{grid-column:2;text-align:end;font-style:normal;opacity:.7;font-size:.85rem}
 @media (prefers-reduced-motion:reduce){.rc-rank li,.rc-rank li i,.rc-streak i,.rc-heat i,.rc-rec div{animation:none;opacity:1}}
+
+/* change against the period before */
+:root{--up:color-mix(in srgb,#27B062 74%,var(--ink));--down:color-mix(in srgb,#E5484D 78%,var(--ink))}
+.dlt{font-weight:800;font-variant-numeric:tabular-nums;unicode-bidi:isolate}
+.dlt.up{color:var(--up)}.dlt.down{color:var(--down)}.dlt.flat{color:var(--ink3)}
+.dline{display:block;margin-top:3px;font-size:.82rem}.dline small{color:var(--ink3);font-size:.78rem}
+.kpi .dline{margin:2px 0 1px;font-size:.88rem}
+.dlts{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 6px;margin-top:10px;padding:12px 16px;font-size:.92rem}
+.dlts>span:not(.dlt){color:var(--ink2);margin-inline-end:8px}
+.dlts small{flex-basis:100%;color:var(--ink3);font-size:.78rem}
+.dl-note{font-size:.78rem;color:var(--ink3);margin:8px 2px 0}
+/* in Wrapped: readable on every story colour */
+.rc-dlt{font-size:1.05rem;font-weight:700}
+.rc-dlt .dlt{font-size:1.5rem;padding-inline-end:4px}
+.recap .dlt.up{color:var(--rc-up,#3CCB7F)}.recap .dlt.down{color:var(--rc-down,#FF6B6B)}

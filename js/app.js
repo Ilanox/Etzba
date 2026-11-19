@@ -327,6 +327,35 @@ function shiftRow(s) {
       <span class="t2 num tline"><bdi dir="ltr" class="trange">${tm(s.start)}–${tm(s.end)}</bdi><span class="tmore">${second.map(x => `<span class="sep">·</span>${x}`).join('')}</span></span></span>
     <span class="end"><span class="amt num">${money(p.pay)}</span><br><span class="t2 num">${hm(p.hours)} ש׳</span></span></button>`;
 }
+/* ---- change against the period before: +13% in green, −15% in red ---- */
+/** Gross, hours and shifts between two moments (by shift start). */
+function sumPeriod(from, to) {
+  let g = 0, h = 0, c = 0;
+  for (const s of S.shifts) { const d = new Date(s.start); if (d >= from && d < to) { const p = PAY.get(s.id); if (p) { g += p.pay; h += p.hours; c++; } } }
+  return { g, h, c };
+}
+const pctChange = (cur, prev) => prev > 0.5 && isFinite(cur) ? Math.round((cur - prev) / prev * 100) : null;
+/** "+13%" / "-15%" coloured by direction; empty when there's nothing to compare with. */
+function dlt(cur, prev, what = '') {
+  const p = pctChange(cur, prev); if (p === null) return '';
+  const cls = p > 0 ? 'up' : p < 0 ? 'down' : 'flat';
+  const he = p > 0 ? `עלייה של ${p}%` : p < 0 ? `ירידה של ${-p}%` : 'ללא שינוי';
+  return `<span class="dlt ${cls}" dir="ltr" role="img" aria-label="${he}${what ? ' ' + what : ''}">${p > 0 ? '+' : p < 0 ? '-' : ''}${Math.abs(p)}%</span>`;
+}
+/** This month so far against the same days of last month (or whole months for a past month). */
+function monthVsLast(y, m) {
+  const now = new Date(), from = new Date(y, m, 1), cur = y === now.getFullYear() && m === now.getMonth();
+  const to = cur ? now : new Date(y, m + 1, 1), pFrom = new Date(y, m - 1, 1);
+  const pTo = cur ? new Date(Math.min(+new Date(y, m, 1), +pFrom + (now - from))) : new Date(y, m, 1);
+  return { a: sumPeriod(from, to), b: sumPeriod(pFrom, pTo), pm: (m + 11) % 12, partial: cur ? now.getDate() : 0 };
+}
+/** This year so far against the same part of last year (whole years for a past year). */
+function yearVsLast(y) {
+  const now = new Date(), cur = y === now.getFullYear(), from = new Date(y, 0, 1), to = cur ? now : new Date(y + 1, 0, 1);
+  const pFrom = new Date(y - 1, 0, 1), pTo = cur ? new Date(+pFrom + (now - from)) : new Date(y, 0, 1);
+  return { a: sumPeriod(from, to), b: sumPeriod(pFrom, pTo), partial: cur };
+}
+
 /** A shift's sheet, scrolled to "how it's calculated". */
 function showWhy(sh) { openShiftSheet(sh, 'edit'); setTimeout(() => $('#f-explain')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 350); }
 function bindRows(root) { $$('.srow', root).forEach(r => r.onclick = () => openShiftSheet(index().byId.get(r.dataset.id), 'edit')); }
@@ -510,7 +539,7 @@ function renderTiles(L) {
   const M = withLive(monthCalc(now.getFullYear(), now.getMonth()));
   el.innerHTML = `${planCell()}
     <button class="today" id="tcell" type="button" aria-label="איך חושב היום"><small>היום · ברוטו</small><b class="num">${money(tP)}</b><span class="num">${hm(tH)} ש׳</span></button>
-    <button class="monthcell" id="mcell"><small>${MONTHS[now.getMonth()]} · ברוטו</small><b class="num">${money(M.gross)}</b><span class="num">${M.shifts.length} משמרות</span></button>
+    <button class="monthcell" id="mcell"><small>${MONTHS[now.getMonth()]} · ברוטו</small><b class="num">${money(M.gross)}</b><span class="num">${M.shifts.length} משמרות</span>${(() => { const c = monthVsLast(now.getFullYear(), now.getMonth()); return c.b.g ? `<span class="dline">${dlt(c.a.g, c.b.g, `לעומת ${MONTHS[c.pm]}`)} <small>לעומת ${MONTHS[c.pm]}</small></span>` : ''; })()}</button>
     <div class="wkb"><div class="wkb-h"><b>השבוע</b><span class="num"><b>${hm(wH)}</b> מתוך ${lim} ש׳</span></div>
       <div class="wkb-days">${H.map((h, i) => `<div class="wkb-d${i === now.getDay() ? ' on' : ''}"><i style="height:${h / mx * 100}%"></i><em>${DAY_SHORT[i]}</em></div>`).join('')}</div>
       <div class="wkb-sub num">${wH > lim ? `${hm(wH - lim)} מעל המכסה השבועית` : `נשארו ${hm(lim - wH)} עד המכסה השבועית`}</div></div>
@@ -1087,8 +1116,11 @@ function sumMonth(el) {
   el.innerHTML = `${monthBar()}
     <div class="card hero" style="margin-top:12px"><small>נטו משוער ל${MONTHS[viewM]}<button type="button" class="estimate" data-legal aria-label="הערכה: מה החישוב כן ולא">הערכה ⓘ</button></small><button type="button" class="big num hero-amt" id="netWhy" aria-label="איך מחושב הנטו">${money(n.net)}</button>
       <div class="meta num"><b>ברוטו ${money(M.gross)}</b>${M.tipsOwn ? ` · <span>טיפים ${money(M.tipsOwn)}</span>` : ''}<br>${M.shifts.length} משמרות${M.live ? ' + המשמרת הנוכחית' : ''} · ${hm(M.hours)} שעות</div>
+
       ${M.gross ? `<div class="stack">${parts.map(([v, c]) => `<span style="flex:${v};background:${c}"></span>`).join('')}</div>
       <div class="legend">${parts.map(([, c, l]) => `<span><i style="background:${c}"></i>${l}</span>`).join('')}</div>` : ''}</div>
+      ${(() => { const c = monthVsLast(viewY, viewM); if (!c.b.g) return ''; const vs = `לעומת ${MONTHS[c.pm]}${c.partial ? ` עד ה־${c.partial}` : ''}`;
+        return `<div class="card dlts">${dlt(c.a.g, c.b.g, 'בברוטו')}<span>ברוטו</span>${dlt(c.a.h, c.b.h, 'בשעות')}<span>שעות</span>${dlt(c.a.h ? c.a.g / c.a.h : 0, c.b.h ? c.b.g / c.b.h : 0, 'בשכר לשעה')}<span>לשעה</span><small>${vs}</small></div>`; })()}
     ${M.gross ? `
     <div class="sec"><span>${secIc('cal', 'blue')}לפי ימים</span></div>
     <div class="card pad">${metricSeg()}<div id="dayChart"></div></div>
@@ -1479,17 +1511,18 @@ function recapStats(y) {
   const last = list.reduce((a, x) => new Date(x.s.start) > new Date(a.s.start) ? x : a);
   return { y, count: list.length, hours, gross, net, longest, best, kinds, topDay, daily, rest: rest.length, restHours: rest.reduce((a, x) => a + x.p.restHours, 0),
     ot, tips, first, last, topJob, months: Ms.map(M => M.gross), perHour: hours ? gross / hours : 0,
+    vs: (() => { const v = yearVsLast(y); return v.b.g ? v : null; })(),
     workDays: dayKeys.length, dayKeys, streak, streakEnd, monthRank, dayRank, hourH, peak, bestShift, bestWeek: { start: +bwK, hours: bwH }, latest };
 }
 const hrs = h => { const r = Math.round(h * 2) / 2; return (r % 1 ? r.toFixed(1) : String(r)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
 // each story has its own colour field: background, text, and the fingerprint ridges behind it
 const RECAP_PAL = [
   { bg: '#24102F', fg: '#FFF4EC', ac: '#FF6A3D' },   // plum and ember
-  { bg: '#FF6A3D', fg: '#2A0E06', ac: '#FFD9C7' },   // ember
+  { bg: '#FF6A3D', fg: '#2A0E06', ac: '#FFD9C7', light: 1 },   // ember
   { bg: '#0D3634', fg: '#EFFFF8', ac: '#62E0B6' },   // deep teal
-  { bg: '#FFC64A', fg: '#2E1A02', ac: '#FF8A2B' },   // sun
+  { bg: '#FFC64A', fg: '#2E1A02', ac: '#FF8A2B', light: 1 },   // sun
   { bg: '#101A3A', fg: '#EEF3FF', ac: '#7FA6FF' },   // midnight
-  { bg: '#F2557F', fg: '#2B0716', ac: '#FFD1DF' },   // rose
+  { bg: '#F2557F', fg: '#2B0716', ac: '#FFD1DF', light: 1 },   // rose
   { bg: '#1A1A1A', fg: '#FFFFFF', ac: '#FF6A3D' },   // ink
   { bg: '#24102F', fg: '#FFF4EC', ac: '#FF6A3D' },   // back to the start
 ];
@@ -1525,7 +1558,7 @@ function openRecap(y) {
   const latestEnd = new Date(R.latest.s.end), bw = new Date(R.bestWeek.start), bwEnd = new Date(+bw + 6 * 864e5);
   const slides = [
     { html: `<small>השנה שלך באצבע</small><h1 class="num rc-year">${y}</h1><p>שנה שלמה של משמרות, במספרים. מוכנים?</p>` },
-    { html: `<small>שעות עבודה</small><h1>${cnt(R.hours)}</h1><p>${days ? `<span>יותר מ־${days} ימים שלמים בלי הפסקה.</span> ` : ''}<span>${R.count} משמרות ב־${R.workDays} ימי עבודה.</span></p>` },
+    { html: `<small>שעות עבודה</small><h1>${cnt(R.hours)}</h1>${R.vs ? `<p class="rc-dlt">${dlt(R.vs.a.h, R.vs.b.h, `לעומת ${y - 1}`)} לעומת ${y - 1}</p>` : ''}<p>${days ? `<span>יותר מ־${days} ימים שלמים בלי הפסקה.</span> ` : ''}<span>${R.count} משמרות ב־${R.workDays} ימי עבודה.</span></p>` },
     { html: `<small>הרצף הכי ארוך</small><h1>${cnt(R.streak)}<em>ימים ברצף</em></h1><div class="rc-streak">${dots.join('')}</div><p>${R.streak > 1 ? `בלי יום חופש אחד, עד ${dShort(sEnd)}.` : 'אף פעם לא יותר מיום אחד ברצף. איזון יפה.'}</p>` },
     { ms: 9000, html: `<small>החודשים שלך, לפי ברוטו</small>${rank(R.monthRank.map(r => ({ name: MONTHS[r.m], val: money(r.g), v: r.g })), R.monthRank[0]?.g || 1)}<p>${MONTHS[R.best.m]} במקום הראשון, ב־${R.monthRank[0]?.n || 0} משמרות.</p>` },
     { ms: 8000, html: `<small>הימים שלך</small>${rank(R.dayRank.map(r => ({ name: DAYS[r.d], val: `${r.n} משמרות`, v: r.n })), R.dayRank[0]?.n || 1)}<p>${DAYS[R.topDay]} הוא היום שלך.</p>` },
@@ -1535,7 +1568,7 @@ function openRecap(y) {
         <div style="--d:200ms"><span>המשמרת הכי משתלמת</span><b class="num">${money(R.bestShift.p.pay)}</b><em>${dShort(R.bestShift.s.start)}</em></div>
         <div style="--d:650ms"><span>השבוע הכי עמוס</span><b class="num">${hrs(R.bestWeek.hours)} ש׳</b><em class="num" dir="ltr">${dShort(bw)}–${dShort(bwEnd)}</em></div>
         <div style="--d:1100ms"><span>הכי מאוחר שסיימת</span><b class="num" dir="ltr">${tm(latestEnd)}</b><em>${dShort(R.latest.s.start)}</em></div></div>` },
-    { html: `<small>הרווחת השנה</small><h1>${cnt(R.gross, 'money')}</h1><p>ברוטו, כ־${money(R.net)} נטו. בממוצע ${money2(R.perHour)} לשעה.</p>` },
+    { html: `<small>הרווחת השנה</small><h1>${cnt(R.gross, 'money')}</h1>${R.vs ? `<p class="rc-dlt">${dlt(R.vs.a.g, R.vs.b.g, `לעומת ${y - 1}`)} לעומת ${y - 1}</p>` : ''}<p>ברוטו, כ־${money(R.net)} נטו. בממוצע ${money2(R.perHour)} לשעה.</p>` },
     { html: `<small>הסגנון שלך</small><h1 class="rc-word">${KIND_LINE[R.daily][0]}</h1><p>${KIND_LINE[R.daily][1]}</p>
       <div class="rc-kinds">${['morning', 'noon', 'evening', 'night'].map((k, j) => `<div${k === R.daily ? ' class="on"' : ''}><i style="--w:${(R.kinds[k] || 0) / kindsTot * 100}%;--d:${j * 90}ms"></i><span>${KIND_SHORT[k]}</span><b class="num">${Math.round((R.kinds[k] || 0) / kindsTot * 100)}%</b></div>`).join('')}</div>` },
     { html: `<small>מעבר לשגרה</small><h1>${cnt(R.ot, 'hrs')}<em>שעות נוספות</em></h1><div class="rc-facts">${R.rest ? `<div><b class="num">${R.rest}</b><span>משמרות בשבת או בחג</span></div>` : ''}${R.tips ? `<div><b class="num">${money(R.tips)}</b><span>טיפים</span></div>` : ''}<div><b class="num">${money2(R.perHour)}</b><span>ממוצע לשעה</span></div></div>` },
@@ -1568,7 +1601,8 @@ function openRecap(y) {
   const show = n => {
     i = Math.max(0, Math.min(slides.length - 1, n));
     const c = RECAP_PAL[i % RECAP_PAL.length], [px, py, sc, rot] = RC_POS[i % RC_POS.length];
-    for (const [k, v] of Object.entries({ '--rc-bg': c.bg, '--rc-fg': c.fg, '--rc-ac': c.ac, '--px': px + '%', '--py': py + '%', '--sc': sc, '--rot': rot + 'deg' })) ov.style.setProperty(k, v);
+    for (const [k, v] of Object.entries({ '--rc-bg': c.bg, '--rc-fg': c.fg, '--rc-ac': c.ac, '--px': px + '%', '--py': py + '%', '--sc': sc, '--rot': rot + 'deg',
+      '--rc-up': c.light ? '#06582B' : '#3CCB7F', '--rc-down': c.light ? '#8A0C1C' : '#FF6B6B' })) ov.style.setProperty(k, v);
     const sl = $('.rc-slide', ov); sl.innerHTML = slides[i].html; sl.classList.remove('in'); void sl.offsetWidth; sl.classList.add('in');
     $$('.rc-prog i', ov).forEach((p, k) => { p.className = k < i ? 'done' : k === i ? 'now' : ''; });
     ov.classList.remove('paused'); ov.classList.toggle('first', i === 0);
@@ -1689,13 +1723,17 @@ function sumYear(el) {
   const T = Ms.reduce((a, M) => (a.gross += M.gross, a.net += M.gross ? M.net.net : 0, a.tax += M.net.tax, a.hours += M.hours, a.count += M.shifts.length, a), { gross: 0, net: 0, tax: 0, hours: 0, count: 0 });
   const best = Ms.reduce((a, M) => M.gross > a.gross ? M : a, Ms[0]), act = Ms.filter(M => M.gross > 0).length;
   const H = items.reduce((a, x) => (a[0] += x.h[0], a[1] += x.h[1], a[2] += x.h[2], a), [0, 0, 0]);
-  const k = (l, v, s = '') => `<div class="kpi"><small>${l}</small><b class="num">${v}</b>${s ? `<em>${s}</em>` : ''}</div>`;
+  const k = (l, v, s = '', d = '') => `<div class="kpi"><small>${l}</small><b class="num">${v}</b>${d ? `<span class="dline">${d}</span>` : ''}${s ? `<em>${s}</em>` : ''}</div>`;
+  const C = yearVsLast(viewY), vsY = `לעומת ${viewY - 1}`;
+  // net and monthly averages only compare whole years; the rest compares the same part of the year
+  const prevNet = !C.partial && C.b.g ? Array.from({ length: 12 }, (_, m) => monthCalc(viewY - 1, m)).reduce((a, M) => a + (M.gross ? M.net.net : 0), 0) : 0;
   el.innerHTML = `<div class="monthbar"><button class="ibtn" data-yn="-1" aria-label="שנה קודמת">${I.chevR}</button><b class="num">${viewY}</b><button class="ibtn" data-yn="1" aria-label="שנה הבאה">${I.chevL}</button></div>
     ${T.count && viewY === RECAP_YEAR ? `<button class="recap-btn${recapOpen() ? '' : ' locked'}" id="openRecap"><span class="grow"><b>השנה שלך באצבע</b><small>${recapOpen() ? 'סיכום השנה כמו סטורי, עם תמונה לשיתוף' : earlyWhen('recap')}</small></span>${recapOpen() ? I.chevL : I.lock}</button>` : ''}
     ${T.count ? `<div class="kpis" style="margin-top:12px">
-      ${k('ברוטו שנתי', money(T.gross))}${k('נטו משוער', money(T.net), `מס הכנסה ${money(T.tax)}`)}
-      ${k('שעות', hm(T.hours), `${T.count} משמרות`)}${k('ממוצע לשעה', money2(T.hours ? T.gross / T.hours : 0), 'כולל תוספות')}
+      ${k('ברוטו שנתי', money(T.gross), '', dlt(C.a.g, C.b.g, vsY))}${k('נטו משוער', money(T.net), `מס הכנסה ${money(T.tax)}`, prevNet ? dlt(T.net, prevNet, vsY) : '')}
+      ${k('שעות', hm(T.hours), `${T.count} משמרות`, dlt(C.a.h, C.b.h, vsY))}${k('ממוצע לשעה', money2(T.hours ? T.gross / T.hours : 0), 'כולל תוספות', dlt(C.a.h ? C.a.g / C.a.h : 0, C.b.h ? C.b.g / C.b.h : 0, vsY))}
       ${k('ממוצע לחודש', money(act ? T.gross / act : 0), `${act} חודשי עבודה`)}${k('חודש שיא', MONTHS[best.m], money(best.gross))}</div>
+    ${C.b.g ? `<p class="dl-note">האחוזים: לעומת ${viewY - 1}${C.partial ? ', באותה תקופה בשנה' : ''}.</p>` : ''}
     <div class="sec"><span>${secIc('cal', 'blue')}לפי חודשים</span></div>
     <div class="card pad">${metricSeg()}<div id="yrChart"></div></div>
     <div class="sec"><span>${secIc('ot', 'orange')}חלוקת השעות בשנה</span></div>
