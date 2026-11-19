@@ -13,7 +13,9 @@ import com.android.billingclient.api.ConsumeParams;
 import com.android.billingclient.api.PendingPurchasesParams;
 import com.android.billingclient.api.ProductDetails;
 import com.android.billingclient.api.Purchase;
+import com.android.billingclient.api.PurchaseHistoryRecord;
 import com.android.billingclient.api.PurchasesUpdatedListener;
+import com.android.billingclient.api.QueryPurchaseHistoryParams;
 import com.android.billingclient.api.QueryProductDetailsParams;
 import com.android.billingclient.api.QueryPurchasesParams;
 import com.getcapacitor.JSArray;
@@ -71,6 +73,21 @@ public class BillingPlugin extends Plugin implements PurchasesUpdatedListener {
                 for (Purchase p : list) if (p.getPurchaseState() == Purchase.PurchaseState.PURCHASED) { paid = true; consume(p, null); }
                 if (paid) notifyListeners("paid", new JSObject(), true);
             });
+    }
+
+    /** Has this Google account ever supported the app? Support payments are used up (so people can give again),
+        but Play keeps the latest one of each amount in the account's history, so the perks come back after a
+        reinstall or on a new phone with the same account: { supported: true/false }. */
+    @PluginMethod
+    @SuppressWarnings("deprecation")
+    public void history(PluginCall call) {
+        ready(() -> client.queryPurchaseHistoryAsync(QueryPurchaseHistoryParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build(),
+            (r, list) -> {
+                boolean found = false;
+                if (r.getResponseCode() == BillingClient.BillingResponseCode.OK && list != null)
+                    for (PurchaseHistoryRecord h : list) for (String id : h.getProducts()) if (id.startsWith("support_")) found = true;
+                JSObject o = new JSObject(); o.put("supported", found); call.resolve(o);
+            }), why -> { JSObject o = new JSObject(); o.put("supported", false); o.put("error", why); call.resolve(o); });
     }
 
     /** Checks for payments that finished while the app was closed (called when the app starts). */

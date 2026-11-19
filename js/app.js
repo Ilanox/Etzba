@@ -1383,8 +1383,14 @@ async function openSupport() {
     <div class="sp-main" id="sp-main"></div>
     <details class="sp-other"${SUPPORT_MORE.some(x => x[0] === chosen) ? ' open' : ''}><summary>סכום אחר</summary><div class="qchips" id="sp-more"></div></details>
     <div class="btnrow"><button class="btn primary sp-pay" id="sp-pay"></button></div>
-    <p class="hint" style="text-align:center">התשלום דרך Google Play. אפשר לתמוך כמה פעמים שרוצים.</p>`, root => {
+    <p class="hint" style="text-align:center">התשלום דרך Google Play. אפשר לתמוך כמה פעמים שרוצים. בהתקנה מחדש או בטלפון חדש עם אותו חשבון Google, ההטבות חוזרות.</p>
+    ${isSup() ? '' : '<button class="btn ghost" id="sp-restore" type="button" style="width:100%">כבר תמכתי: שחזור</button>'}`, root => {
     draw(root);
+    $('#sp-restore', root) && ($('#sp-restore', root).onclick = async () => {
+      const r = await native.billing.history();
+      if (r.supported) { S.settings.supported = true; persist(); applyTheme(); render(); closeSheet(); toast('התמיכה שלך שוחזרה. תודה!', 'ok'); }
+      else toast('לא נמצא תשלום בחשבון Google שבטלפון. אם תמכת מחשבון אחר, צריך להיכנס אליו ב־Play.');
+    });
     $('#sp-pay', root).onclick = () => pay(chosen);
     native.billing.products(all.map(x => x[0])).then(list => {
       if (!list.length) return;
@@ -2243,8 +2249,8 @@ function openJobSheet(job, isNew) {
       $$('#j-hav button', root).forEach(b => b.classList.toggle('on', b.dataset.m === (j.havraaMode || 'year')));
       $('#j-lhours', root).classList.toggle('hidden', j.leaveMode === 'avg');
       $('#j-lhint', root).textContent = j.leaveMode === 'avg'
-        ? 'השכר בשלושת החודשים שלפני החופשה, חלקי ימי העבודה בהם. כך מחשבים בחלק מהמקומות לעובדים לפי שעה.'
-        : `כל יום שווה ${hm(+v('leaveHours').value || 0)} שעות × ₪${+v('rate').value || 0} = ${money2((+v('leaveHours').value || 0) * (+v('rate').value || 0))}.`;
+        ? 'השכר בשלושת החודשים שלפני החופשה, חלקי ימי העבודה בהם. כך החוק מחשב לעובדים לפי שעה עם שעות משתנות.'
+        : `כל יום שווה ${hm(+v('leaveHours').value || 0)} שעות × ₪${+v('rate').value || 0} = ${money2((+v('leaveHours').value || 0) * (+v('rate').value || 0))}. מתאים כשיום העבודה קבוע; אם השעות משתנות, החוק מחשב לפי ממוצע שלושה חודשים.`;
       $('#rule-tips', root).classList.toggle('off', !v('tipsOn').checked);
       $('#tips-body', root).classList.toggle('hidden', !v('tipsOn').checked);
       $('#j-tipshint', root).textContent = j.tipsMode === 'wage'
@@ -2517,7 +2523,7 @@ async function drawNotifStatus() {
   const row = (icon, text, btn) => `<div class="nline${icon === I.check ? ' ok' : ''}">${icon}<span>${text}</span>${btn ? `<button class="btn soft mini" type="button" data-n="${btn[0]}">${btn[1]}</button>` : ''}</div>`;
   box.innerHTML = st.display === 'denied' ? row(I.bellOff, 'חסומות בהגדרות הטלפון, אז לא יגיעו.', ['open', 'לאפשר'])
     : st.display !== 'granted' ? row(I.bell, 'הטלפון יבקש אישור בפעם הבאה שנכנסים למשמרת.')
-    : row(I.check, 'מאושרות. מגיעות גם כשהאפליקציה סגורה, לפעמים באיחור של דקה או שתיים.');
+    : row(I.check, 'מאושרות. מגיעות גם כשהאפליקציה סגורה. כשהטלפון במנוחה או בחיסכון בסוללה הן יכולות לאחר בכמה דקות.');
 }
 function notifLine() {
   if (!native.NATIVE || !S.active) return '';
@@ -2801,8 +2807,8 @@ function openOnboarding() {
       <p class="ob-sub">זה קובע מתי מתחילות שעות נוספות. לא בטוח/ה? אפשר להשאיר את מה שמסומן.</p>
       <div class="field"><span>ימי עבודה בשבוע</span><div class="seg" data-k="weekDays"><button type="button" data-v="5" class="${d.weekDays === 5 ? 'on' : ''}">5 ימים</button><button type="button" data-v="6" class="${d.weekDays === 6 ? 'on' : ''}">6 ימים</button></div>
         <p class="hint">${d.weekDays === 5 ? 'שעות נוספות אחרי 8.6 שעות ביום (7.6 ביום חמישי).' : 'שעות נוספות אחרי 8 שעות ביום (7 ביום שישי).'}</p></div>
-      <div class="field"><span>משלמים לך שעות נוספות (125% / 150%)?</span>${yesNo('otOn', d.otOn, true)}<p class="hint">מגיע לפי חוק. יש מקומות שלא משלמים; אם כך, כדאי לדעת כמה זה יוצא.</p></div>
-      <div class="field"><span>משלמים תוספת על שבת וחגים?</span>${yesNo('shabbatOn', d.shabbatOn, true)}${d.otOnUnsure || d.shabbatOnUnsure ? '<p class="hint">לא בטוח/ה? נחשב לפי החוק, ואפשר לשנות בכל רגע בהגדרות העבודה.</p>' : ''}</div>
+      <div class="field"><span>משלמים לך שעות נוספות (125% / 150%)?</span>${yesNo('otOn', d.otOn, true)}${!d.otOn ? '<p class="hint">לפי החוק כמעט כל עובד זכאי לשעות נוספות. “לא” רק אם את/ה פטור/ה מהן (למשל משרת אמון). אם מגיע לך והמעסיק לא משלם, עדיף “כן”: כך תראה/י כמה מגיע לך.</p>' : '<p class="hint">מגיע לפי חוק לכמעט כל עובד.</p>'}</div>
+      <div class="field"><span>משלמים תוספת על שבת וחגים?</span>${yesNo('shabbatOn', d.shabbatOn, true)}${!d.shabbatOn ? '<p class="hint">עבודה בשבת ובחג מזכה בתוספת לפי החוק. “לא” רק אם התוספת כבר כלולה בשכר או שאת/ה פטור/ה. אם המעסיק פשוט לא משלם, עדיף “כן”, כדי לראות כמה מגיע לך.</p>' : ''}${d.otOnUnsure || d.shabbatOnUnsure ? '<p class="hint">לא בטוח/ה? נחשב לפי החוק, ואפשר לשנות בכל רגע בהגדרות העבודה.</p>' : ''}</div>
       <label class="field"><span>העיר שלך (לזמני כניסת ויציאת שבת)</span><select class="input" id="ob-city">${Object.keys(CITIES).map(c => `<option value="${c}"${c === d.city ? ' selected' : ''}>${c}</option>`).join('')}</select></label>`,
     () => `<h1 id="ob-title">עוד שני דברים</h1>
       <p class="ob-sub">כדי לחשב חופשה, מחלה, הבראה וטיפים נכון.</p>
@@ -3105,6 +3111,12 @@ step('textzoom', measureTextZoom);
 step('billing', () => {
   if (!native.billing.available()) return;
   native.billing.onPaid(() => { if (S.settings.supported) return; S.settings.supported = true; persist(); applyTheme(); render(); toast('התשלום עבר. תודה על התמיכה!', 'ok'); });
+  // a new install or phone: if this Google account supported before, the perks come back by themselves (checked once)
+  if (!S.settings.supported && !S.settings.histChecked) native.billing.history().then(r => {
+    S.settings.histChecked = 1;
+    if (r.supported) { S.settings.supported = true; applyTheme(); render(); toast('התמיכה שלך שוחזרה. תודה!', 'ok'); }
+    persist();
+  });
 });
 step('a11y', () => { setSpeech(S.settings.speech || 'en', LANGS.find(l => l.code === 'en')?.pack); startA11y(); });
 step('rules', () => {
