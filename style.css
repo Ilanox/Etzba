@@ -845,7 +845,8 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
 .goal-tip{display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:.8rem;color:var(--ink2);line-height:1.45}
 .goal-tip svg{width:16px;height:16px;flex:none;margin-top:1px;color:var(--gold-ink,var(--gold))}
 .goal-tip.warn svg{color:var(--danger)}
-.seg.kinds{margin-top:14px}
+.seg.kinds{margin-top:14px;flex-wrap:wrap;gap:2px}
+.seg.kinds button{flex:1 1 30%}
 .field .fhint{display:block;font-size:.74rem;color:var(--ink3);margin-top:5px;font-weight:400}
 
 /* color for each kind of entry: special rate, overtime, tips, vacation, sick, planned */
@@ -1209,3 +1210,7 @@ html.tz-huge .rc-slide h1{font-size:calc(clamp(3.4rem,19vw,7rem) / var(--tz,1) *
 .recap .dlt.up{color:var(--rc-up,#3CCB7F)}.recap .dlt.down{color:var(--rc-down,#FF6B6B)}
 
 .sp-amt.given{opacity:.6}.sp-amt.given small{color:var(--up)}
+
+/* a future shift: only the start column */
+.tp.tp-one{grid-template-columns:1fr;max-width:220px;margin-inline:auto}
+#f-planbits .tp-next{margin-top:2px}

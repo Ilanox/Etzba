@@ -46,7 +46,7 @@ function normalizeState(d) {
   d.settings = { ...f.settings, ...d.settings };
   d.shifts = (d.shifts || []).filter(s => s && s.start && s.end && !isNaN(new Date(s.start)) && !isNaN(new Date(s.end))).map(fix);
   d.absences = (d.absences || []).filter(a => a && /^\d{4}-\d\d-\d\d$/.test(a.date) && (a.kind === 'sick' || a.kind === 'vac')).map(fix);
-  d.plans = (d.plans || []).filter(x => x && x.start && x.end && x.jobId).map(fix);
+  d.plans = (d.plans || []).filter(x => x && x.start && x.jobId && !isNaN(new Date(x.start))).map(fix);   // end may be null: not known yet
   if (d.active && (!d.active.start || isNaN(new Date(d.active.start)))) d.active = null; else if (d.active && idMap.has(d.active.jobId)) d.active.jobId = idMap.get(d.active.jobId);
   d.ui = { sort: 'old', filter: 'all', ...(d.ui || {}) };
   if (!d.settings.migSort) { if (d.ui.sort === 'new') d.ui.sort = 'old'; d.settings.migSort = 1; }   // 1.26: oldest first is the default
@@ -563,18 +563,27 @@ function renderTiles(L) {
 
 /* ================= planned shifts: the schedule ahead, a reminder before each ================= */
 const PLAN_EARLY = 2 * 36e5;   // "start" shows up to two hours before a planned shift
-const planPay = x => { const j = jobAt(jobById(x.jobId), x.start); return shiftPay({ ...x, rest: 'auto' }, j, place(), weekRegBefore(j, x.start)).pay; };
+/** A future shift with no end yet counts as a usual-length shift (the average of the last weeks, else 8 hours). */
+function usualHours() {
+  const from = Date.now() - 56 * 864e5, h = S.shifts.filter(s => +new Date(s.start) >= from).map(s => PAY.get(s.id)?.hours).filter(Boolean);
+  return h.length ? h.reduce((a, b) => a + b, 0) / h.length : 8;
+}
+const planEndOf = x => x.end || new Date(+new Date(x.start) + usualHours() * 36e5).toISOString();
+const planPay = x => { const j = jobAt(jobById(x.jobId), x.start); return shiftPay({ ...x, end: planEndOf(x), rest: 'auto' }, j, place(), weekRegBefore(j, x.start)).pay; };
+/** "16:00–23:00", or "מ־16:00" when the end isn't known. */
+const planTime = x => x.end ? `<span class="num" dir="ltr">${tm(x.start)}–${tm(x.end)}</span>` : `<span>מ־<span class="num">${tm(x.start)}</span></span>`;
 function planNow(jobId, t = Date.now()) {
-  return S.plans.find(x => (!jobId || x.jobId === jobId) && +new Date(x.start) - PLAN_EARLY <= t && t <= +new Date(x.end));
+  return S.plans.find(x => (!jobId || x.jobId === jobId) && +new Date(x.start) - PLAN_EARLY <= t && t <= +new Date(x.end || +new Date(x.start) + 12 * 36e5));
 }
 const dayWord = d => { const t = new Date(); t.setHours(0, 0, 0, 0); const x = new Date(d); x.setHours(0, 0, 0, 0); const n = Math.round((x - t) / 864e5);
   return n === 0 ? 'היום' : n === 1 ? 'מחר' : n === -1 ? 'אתמול' : `${DAYS[x.getDay()]} ${dShort(x)}`; };
 function planCell() {
   if (S.active || !S.plans.length) return '';
   const now = Date.now(), sorted = [...S.plans].sort((a, b) => new Date(a.start) - new Date(b.start));
-  const missed = sorted.find(x => +new Date(x.end) < now);
-  const x = missed || sorted.find(x => +new Date(x.end) >= now); if (!x) return '';
-  const j = jobById(x.jobId), when = `${dayWord(x.start)} <span class="num" dir="ltr">${tm(x.start)}–${tm(x.end)}</span>${S.jobs.length > 1 ? ' · ' + nm(j.name) : ''}`;
+  const over = x => +new Date(planEndOf(x)) < now;
+  const missed = sorted.find(over);
+  const x = missed || sorted.find(x => !over(x)); if (!x) return '';
+  const j = jobById(x.jobId), when = `${dayWord(x.start)} ${planTime(x)}${S.jobs.length > 1 ? ' · ' + nm(j.name) : ''}`;
   if (missed) return `<div class="plancell missed"><span class="kic k-plan">${I.cal}</span><span class="grow"><small>עבדת במשמרת המתוכננת?</small><b>${when}</b></span>
     <button class="btn primary mini" data-plan="${x.id}" data-do="worked">כן</button><button class="btn soft mini" data-plan="${x.id}" data-do="drop">לא</button></div>`;
   const near = +new Date(x.start) - PLAN_EARLY <= now;
@@ -590,13 +599,15 @@ function planAction(id, act) {
     commit(); buzz(35); planNotifications(true); toast(`נכנסת למשמרת ב־${tm(S.active.start)}`, 'ok'); return;
   }
   if (act === 'worked') {
-    drop(); S.shifts.push({ id: uid(), jobId: x.jobId, start: x.start, end: x.end, breakMin: x.breakMin || 0, bonus: 0, note: '', rest: 'auto', ...(x.specialPct ? { specialPct: x.specialPct } : {}) });
-    commit(); buzz(25); toast('המשמרת נוספה', 'ok', { label: 'עריכה', fn: () => { const sh = S.shifts[S.shifts.length - 1]; openShiftSheet(sh, 'edit'); } }); return;
+    drop(); S.shifts.push({ id: uid(), jobId: x.jobId, start: x.start, end: planEndOf(x), breakMin: x.breakMin || 0, bonus: 0, note: '', rest: 'auto', ...(x.specialPct ? { specialPct: x.specialPct } : {}) });
+    const sh = S.shifts[S.shifts.length - 1]; commit(); buzz(25);
+    if (!x.end) { openShiftSheet(sh, 'edit'); return toast('מתי סיימת? אפשר לתקן את שעת היציאה', 'ok'); }   // the end was never known: ask
+    toast('המשמרת נוספה', 'ok', { label: 'עריכה', fn: () => openShiftSheet(sh, 'edit') }); return;
   }
   if (act === 'drop') { const was = { ...x }; drop(); commit(); toast('הוסרה', '', { label: 'ביטול', fn: () => { S.plans.push(was); commit(); } }); return; }
   // open: what you can do with a planned shift
   const past = +new Date(x.start) <= Date.now(), near = +new Date(x.start) - PLAN_EARLY <= Date.now();
-  openSheet(`<h2>משמרת מתוכננת</h2><p class="shsub"><span>${dayWord(x.start)}</span> <span class="num" dir="ltr">${tm(x.start)}–${tm(x.end)}</span> · ${nm(jobById(x.jobId).name)} · <span>בערך ${money(planPay(x))}</span></p>
+  openSheet(`<h2>משמרת עתידית</h2><p class="shsub"><span>${dayWord(x.start)}</span> ${planTime(x)} · ${nm(jobById(x.jobId).name)} · <span>בערך ${money(planPay(x))}</span></p>
     <p class="hint">${notifOn() ? 'תגיע תזכורת שעה לפני.' : 'ההתראות כבויות, אז לא תגיע תזכורת.'} כשנכנסים למשמרת סביב השעה הזו, היא נרשמת כרגיל.</p>
     <div class="btnrow">${near && !S.active ? `<button class="btn primary" id="pl-start">התחלת המשמרת</button>` : ''}${past ? `<button class="btn soft" id="pl-worked">עבדתי בה, להוסיף</button>` : ''}<button class="btn danger" id="pl-del">${I.trash}הסרה</button></div>`, root => {
     $('#pl-start', root) && ($('#pl-start', root).onclick = () => { closeSheet(); planAction(id, 'start'); });
@@ -609,7 +620,7 @@ function planReminders() {
   for (const x of S.plans) {
     const at = +new Date(x.start) - lead; if (at < Date.now() + 5000) continue;
     const j = jobById(x.jobId);
-    out.push({ at: new Date(at), title: 'משמרת בעוד שעה', body: `${tm(x.start)}–${tm(x.end)}${S.jobs.length > 1 ? ' · ' + j.name : ''}` });
+    out.push({ at: new Date(at), title: 'משמרת בעוד שעה', body: `${x.end ? `${tm(x.start)}–${tm(x.end)}` : `מ־${tm(x.start)}`}${S.jobs.length > 1 ? ' · ' + j.name : ''}` });
   }
   return out;
 }
@@ -835,7 +846,7 @@ function openShiftSheet(sh, mode) {
   }
   openSheet(`
     <h2 id="f-title">${title}</h2>${sub ? `<p class="shsub">${sub}</p>` : ''}
-    ${mode !== 'end' ? `<div class="seg kinds" id="f-kind">${[['shift', 'משמרת', 'ot'], ['special', 'מיוחדת', 'pct'], ...(mode === 'new' ? [['vac', 'חופשה', 'vac'], ['sick', 'מחלה', 'sick']] : [])].map(([k, l, i]) => `<button type="button" data-k="${k}" class="c-${k}"><span class="ki">${I[i]}</span>${l}</button>`).join('')}</div>` : ''}
+    ${mode !== 'end' ? `<div class="seg kinds" id="f-kind">${[['shift', 'משמרת', 'ot'], ['special', 'מיוחדת', 'pct'], ...(mode === 'new' ? [['plan', 'עתידית', 'cal'], ['vac', 'חופשה', 'vac'], ['sick', 'מחלה', 'sick']] : [])].map(([k, l, i]) => `<button type="button" data-k="${k}" class="c-${k}"><span class="ki">${I[i]}</span>${l}</button>`).join('')}</div>` : ''}
     <div id="f-special" class="hidden">
       <h3>תעריף לכל השעות</h3>
       <div class="qchips" id="f-pq">${[125, 150, 175, 200, 250].map(v => `<button type="button" class="num" data-p="${v}">${v}%</button>`).join('')}
@@ -853,10 +864,15 @@ function openShiftSheet(sh, mode) {
     <h3>שעות</h3>
     <div class="tp">
       <div class="tp-col"><button type="button" class="tp-cap tp-type" data-t="s" aria-label="הקלדת שעת הכניסה">כניסה<span>${I.clockEdit}</span></button><input type="time" class="tp-in" data-t="s" tabindex="-1" aria-hidden="true"><div class="wheels" dir="ltr">${wheel('sh', 24, 1)}<span class="colon">:</span>${wheel('sm', 60, mstep)}</div></div>
-      <div class="tp-arrow">${I.chevL}</div>
-      <div class="tp-col"><button type="button" class="tp-cap tp-type" data-t="e" aria-label="הקלדת שעת היציאה">יציאה<span>${I.clockEdit}</span></button><input type="time" class="tp-in" data-t="e" tabindex="-1" aria-hidden="true"><div class="wheels" dir="ltr">${wheel('eh', 24, 1)}<span class="colon">:</span>${wheel('em', 60, mstep)}</div><button type="button" class="tp-next" id="tNext" aria-pressed="false">${I.check}<span>למחרת</span></button></div>
+      <div class="tp-arrow tp-endpart">${I.chevL}</div>
+      <div class="tp-col tp-endpart"><button type="button" class="tp-cap tp-type" data-t="e" aria-label="הקלדת שעת היציאה">יציאה<span>${I.clockEdit}</span></button><input type="time" class="tp-in" data-t="e" tabindex="-1" aria-hidden="true"><div class="wheels" dir="ltr">${wheel('eh', 24, 1)}<span class="colon">:</span>${wheel('em', 60, mstep)}</div><button type="button" class="tp-next" id="tNext" aria-pressed="false">${I.check}<span>למחרת</span></button></div>
     </div>
-    <div class="tp-sum">סה״כ <b class="num" id="tDur"></b> שעות · גוללים כדי לשנות</div>
+    <div class="tp-sum tp-endpart">סה״כ <b class="num" id="tDur"></b> שעות · גוללים כדי לשנות</div>
+    <div id="f-planbits" class="hidden">
+      <button type="button" class="tp-next" id="f-planend" aria-pressed="false">${I.check}<span>אני יודע/ת מתי היא מסתיימת</span></button>
+      <p class="hint">משמרת עתידית היא רק תכנון: תגיע תזכורת שעה לפני, וכשנכנסים אליה היא נרשמת כרגיל. שעת סיום לא חובה.</p>
+    </div>
+    <div id="f-paybits">
     <h3>הפסקה לא בתשלום</h3>
     <div class="qchips" id="f-bq">${[0, 15, 30, 45, 60].map(b => `<button type="button" data-b="${b}">${b ? b + ' דק׳' : 'בלי'}</button>`).join('')}
       <input class="input num mini" type="number" inputmode="numeric" id="f-break" value="${+sh.breakMin || 0}" aria-label="דקות הפסקה"></div>
@@ -872,12 +888,13 @@ function openShiftSheet(sh, mode) {
       <p class="hint">"אוטומטי" מחשב לפי זמני כניסת ויציאת שבת וחג בעיר שבחרת.</p></details>
     <div id="f-explain"></div>
     </div>
+    </div>
     <div class="btnrow">
       <button class="btn ${mode === 'end' ? 'accent' : 'primary'}" id="f-save">${I.check}${mode === 'end' ? 'סיום ושמירה' : 'שמירה'}</button>
       ${mode === 'end' ? `<button class="btn soft" id="f-cont">חזרה, המשמרת ממשיכה</button><button class="btn danger" id="f-discard">${I.trash}מחיקת המשמרת</button><p class="hint" style="text-align:center">מחיקה: המשמרת לא נשמרת, כאילו לא נכנסת. אפשר לבטל מיד אחרי.</p>` : ''}
       ${mode === 'edit' ? `<button class="btn danger" id="f-del">${I.trash}מחיקה</button>` : ''}
     </div>`, root => {
-    let rest = sh.rest || 'auto', jobId = sh.jobId, kind = +sh.specialPct > 0 ? 'special' : 'shift';
+    let rest = sh.rest || 'auto', jobId = sh.jobId, kind = +sh.specialPct > 0 ? 'special' : 'shift', planEnd = false;
     const IH = 44, W = { sh: [T.s, 0], sm: [T.s, 1], eh: [T.e, 0], em: [T.e, 1] };
     const setWheel = (id, smooth) => { const w = $('#w-' + id, root), [arr, i] = W[id]; w.scrollTo({ top: Math.round(arr[i] / +w.dataset.step) * IH, behavior: smooth ? 'smooth' : 'auto' }); };
     const read = () => {
@@ -909,8 +926,16 @@ function openShiftSheet(sh, mode) {
       const leave = kind === 'vac' || kind === 'sick';
       $('#f-shiftonly', root).classList.toggle('hidden', leave);
       $('#f-leave', root).classList.toggle('hidden', !leave);
-      if (mode === 'new') $('#f-title', root).textContent = kind === 'vac' ? 'יום חופשה' : kind === 'sick' ? 'יום מחלה' : title;
+      if (mode === 'new') $('#f-title', root).textContent = kind === 'vac' ? 'יום חופשה' : kind === 'sick' ? 'יום מחלה' : kind === 'plan' ? 'משמרת עתידית' : title;
+      // a future shift: when it starts; when it ends only if known, and no pay details
+      const plan = kind === 'plan';
+      $('#f-planbits', root).classList.toggle('hidden', !plan);
+      $('#f-paybits', root).classList.toggle('hidden', plan);
+      $$('.tp-endpart', root).forEach(e => e.classList.toggle('hidden', plan && !planEnd));
+      $('.tp', root).classList.toggle('tp-one', plan && !planEnd);
+      { const b = $('#f-planend', root); b.classList.toggle('on', planEnd); b.setAttribute('aria-pressed', String(planEnd)); }
       if (leave) { $('#f-lhint', root).textContent = leaveHint(kind); return; }
+      if (plan) return;
       const j = jobAt(jobById(jobId), s.start), p = shiftPay(s, j, place(), weekRegBefore(j, s.start));
       $('#f-explain', root).innerHTML = explain(s, j, p);
     };
@@ -951,8 +976,17 @@ function openShiftSheet(sh, mode) {
     $$('#f-pq button', root).forEach(b => b.onclick = () => { $('#f-pct', root).value = b.dataset.p; upd(); });
     $$('#f-kind button', root).forEach(b => b.onclick = () => {
       const k = b.dataset.k;
+      if (k === 'plan' && +T.date <= +new Date(new Date().setHours(0, 0, 0, 0))) {   // planning is for days ahead: tomorrow
+        const t = new Date(); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() + 1); T.date = t;
+        // the usual start time (the most common one lately), else 9:00
+        const hs = S.shifts.slice(-30).map(x => new Date(x.start).getHours()), c = {}; hs.forEach(h => c[h] = (c[h] || 0) + 1);
+        const h0 = hs.length ? +Object.entries(c).sort((a, b) => b[1] - a[1])[0][0] : 9;
+        T.s[0] = h0; T.s[1] = 0; setTimeout(() => { setWheel('sh'); setWheel('sm'); }, 30);
+        setTimeout(() => { const st = $('#f-days', root), on = $('.day.on', root); if (st && on) { const a = on.getBoundingClientRect(), c = st.getBoundingClientRect(); st.scrollLeft += (a.left + a.width / 2) - (c.left + c.width / 2); } }, 30);
+      }
       kind = k; upd();
     });
+    $('#f-planend', root).onclick = () => { planEnd = !planEnd; buzz(8); upd(); };
     $$('input', root).forEach(i => i.addEventListener('input', upd));
     upd();
     for (const id in W) setWheel(id, false);
@@ -967,6 +1001,12 @@ function openShiftSheet(sh, mode) {
         closeSheet(); commit(); buzz(20); return toast(n === 1 ? 'נשמר יום אחד' : `נשמרו ${n} ימים`, 'ok');
       }
       const s = read(), len = new Date(s.end) - new Date(s.start);
+      if (kind === 'plan') {   // a future shift: start, and the end only if known
+        if (+new Date(s.start) < Date.now() - 6e4) return toast('משמרת עתידית צריכה להתחיל אחרי עכשיו', 'err');
+        S.plans.push({ id: uid(), jobId: s.jobId, start: s.start, end: planEnd ? s.end : null, breakMin: 0 });
+        closeSheet(); commit(); planNotifications(true); buzz(20);
+        return toast(`נשמרה משמרת עתידית ל${dayWord(s.start)} · תזכורת שעה לפני`, 'ok');
+      }
       if (mode === 'new' && +new Date(s.start) > Date.now() + 10 * 6e4 && len > 0) {   // a shift ahead is a plan, not pay yet
         S.plans.push({ id: uid(), jobId: s.jobId, start: s.start, end: s.end, breakMin: s.breakMin, ...(s.specialPct ? { specialPct: s.specialPct } : {}) });
         closeSheet(); commit(); planNotifications(true); buzz(20);
@@ -1072,7 +1112,7 @@ function renderShifts() {
   const mk = `${viewY}-${pad(viewM + 1)}`, plans = f === 'all' && (so === 'new' || so === 'old') ? S.plans.filter(x => dateKey(x.start).startsWith(mk)) : [];
   const planRow = x => { const d = new Date(x.start), j = jobById(x.jobId);
     return `<button class="srow planned" data-planrow="${x.id}"><span class="kic k-plan">${I.cal}</span>
-      <span class="mid"><span class="t1">${DAYS[d.getDay()]} ${dShort(d)}</span><span class="t2 num tline"><bdi dir="ltr" class="trange">${tm(x.start)}–${tm(x.end)}</bdi><span class="tmore"><span class="sep">·</span>מתוכננת${S.jobs.length > 1 ? `<span class="sep">·</span>${nm(j.name)}` : ''}</span></span></span>
+      <span class="mid"><span class="t1">${DAYS[d.getDay()]} ${dShort(d)}</span><span class="t2 num tline">${x.end ? `<bdi dir="ltr" class="trange">${tm(x.start)}–${tm(x.end)}</bdi>` : `<span>מ־${tm(x.start)}</span>`}<span class="tmore"><span class="sep">·</span>עתידית${S.jobs.length > 1 ? `<span class="sep">·</span>${nm(j.name)}` : ''}</span></span></span>
       <span class="end"><span class="amt num" dir="ltr">~${money(planPay(x))}</span></span></button>`; };
   const absRow = a => { const d = new Date(a.date + 'T12:00:00'), P = M.absPay.get(a.id), j = jobById(a.jobId);
     return `<button class="srow" data-abs="${a.id}"><span class="kic k-${a.kind}">${I[a.kind]}</span>
