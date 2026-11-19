@@ -585,7 +585,7 @@ function planCell() {
   const x = missed || sorted.find(x => !over(x)); if (!x) return '';
   const j = jobById(x.jobId), when = `${dayWord(x.start)} ${planTime(x)}${S.jobs.length > 1 ? ' · ' + nm(j.name) : ''}`;
   if (missed) return `<div class="plancell missed"><span class="kic k-plan">${I.cal}</span><span class="grow"><small>עבדת במשמרת המתוכננת?</small><b>${when}</b></span>
-    <button class="btn primary mini" data-plan="${x.id}" data-do="worked">כן</button><button class="btn soft mini" data-plan="${x.id}" data-do="drop">לא</button></div>`;
+    <button class="btn primary mini" data-plan="${x.id}" data-do="worked">כן</button><button class="btn soft mini" data-plan="${x.id}" data-do="missed">לא</button></div>`;
   const near = +new Date(x.start) - PLAN_EARLY <= now;
   return `<div class="plancell" data-plan="${x.id}" data-do="open"><span class="kic k-plan">${I.cal}</span><span class="grow"><small>המשמרת הבאה</small><b>${when}</b></span>
     ${near ? `<button class="btn primary mini" data-plan="${x.id}" data-do="start">התחלה</button>` : `<span class="num plan-pay" dir="ltr">~${money(planPay(x))}</span>`}</div>`;
@@ -595,7 +595,7 @@ function planAction(id, act) {
   const drop = () => { S.plans = S.plans.filter(p => p.id !== id); };
   if (act === 'start') {
     if (S.active) return;
-    drop(); S.settings.lastJob = x.jobId; S.active = { jobId: x.jobId, start: new Date().toISOString() };
+    drop(); S.settings.lastJob = x.jobId; S.active = { jobId: x.jobId, start: new Date().toISOString(), planned: x.start };
     commit(); buzz(35); planNotifications(true); toast(`נכנסת למשמרת ב־${tm(S.active.start)}`, 'ok'); return;
   }
   if (act === 'worked') {
@@ -604,12 +604,18 @@ function planAction(id, act) {
     if (!x.end) { openShiftSheet(sh, 'edit'); return toast('מתי סיימת? אפשר לתקן את שעת היציאה', 'ok'); }   // the end was never known: ask
     toast('המשמרת נוספה', 'ok', { label: 'עריכה', fn: () => openShiftSheet(sh, 'edit') }); return;
   }
-  if (act === 'drop') { const was = { ...x }; drop(); commit(); toast('הוסרה', '', { label: 'ביטול', fn: () => { S.plans.push(was); commit(); } }); return; }
+  if (act === 'drop' || act === 'missed') { const was = { ...x }; drop(); commit(); toast(act === 'missed' ? 'סומנה כמשמרת שלא התקיימה' : 'הוסרה', '', { label: 'ביטול', fn: () => { S.plans.push(was); commit(); } }); return; }
+  if (act === 'edit') {
+    const end = x.end || planEndOf(x);
+    return openShiftSheet({ jobId: x.jobId, start: x.start, end, breakMin: 0, rest: 'auto', planId: x.id, planEnd: !!x.end }, 'new');
+  }
   // open: what you can do with a planned shift
   const past = +new Date(x.start) <= Date.now(), near = +new Date(x.start) - PLAN_EARLY <= Date.now();
   openSheet(`<h2>משמרת עתידית</h2><p class="shsub"><span>${dayWord(x.start)}</span> ${planTime(x)} · ${nm(jobById(x.jobId).name)} · <span>בערך ${money(planPay(x))}</span></p>
     <p class="hint">${notifOn() ? 'תגיע תזכורת שעה לפני.' : 'ההתראות כבויות, אז לא תגיע תזכורת.'} כשנכנסים למשמרת סביב השעה הזו, היא נרשמת כרגיל.</p>
-    <div class="btnrow">${near && !S.active ? `<button class="btn primary" id="pl-start">התחלת המשמרת</button>` : ''}${past ? `<button class="btn soft" id="pl-worked">עבדתי בה, להוסיף</button>` : ''}<button class="btn danger" id="pl-del">${I.trash}הסרה</button></div>`, root => {
+    <div class="btnrow">${near && !S.active ? `<button class="btn primary" id="pl-start">התחלת המשמרת</button>` : ''}${past ? `<button class="btn soft" id="pl-worked">עבדתי בה, להוסיף</button><button class="btn soft" id="pl-missed">לא עבדתי בה</button>` : ''}<button class="btn soft" id="pl-edit">${I.clockEdit}עריכה</button><button class="btn danger" id="pl-del">${I.trash}הסרה</button></div>`, root => {
+    $('#pl-edit', root).onclick = () => { closeSheet(); setTimeout(() => planAction(id, 'edit'), 250); };
+    $('#pl-missed', root) && ($('#pl-missed', root).onclick = () => { closeSheet(); planAction(id, 'missed'); });
     $('#pl-start', root) && ($('#pl-start', root).onclick = () => { closeSheet(); planAction(id, 'start'); });
     $('#pl-worked', root) && ($('#pl-worked', root).onclick = () => { closeSheet(); planAction(id, 'worked'); });
     $('#pl-del', root).onclick = () => { closeSheet(); planAction(id, 'drop'); };
@@ -766,19 +772,19 @@ function onPunch() {
     const jobId = S.settings.lastJob && S.jobs.some(j => j.id === S.settings.lastJob) ? S.settings.lastJob : S.jobs[0].id;
     S.active = { jobId, start: new Date().toISOString() };
     const plan = planNow(jobId);   // clocking in for a planned shift: it's happening, so it's no longer a plan
-    if (plan) S.plans = S.plans.filter(x => x !== plan);
+    if (plan) { S.plans = S.plans.filter(x => x !== plan); S.active.planned = plan.start; }   // the planned start is kept beside the real one
     if (!persist()) { S.active = null; if (plan) S.plans.push(plan); return; }
     if (isSup()) celebrate('in'); else buzz(35);
     askPersist(); planNotifications(true);
     announce(`משמרת התחילה ב־${tm(S.active.start)}`);
-    toast(`נכנסת למשמרת ב־${tm(S.active.start)} · אפשר לשנות את השעה`, 'ok', { label: 'ביטול', fn: () => { S.active = null; persist(); renderHome(); toast('הכניסה בוטלה'); announce('הכניסה בוטלה'); } });
+    toast(`נכנסת למשמרת ב־${tm(S.active.start)} · אפשר לשנות את השעה`, 'ok', { label: 'ביטול', fn: () => { S.active = null; if (plan) S.plans.push(plan); persist(); renderHome(); toast('הכניסה בוטלה'); announce('הכניסה בוטלה'); } });
     renderHome();
   } else {
     // clocking out saves the shift straight away; a small popup shows it, with a way to edit or undo
     const a = S.active, job = jobById(a.jobId);
     let end = new Date();
     if (end - new Date(a.start) < 6e4) end = new Date(+new Date(a.start) + 6e4);
-    const sh = { id: uid(), jobId: a.jobId, start: a.start, end: end.toISOString(), breakMin: job.breakMin || 0, bonus: 0, note: '', rest: 'auto' };
+    const sh = { id: uid(), jobId: a.jobId, start: a.start, end: end.toISOString(), breakMin: job.breakMin || 0, bonus: 0, note: '', rest: 'auto', ...(a.planned ? { planned: a.planned } : {}) };
     S.shifts.push(sh); S.active = null;
     const d = new Date(sh.start); viewY = d.getFullYear(); viewM = d.getMonth();
     const g0 = goalState(withLive(monthCalc(viewY, viewM)));
@@ -894,7 +900,7 @@ function openShiftSheet(sh, mode) {
       ${mode === 'end' ? `<button class="btn soft" id="f-cont">חזרה, המשמרת ממשיכה</button><button class="btn danger" id="f-discard">${I.trash}מחיקת המשמרת</button><p class="hint" style="text-align:center">מחיקה: המשמרת לא נשמרת, כאילו לא נכנסת. אפשר לבטל מיד אחרי.</p>` : ''}
       ${mode === 'edit' ? `<button class="btn danger" id="f-del">${I.trash}מחיקה</button>` : ''}
     </div>`, root => {
-    let rest = sh.rest || 'auto', jobId = sh.jobId, kind = +sh.specialPct > 0 ? 'special' : 'shift', planEnd = false;
+    let rest = sh.rest || 'auto', jobId = sh.jobId, kind = sh.planId ? 'plan' : +sh.specialPct > 0 ? 'special' : 'shift', planEnd = !!(sh.planId && sh.planEnd);
     const IH = 44, W = { sh: [T.s, 0], sm: [T.s, 1], eh: [T.e, 0], em: [T.e, 1] };
     const setWheel = (id, smooth) => { const w = $('#w-' + id, root), [arr, i] = W[id]; w.scrollTo({ top: Math.round(arr[i] / +w.dataset.step) * IH, behavior: smooth ? 'smooth' : 'auto' }); };
     const read = () => {
@@ -1003,9 +1009,10 @@ function openShiftSheet(sh, mode) {
       const s = read(), len = new Date(s.end) - new Date(s.start);
       if (kind === 'plan') {   // a future shift: start, and the end only if known
         if (+new Date(s.start) < Date.now() - 6e4) return toast('משמרת עתידית צריכה להתחיל אחרי עכשיו', 'err');
-        S.plans.push({ id: uid(), jobId: s.jobId, start: s.start, end: planEnd ? s.end : null, breakMin: 0 });
+        const np = { id: sh.planId || uid(), jobId: s.jobId, start: s.start, end: planEnd ? s.end : null, breakMin: 0 };
+        if (sh.planId) S.plans = S.plans.map(x => x.id === sh.planId ? np : x); else S.plans.push(np);
         closeSheet(); commit(); planNotifications(true); buzz(20);
-        return toast(`נשמרה משמרת עתידית ל${dayWord(s.start)} · תזכורת שעה לפני`, 'ok');
+        return toast(sh.planId ? 'המשמרת העתידית עודכנה' : `נשמרה משמרת עתידית ל${dayWord(s.start)} · תזכורת שעה לפני`, 'ok');
       }
       if (mode === 'new' && +new Date(s.start) > Date.now() + 10 * 6e4 && len > 0) {   // a shift ahead is a plan, not pay yet
         S.plans.push({ id: uid(), jobId: s.jobId, start: s.start, end: s.end, breakMin: s.breakMin, ...(s.specialPct ? { specialPct: s.specialPct } : {}) });
