@@ -401,6 +401,8 @@ export default {
     'רוב המשמרות שלך היו בלילה.': 'Most of your shifts were at night.',
     'השנה שלך באצבע': 'Your year in Etzba',
     'למחרת': 'Next day',
+    "התשלום דרך Google Play. כל סכום אפשר לתת פעם אחת, והוא נשמר בחשבון Google: בהתקנה מחדש או בטלפון חדש עם אותו חשבון, ההטבות חוזרות.": "Payment is through Google Play. Each amount can be given once and stays on your Google account: after a reinstall or on a new phone with the same account, the perks come back.",
+    "נתת, תודה!": "Given, thank you!",
     "מגיע לפי חוק לכמעט כל עובד.": "Almost every worker is owed it by law.",
     "עבודה בשבת ובחג מזכה בתוספת לפי החוק. “לא” רק אם התוספת כבר כלולה בשכר או שאת/ה פטור/ה. אם המעסיק פשוט לא משלם, עדיף “כן”, כדי לראות כמה מגיע לך.": "Work on Shabbat and holidays earns a premium by law. Choose “No” only if it's already included in your pay or you are exempt. If your employer simply doesn't pay it, choose “Yes” to see what you're owed.",
     "לפי החוק כמעט כל עובד זכאי לשעות נוספות. “לא” רק אם את/ה פטור/ה מהן (למשל משרת אמון). אם מגיע לך והמעסיק לא משלם, עדיף “כן”: כך תראה/י כמה מגיע לך.": "By law almost every worker is owed overtime. Choose “No” only if you are exempt (a position of trust, for example). If you are owed it and your employer doesn't pay, choose “Yes”: you'll see what you're owed.",

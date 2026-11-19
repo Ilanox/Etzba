@@ -9,13 +9,11 @@ import com.android.billingclient.api.BillingClient;
 import com.android.billingclient.api.BillingClientStateListener;
 import com.android.billingclient.api.BillingFlowParams;
 import com.android.billingclient.api.BillingResult;
-import com.android.billingclient.api.ConsumeParams;
+import com.android.billingclient.api.AcknowledgePurchaseParams;
 import com.android.billingclient.api.PendingPurchasesParams;
 import com.android.billingclient.api.ProductDetails;
 import com.android.billingclient.api.Purchase;
-import com.android.billingclient.api.PurchaseHistoryRecord;
 import com.android.billingclient.api.PurchasesUpdatedListener;
-import com.android.billingclient.api.QueryPurchaseHistoryParams;
 import com.android.billingclient.api.QueryProductDetailsParams;
 import com.android.billingclient.api.QueryPurchasesParams;
 import com.getcapacitor.JSArray;
@@ -34,8 +32,10 @@ import java.util.Map;
 
 /**
  * Supporting the app: one-time payments through Google Play (in-app products, set up in Play Console).
- * Every product is consumed right after it's paid for, so the same amount can be given again.
- * Nothing in the app is unlocked by paying.
+ * Each amount is a permanent (non-consumable) product: it's acknowledged, never used up, so Google Play
+ * keeps it on the account and the perks come back after a reinstall or on a new phone, with no server and no
+ * account of ours. Each amount can be given once; the others are still there to give more.
+ * Only looks are unlocked by paying.
  */
 @CapacitorPlugin(name = "Billing")
 public class BillingPlugin extends Plugin implements PurchasesUpdatedListener {
@@ -65,29 +65,28 @@ public class BillingPlugin extends Plugin implements PurchasesUpdatedListener {
         });
     }
 
-    /** A payment that went through while the app was closed (a pending one, paid later): finish it now and tell the app. */
+    /** A payment that went through while the app was closed (a pending one, paid later): acknowledge it and tell
+        the app. Play refunds a purchase that isn't acknowledged within three days. */
     private void consumeLeftovers() {
         client.queryPurchasesAsync(QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build(),
             (r, list) -> {
                 boolean paid = false;
-                for (Purchase p : list) if (p.getPurchaseState() == Purchase.PurchaseState.PURCHASED) { paid = true; consume(p, null); }
+                for (Purchase p : list) if (p.getPurchaseState() == Purchase.PurchaseState.PURCHASED) { paid = true; acknowledge(p); }
                 if (paid) notifyListeners("paid", new JSObject(), true);
             });
     }
 
-    /** Has this Google account ever supported the app? Support payments are used up (so people can give again),
-        but Play keeps the latest one of each amount in the account's history, so the perks come back after a
-        reinstall or on a new phone with the same account: { supported: true/false }. */
+    /** The support amounts this Google account owns: { supported, owned: [ids] }. Restores the perks after a reinstall. */
     @PluginMethod
-    @SuppressWarnings("deprecation")
-    public void history(PluginCall call) {
-        ready(() -> client.queryPurchaseHistoryAsync(QueryPurchaseHistoryParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build(),
+    public void owned(PluginCall call) {
+        ready(() -> client.queryPurchasesAsync(QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build(),
             (r, list) -> {
-                boolean found = false;
+                JSArray ids = new JSArray(); boolean any = false;
                 if (r.getResponseCode() == BillingClient.BillingResponseCode.OK && list != null)
-                    for (PurchaseHistoryRecord h : list) for (String id : h.getProducts()) if (id.startsWith("support_")) found = true;
-                JSObject o = new JSObject(); o.put("supported", found); call.resolve(o);
-            }), why -> { JSObject o = new JSObject(); o.put("supported", false); o.put("error", why); call.resolve(o); });
+                    for (Purchase p : list) if (p.getPurchaseState() == Purchase.PurchaseState.PURCHASED)
+                        for (String id : p.getProducts()) if (id.startsWith("support_")) { ids.put(id); any = true; }
+                JSObject o = new JSObject(); o.put("supported", any); o.put("owned", ids); call.resolve(o);
+            }), why -> { JSObject o = new JSObject(); o.put("supported", false); o.put("owned", new JSArray()); o.put("error", why); call.resolve(o); });
     }
 
     /** Checks for payments that finished while the app was closed (called when the app starts). */
@@ -162,17 +161,18 @@ public class BillingPlugin extends Plugin implements PurchasesUpdatedListener {
         if (code == BillingClient.BillingResponseCode.OK && list != null) {
             boolean paid = false;
             for (Purchase p : list) {
-                if (p.getPurchaseState() == Purchase.PurchaseState.PURCHASED) { paid = true; consume(p, null); }
+                if (p.getPurchaseState() == Purchase.PurchaseState.PURCHASED) { paid = true; acknowledge(p); }
             }
             if (paid) notifyListeners("paid", new JSObject(), true);   // also when a pending payment completes later
-            // a pending payment (cash at a store, for example) finishes later; it's consumed then
+            // a pending payment (cash at a store, for example) finishes later; it's acknowledged then
             finish(paid, false, paid ? null : "pending");
         } else if (code == BillingClient.BillingResponseCode.USER_CANCELED) finish(false, true, null);
         else finish(false, false, "purchase " + code + " " + r.getDebugMessage());
     }
 
-    private void consume(Purchase p, Then then) {
-        client.consumeAsync(ConsumeParams.newBuilder().setPurchaseToken(p.getPurchaseToken()).build(), (r, token) -> { if (then != null) then.run(); });
+    private void acknowledge(Purchase p) {
+        if (p.isAcknowledged()) return;
+        client.acknowledgePurchase(AcknowledgePurchaseParams.newBuilder().setPurchaseToken(p.getPurchaseToken()).build(), r -> { });
     }
 
     private void finish(boolean ok, boolean cancelled, String why) {

@@ -175,8 +175,8 @@ export const billing = {
   /** A supporter's app icon: 'default' | 'gold' | 'night' | 'paper' | 'forest'. */
   setIcon: name => withP('Billing', b => b.setIcon({ name })),
   /** Calls back when a payment completes outside a purchase in progress (a pending one, or while the app was closed). */
-  /** Whether this Google account supported before (perks come back after a reinstall): { supported } */
-  history: () => withP('Billing', b => b.history()).catch(() => ({ supported: false })),
+  /** The support amounts this Google account owns (perks come back after a reinstall): { supported, owned: [ids] } */
+  owned: () => withP('Billing', b => b.owned()).catch(() => ({ supported: false, owned: [] })),
   onPaid: cb => withP('Billing', b => { b.addListener('paid', cb); return b.restore(); }).catch(() => {}),
 };
 

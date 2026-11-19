@@ -1207,3 +1207,5 @@ html.tz-huge .rc-slide h1{font-size:calc(clamp(3.4rem,19vw,7rem) / var(--tz,1) *
 .rc-dlt{font-size:1.05rem;font-weight:700}
 .rc-dlt .dlt{font-size:1.5rem;padding-inline-end:4px}
 .recap .dlt.up{color:var(--rc-up,#3CCB7F)}.recap .dlt.down{color:var(--rc-down,#FF6B6B)}
+
+.sp-amt.given{opacity:.6}.sp-amt.given small{color:var(--up)}

@@ -1,7 +1,12 @@
 # Support payments (Google Play in-app products)
 
-The "Support Etzba" screen (Settings → תמיכה באצבע) sells one-time, consumable in-app products.
-As a thank-you they unlock looks only: eight color themes (gold, night, sunset, forest, ocean, plum, ember, sand), other app icons and a gold ring on the dial and widget. Nothing about pay or rights is ever locked. Each one is consumed right after payment, so it can be bought again.
+The "Support Etzba" screen (Settings → תמיכה באצבע) sells one-time in-app products, kept as permanent
+(non-consumable): the app acknowledges each payment and never consumes it. So Google Play keeps it on the
+person's account, and the perks come back after a reinstall or on a new phone with the same account, with no
+server or account of ours. Each amount can be given once; an amount already given shows "נתת, תודה!".
+As a thank-you they unlock looks only (themes, app icons, the ring on the dial, widget styles, early access).
+Nothing about pay or rights is ever locked. In Play Console there is nothing to set for this: an in-app product
+is permanent when the app doesn't consume it.
 
 ## Set up once in Play Console
 

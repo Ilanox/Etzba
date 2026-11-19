@@ -1347,20 +1347,22 @@ async function buildReport(y, m, jobId, withNet) {
 }
 
 /* ================= supporting the app ================= */
-// Google Play in-app products (consumable). Three main amounts, and more to choose from.
+// Google Play in-app products, permanent (each acknowledged, never used up): the account keeps them, so the perks
+// come back after a reinstall. Three main amounts, and more; an amount already given is shown with thanks.
 const SUPPORT_MAIN = [['support_10', 10], ['support_20', 20], ['support_50', 50]];
 const SUPPORT_MORE = [['support_5', 5], ['support_15', 15], ['support_30', 30], ['support_75', 75], ['support_100', 100], ['support_200', 200]];
 async function openSupport() {
   const all = [...SUPPORT_MAIN, ...SUPPORT_MORE];
-  let prices = new Map(), chosen = 'support_20';
+  let prices = new Map(), chosen = 'support_20', owned = new Set();
   const price = (id, n) => prices.get(id) || `₪${n}`;
   const amountOf = id => all.find(x => x[0] === id);
   const draw = root => {
-    $('#sp-main', root).innerHTML = SUPPORT_MAIN.map(([id, n], i) => `<button type="button" class="sp-amt${chosen === id ? ' on' : ''}" data-id="${id}"${prices.size && !prices.has(id) ? ' disabled' : ''}>
-      <b class="num">${price(id, n)}</b><small>${['קפה', 'ארוחה קלה', 'תמיכה גדולה'][i]}</small></button>`).join('');
-    $('#sp-more', root).innerHTML = SUPPORT_MORE.filter(([id]) => !prices.size || prices.has(id)).map(([id, n]) => `<button type="button" class="num${chosen === id ? ' on' : ''}" data-id="${id}">${price(id, n)}</button>`).join('');
+    $('#sp-main', root).innerHTML = SUPPORT_MAIN.map(([id, n], i) => `<button type="button" class="sp-amt${chosen === id ? ' on' : ''}${owned.has(id) ? ' given' : ''}" data-id="${id}"${(prices.size && !prices.has(id)) || owned.has(id) ? ' disabled' : ''}>
+      <b class="num">${price(id, n)}</b><small>${owned.has(id) ? 'נתת, תודה!' : ['קפה', 'ארוחה קלה', 'תמיכה גדולה'][i]}</small></button>`).join('');
+    $('#sp-more', root).innerHTML = SUPPORT_MORE.filter(([id]) => !prices.size || prices.has(id)).map(([id, n]) => `<button type="button" class="num${chosen === id ? ' on' : ''}" data-id="${id}"${owned.has(id) ? ' disabled aria-label="נתת, תודה!"' : ''}>${owned.has(id) ? '✓ ' : ''}${price(id, n)}</button>`).join('');
     const [cid, cn] = amountOf(chosen);
     $('#sp-pay', root).innerHTML = `${I.heart}תמיכה ב־${price(cid, cn)}`;
+    $('#sp-pay', root).disabled = owned.has(chosen);
     // choosing an amount only selects it; the button below pays
     $$('[data-id]', root).forEach(b => b.onclick = () => { chosen = b.dataset.id; buzz(8); draw(root); });
   };
@@ -1383,15 +1385,21 @@ async function openSupport() {
     <div class="sp-main" id="sp-main"></div>
     <details class="sp-other"${SUPPORT_MORE.some(x => x[0] === chosen) ? ' open' : ''}><summary>סכום אחר</summary><div class="qchips" id="sp-more"></div></details>
     <div class="btnrow"><button class="btn primary sp-pay" id="sp-pay"></button></div>
-    <p class="hint" style="text-align:center">התשלום דרך Google Play. אפשר לתמוך כמה פעמים שרוצים. בהתקנה מחדש או בטלפון חדש עם אותו חשבון Google, ההטבות חוזרות.</p>
+    <p class="hint" style="text-align:center">התשלום דרך Google Play. כל סכום אפשר לתת פעם אחת, והוא נשמר בחשבון Google: בהתקנה מחדש או בטלפון חדש עם אותו חשבון, ההטבות חוזרות.</p>
     ${isSup() ? '' : '<button class="btn ghost" id="sp-restore" type="button" style="width:100%">כבר תמכתי: שחזור</button>'}`, root => {
     draw(root);
     $('#sp-restore', root) && ($('#sp-restore', root).onclick = async () => {
-      const r = await native.billing.history();
+      const r = await native.billing.owned();
       if (r.supported) { S.settings.supported = true; persist(); applyTheme(); render(); closeSheet(); toast('התמיכה שלך שוחזרה. תודה!', 'ok'); }
       else toast('לא נמצא תשלום בחשבון Google שבטלפון. אם תמכת מחשבון אחר, צריך להיכנס אליו ב־Play.');
     });
     $('#sp-pay', root).onclick = () => pay(chosen);
+    native.billing.owned().then(r => {
+      owned = new Set(r.owned || []);
+      if (owned.has(chosen)) chosen = (all.find(([id]) => !owned.has(id)) || [chosen])[0];
+      if (r.supported && !S.settings.supported) { S.settings.supported = true; persist(); applyTheme(); }
+      draw(root);
+    });
     native.billing.products(all.map(x => x[0])).then(list => {
       if (!list.length) return;
       prices = new Map(list.map(p => [p.id, p.price])); draw(root);
@@ -3112,7 +3120,7 @@ step('billing', () => {
   if (!native.billing.available()) return;
   native.billing.onPaid(() => { if (S.settings.supported) return; S.settings.supported = true; persist(); applyTheme(); render(); toast('התשלום עבר. תודה על התמיכה!', 'ok'); });
   // a new install or phone: if this Google account supported before, the perks come back by themselves (checked once)
-  if (!S.settings.supported && !S.settings.histChecked) native.billing.history().then(r => {
+  if (!S.settings.supported && !S.settings.histChecked) native.billing.owned().then(r => {
     S.settings.histChecked = 1;
     if (r.supported) { S.settings.supported = true; applyTheme(); render(); toast('התמיכה שלך שוחזרה. תודה!', 'ok'); }
     persist();
