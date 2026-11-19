@@ -2,6 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-7nEzkihTYcxgE9ul481Yw2nW+WUFMZPaRG1xQ1zii1o=' 'sha256-c8AWQKw29IZqjTIFqGQ14cH5PiUu+A9oirKInfLL094='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://etzba.ilanox.dev; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-src 'none'" data-web-only>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F5F2EC" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#121110" media="(prefers-color-scheme: dark)">
@@ -14,9 +15,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preload" href="fonts/heebo.woff" as="font" type="font/woff" crossorigin>
 <script>var t='auto',l='he';try{var s=(JSON.parse(localStorage.getItem('etzba.v1'))||{}).settings;t=s.theme||'auto';l=s.lang||'he'}catch(e){}
 /* safety net: the last start in this language never finished, so start in Hebrew (the app says so) */
 try{if(l!=='he'&&localStorage.getItem('etzba.langBoot')===l){var d0=JSON.parse(localStorage.getItem('etzba.v1'));d0.settings.lang='he';localStorage.setItem('etzba.v1',JSON.stringify(d0));localStorage.setItem('etzba.langFailed',l);localStorage.removeItem('etzba.langBoot');l='he'}else if(l!=='he')localStorage.setItem('etzba.langBoot',l)}catch(e){}

@@ -58,13 +58,24 @@ function label(root, all) {
   } catch { /* labels must never break the app */ }
 }
 
-/** Keep names up to date as the screens redraw. */
+/** Keep names up to date as the screens redraw: only what changed is looked at again (the clock ticks every second). */
 export function startA11y() {
   if (obs) return;
   label(document.body);
-  obs = new MutationObserver(() => {
+  const dirty = new Set();
+  obs = new MutationObserver(list => {
+    for (const m of list) {
+      const t = m.target.nodeType === 1 ? m.target : m.target.parentElement;
+      if (!t) continue;
+      if (m.type === 'childList') for (const n of m.addedNodes) if (n.nodeType === 1) dirty.add(n);
+      const host = t.closest(SEL); dirty.add(host || t);
+    }
     if (timer) return;
-    timer = setTimeout(() => { timer = 0; label(document.body); }, 300);
+    timer = setTimeout(() => {
+      timer = 0;
+      const roots = [...dirty]; dirty.clear();
+      for (const r of roots) if (r.isConnected && !roots.some(o => o !== r && o.contains(r))) label(r);
+    }, 300);
   });
   obs.observe(document.body, { childList: true, subtree: true, characterData: true });
 }

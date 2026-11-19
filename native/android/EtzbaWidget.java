@@ -292,7 +292,7 @@ public class EtzbaWidget extends AppWidgetProvider {
 
         // the dial clocks in or out; anywhere else opens the app
         int flags = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0);
-        Intent toggle = new Intent(ctx, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP).putExtra("etzba_action", "toggle");
+        Intent toggle = new Intent(ctx, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP).putExtra("etzba_token", AppActionsPlugin.token(ctx)).putExtra("etzba_action", "toggle");
         Intent open = new Intent(ctx, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         v.setOnClickPendingIntent(dial, PendingIntent.getActivity(ctx, 77, toggle, flags));
         v.setOnClickPendingIntent(root, PendingIntent.getActivity(ctx, 79, open, flags));

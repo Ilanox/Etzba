@@ -29,14 +29,27 @@ public class AppActionsPlugin extends Plugin {
         if (read(intent)) notifyListeners("action", pending, true);
     }
 
+    /** A random secret made once per install. Only the app's own widget and notifications know it, so another
+        app can't start or end a shift by opening the app with an action. (Developer unlock carries its own signature.) */
+    static String token(android.content.Context ctx) {
+        android.content.SharedPreferences p = ctx.getSharedPreferences("etzba_actions", android.content.Context.MODE_PRIVATE);
+        String t = p.getString("token", null);
+        if (t == null) { t = java.util.UUID.randomUUID().toString(); p.edit().putString("token", t).apply(); }
+        return t;
+    }
+
     private boolean read(Intent intent) {
         if (intent == null || intent.getStringExtra("etzba_action") == null) return false;
+        String act = intent.getStringExtra("etzba_action");
+        if (!"dev_unlock".equals(act) && !token(getContext()).equals(intent.getStringExtra("etzba_token"))) {
+            intent.removeExtra("etzba_action"); return false;   // not from this app: ignored
+        }
         JSObject a = new JSObject();
         a.put("action", intent.getStringExtra("etzba_action"));
         a.put("jobId", intent.getStringExtra("etzba_job") != null ? intent.getStringExtra("etzba_job") : "");
         a.put("sig", intent.getStringExtra("etzba_sig") != null ? intent.getStringExtra("etzba_sig") : "");   // developer mode, from npm run dev-unlock
         pending = a;
-        intent.removeExtra("etzba_action"); intent.removeExtra("etzba_sig");
+        intent.removeExtra("etzba_action"); intent.removeExtra("etzba_sig"); intent.removeExtra("etzba_token");
         try { androidx.core.app.NotificationManagerCompat nm = androidx.core.app.NotificationManagerCompat.from(getContext()); nm.cancel(1); nm.cancel(2); } catch (Exception ignored) { }
         return true;
     }

@@ -21,7 +21,7 @@ function android() {
   if (!existsSync(app)) return console.log('android/ not found, run: npx cap add android');
   // 1. our plugins, and the activity that registers them (generated, so switched-off features leave no code behind)
   const pkgDir = join(app, 'src/main/java/com/edvinstudios/etzba'); mkdirSync(pkgDir, { recursive: true });
-  const files = { 'ShareInPlugin.java': true, 'AppActionsPlugin.java': true, 'EtzbaWidget.java': WIDGET, 'GeoPlugin.java': GEO, 'GeoReceiver.java': GEO, 'BillingPlugin.java': SUPPORT, 'NotifyPlugin.java': true, 'NotifyReceiver.java': true };
+  const files = { 'ShareInPlugin.java': true, 'AppActionsPlugin.java': true, 'EtzbaWidget.java': WIDGET, 'GeoPlugin.java': GEO, 'GeoReceiver.java': GEO, 'BillingPlugin.java': SUPPORT, 'NotifyPlugin.java': true, 'NotifyReceiver.java': true, 'BootReceiver.java': true };
   for (const [f, on] of Object.entries(files)) {
     if (on) copyFileSync(join(root, 'native/android', f), join(pkgDir, f));
     else rmSync(join(pkgDir, f), { force: true });
@@ -81,7 +81,9 @@ ${plugins.map(p => `        registerPlugin(${p}.class);`).join('\n')}
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>`, GEO);
-  block('notify', `        <receiver android:name=".NotifyReceiver" android:exported="true">
+  // NotifyReceiver is private (only the app's own alarms reach it); BootReceiver only hears restart and update
+  block('notify', `        <receiver android:name=".NotifyReceiver" android:exported="false" />
+        <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />

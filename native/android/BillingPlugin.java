@@ -63,10 +63,20 @@ public class BillingPlugin extends Plugin implements PurchasesUpdatedListener {
         });
     }
 
-    /** A payment that went through while the app was closed: finish it now. */
+    /** A payment that went through while the app was closed (a pending one, paid later): finish it now and tell the app. */
     private void consumeLeftovers() {
         client.queryPurchasesAsync(QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build(),
-            (r, list) -> { for (Purchase p : list) if (p.getPurchaseState() == Purchase.PurchaseState.PURCHASED) consume(p, null); });
+            (r, list) -> {
+                boolean paid = false;
+                for (Purchase p : list) if (p.getPurchaseState() == Purchase.PurchaseState.PURCHASED) { paid = true; consume(p, null); }
+                if (paid) notifyListeners("paid", new JSObject(), true);
+            });
+    }
+
+    /** Checks for payments that finished while the app was closed (called when the app starts). */
+    @PluginMethod
+    public void restore(PluginCall call) {
+        ready(() -> call.resolve(), why -> call.resolve());
     }
 
     /** Prices as Google Play shows them in the person's country: { products: [{ id, price, micros }] }. */
@@ -137,6 +147,7 @@ public class BillingPlugin extends Plugin implements PurchasesUpdatedListener {
             for (Purchase p : list) {
                 if (p.getPurchaseState() == Purchase.PurchaseState.PURCHASED) { paid = true; consume(p, null); }
             }
+            if (paid) notifyListeners("paid", new JSObject(), true);   // also when a pending payment completes later
             // a pending payment (cash at a store, for example) finishes later; it's consumed then
             finish(paid, false, paid ? null : "pending");
         } else if (code == BillingClient.BillingResponseCode.USER_CANCELED) finish(false, true, null);

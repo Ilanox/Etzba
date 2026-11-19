@@ -2,6 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-TXrFM1tLGMMxlCEMZryDH/9Z0e7/hWeYd9AZIuhisd4='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>אצבע · שעון נוכחות ומחשבון שכר לעובדים לפי שעה</title>
 <meta name="description" content="שעון נוכחות בטלפון ומחשבון שכר לפי החוק בישראל: שמים אצבע בכניסה וביציאה מהמשמרת, ורואים את השכר עם שעות נוספות 125% ו־150%, שבת, חג, לילה ונטו אחרי מס. חינם, בלי חשבון, עובד גם בלי אינטרנט.">
@@ -52,8 +53,8 @@
   ]
 }
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="preload" href="/heebo.woff" as="font" type="font/woff" crossorigin>
+<style>@font-face{font-family:Heebo;src:url(/heebo.woff) format('woff');font-weight:100 900;font-display:swap}</style>
 <style>
 :root{--bg:#141518;--surface:#1D1F23;--surface2:#24272C;--line:#2E3036;--ink:#ECE9E1;--ink2:#B9B4AA;--ink3:#8E8B85;--blue:#6C9BE8;--coral:#EB6E57}
 *{box-sizing:border-box}

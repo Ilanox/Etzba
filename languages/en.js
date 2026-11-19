@@ -401,6 +401,7 @@ export default {
     'רוב המשמרות שלך היו בלילה.': 'Most of your shifts were at night.',
     'השנה שלך באצבע': 'Your year in Etzba',
     'למחרת': 'Next day',
+    "התשלום עבר. תודה על התמיכה!": "Payment went through. Thanks for your support!",
     "לעומת": "compared with",
     "ללא שינוי": "no change",
     "ללא שינוי בשכר לשעה": "pay per hour unchanged",

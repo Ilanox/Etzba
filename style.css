@@ -1,3 +1,5 @@
+/* Heebo (SIL Open Font License), served with the app: no request to Google */
+@font-face{font-family:Heebo;src:url(fonts/heebo.woff) format('woff');font-weight:100 900;font-display:swap}
 /* אצבע — warm "time card" theme */
 :root{
   --bg:#F5F2EC; --surface:#FFFFFF; --surface2:#EFEAE1; --ink:#1A1814; --ink2:#5E574C; --ink3:#948B7D; --line:#E6E0D5;

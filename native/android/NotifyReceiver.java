@@ -36,7 +36,6 @@ public class NotifyReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context ctx, Intent in) {
         String a = in.getAction();
-        if (Intent.ACTION_BOOT_COMPLETED.equals(a) || Intent.ACTION_MY_PACKAGE_REPLACED.equals(a)) { rearm(ctx); return; }
         if (EARLY.equals(a)) {
             final PendingResult done = goAsync();
             new Thread(() -> { try { checkEarly(ctx); } finally { done.finish(); } }).start();

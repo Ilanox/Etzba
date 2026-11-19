@@ -38,10 +38,16 @@ function normalizeState(d) {
   if (!d || !Array.isArray(d.jobs) || !d.jobs.length) d = fresh();
   const f = fresh();
   d.jobs = d.jobs.map(normalizeJob);
+  // a backup or import file is outside data: ids and colours end up inside HTML attributes, so only safe ones pass
+  const okId = v => typeof v === 'string' && /^[\w.:-]{1,80}$/.test(v), okColor = v => typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v);
+  const idMap = new Map();
+  d.jobs.forEach((j, i) => { if (!okId(j.id)) { const n = 'j' + Date.now().toString(36) + i; idMap.set(j.id, n); j.id = n; } if (!okColor(j.color)) j.color = f.jobs[0].color; });
+  const fix = x => { if (idMap.has(x.jobId)) x.jobId = idMap.get(x.jobId); if (!okId(x.id)) x.id = 'x' + Math.random().toString(36).slice(2, 12); return x; };
   d.settings = { ...f.settings, ...d.settings };
-  d.shifts = (d.shifts || []).filter(s => s && s.start && s.end);
-  d.absences = (d.absences || []).filter(a => a && a.date && (a.kind === 'sick' || a.kind === 'vac'));
-  d.plans = (d.plans || []).filter(x => x && x.start && x.end && x.jobId);
+  d.shifts = (d.shifts || []).filter(s => s && s.start && s.end && !isNaN(new Date(s.start)) && !isNaN(new Date(s.end))).map(fix);
+  d.absences = (d.absences || []).filter(a => a && /^\d{4}-\d\d-\d\d$/.test(a.date) && (a.kind === 'sick' || a.kind === 'vac')).map(fix);
+  d.plans = (d.plans || []).filter(x => x && x.start && x.end && x.jobId).map(fix);
+  if (d.active && (!d.active.start || isNaN(new Date(d.active.start)))) d.active = null; else if (d.active && idMap.has(d.active.jobId)) d.active.jobId = idMap.get(d.active.jobId);
   d.ui = { sort: 'old', filter: 'all', ...(d.ui || {}) };
   if (!d.settings.migSort) { if (d.ui.sort === 'new') d.ui.sort = 'old'; d.settings.migSort = 1; }   // 1.26: oldest first is the default
   if (d.settings.onboarded == null && (d.shifts.length || d.active)) d.settings.onboarded = true;   // existing users skip the welcome
@@ -2304,7 +2310,8 @@ function openJobSheet(job, isNew) {
 
 /* ================= CSV / EXPORT ================= */
 function toCSV(rows) {
-  const cell = c => { c = c == null ? '' : String(c); return /[",\r\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; };
+  // a text starting with = + - @ would run as a formula in Excel: such text gets a leading apostrophe (numbers stay numbers)
+  const cell = c => { c = c == null ? '' : String(c); if (/^[=+\-@\t\r]/.test(c) && isNaN(+c)) c = "'" + c; return /[",\r\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; };
   return '﻿' + rows.map(r => r.map(cell).join(',')).join('\r\n');
 }
 const n2 = x => (Math.round(x * 100) / 100).toFixed(2);
@@ -2439,6 +2446,7 @@ function openImport() {
         const jobIds = new Set(S.jobs.map(j => j.id));
         S.jobs.push(...d.jobs.filter(j => !jobIds.has(j.id)).map(normalizeJob));
         S.shifts.push(...freshList);
+        S = normalizeState(S);   // the file's ids and colours pass the same checks as on load
         closeSheet(); commit(); toast(`נוספו ${fresh} משמרות`, 'ok');
       };
       $('#imp-replace', root).onclick = () => confirmBtn($('#imp-replace', root), `ללחוץ שוב: ${cur} משמרות יימחקו`, () => {
@@ -3094,6 +3102,10 @@ function measureTextZoom() {
   dbg.log('info', 'text zoom ' + z);
 }
 step('textzoom', measureTextZoom);
+step('billing', () => {
+  if (!native.billing.available()) return;
+  native.billing.onPaid(() => { if (S.settings.supported) return; S.settings.supported = true; persist(); applyTheme(); render(); toast('התשלום עבר. תודה על התמיכה!', 'ok'); });
+});
 step('a11y', () => { setSpeech(S.settings.speech || 'en', LANGS.find(l => l.code === 'en')?.pack); startA11y(); });
 step('rules', () => {
   // newer yearly figures from the internet (once a day at most); everything works without them
@@ -3107,7 +3119,7 @@ step('rules', () => {
 step('geo', () => { syncGeo(true); native.appActions.onAction(appAction); syncWidget(); });
 step('meter', () => { try { if (localStorage.getItem('etzba.meter') === '1') dbg.setMeter(true); } catch {} });
 step('backupDot', updateBackupDot);
-setInterval(() => { tickHome(false); if (new Date().getSeconds() === 0) { renderRestCard(); $('#brandMark').innerHTML = mark({ t: new Date(), sw: 5.4 }); } }, 1000);
+setInterval(() => { if (document.hidden) return; tickHome(false); if (new Date().getSeconds() === 0) { renderRestCard(); $('#brandMark').innerHTML = mark({ t: new Date(), sw: 5.4 }); } }, 1000);
 $('#chipNet') && ($('#chipNet').onclick = () => { const n = new Date(); viewY = n.getFullYear(); viewM = n.getMonth(); S.ui.sumView = 'month'; go('sum'); setTimeout(() => $('#steps')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 300); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { render(); planNotifications(); checkEarly(); } });
 

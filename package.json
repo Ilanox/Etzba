@@ -22,6 +22,7 @@
     "logs": "node scripts/logs.mjs",
     "dev-unlock": "node scripts/dev-unlock.mjs",
     "early": "node scripts/early.mjs",
+    "csp": "node scripts/csp.mjs",
     "data": "node scripts/build-data.mjs"
   },
   "dependencies": {

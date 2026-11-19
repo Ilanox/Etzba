@@ -174,6 +174,8 @@ export const billing = {
   buy: id => withP('Billing', b => b.buy({ id })),
   /** A supporter's app icon: 'default' | 'gold' | 'night' | 'paper' | 'forest'. */
   setIcon: name => withP('Billing', b => b.setIcon({ name })),
+  /** Calls back when a payment completes outside a purchase in progress (a pending one, or while the app was closed). */
+  onPaid: cb => withP('Billing', b => { b.addListener('paid', cb); return b.restore(); }).catch(() => {}),
 };
 
 /* ---- workplace arrival / departure (Android geofencing; see native/android/GeoPlugin.java) ---- */
