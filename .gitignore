@@ -14,5 +14,5 @@ languages/missing-*.txt
 *.aab
 etzba-*.apk
 logs/
-android/
+/android/
 package-lock.json

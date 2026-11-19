@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- about 2×2 and 2×3: the dial on top, the timer (or "not on shift") and a short line under it; taller adds the month -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/w_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/widget_bg" android:clipToOutline="true">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent"
+        android:gravity="center" android:orientation="vertical" android:padding="12dp">
+        <ImageView android:id="@+id/w_dial" android:layout_width="76dp" android:layout_height="76dp"
+            android:contentDescription="@string/etzba_widget_dial" />
+        <Chronometer android:id="@+id/w_timer" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="10dp" android:includeFontPadding="false" android:textColor="#FFF2EDE4" android:textSize="26sp" android:fontFamily="sans-serif-light" />
+        <TextView android:id="@+id/w_title" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="10dp" android:maxLines="1" android:ellipsize="end" android:gravity="center"
+            android:textColor="#FFF2EDE4" android:textSize="17sp" android:textStyle="bold" android:visibility="gone" />
+        <TextView android:id="@+id/w_line" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="3dp" android:maxLines="2" android:ellipsize="end" android:gravity="center"
+            android:textColor="#FF9C978E" android:textSize="12.5sp" />
+        <!-- only when the widget is tall enough (about 2×3): the job, or the month so far -->
+        <TextView android:id="@+id/w_month" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="10dp" android:maxLines="2" android:ellipsize="end" android:gravity="center"
+            android:textColor="#FF9C978E" android:textSize="12sp" android:visibility="gone" />
+    </LinearLayout>
+</FrameLayout>
