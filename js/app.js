@@ -2686,7 +2686,7 @@ function syncWidget() {
   // pay rate over the shift (regular → overtime → Shabbat…), so the widget can work out pay and status on its own
   let segs = [], thr = job?.regHours || 8.6;
   if (a) {
-    const k = a.start + '|' + a.jobId + '|' + LANG;
+    const k = JSON.stringify([a.start, a.jobId, LANG, job, place()]);   // any change to the job, city or Shabbat times recalculates
     if (syncWidget.k !== k) {
       const wb = weekRegBefore(job, a.start), p1 = shiftPay({ start: a.start, end: new Date(+new Date(a.start) + 6e4).toISOString(), breakMin: 0 }, job, place(), wb);
       const per = key => Math.round(job.rate * job.r[key]) / 100, lab = key => tr(tierLabel(key, job));

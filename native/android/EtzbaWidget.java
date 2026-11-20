@@ -439,6 +439,19 @@ public class EtzbaWidget extends AppWidgetProvider {
         if (on) am.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + AlarmManager.INTERVAL_FIFTEEN_MINUTES,
             AlarmManager.INTERVAL_FIFTEEN_MINUTES, pi);
         else am.cancel(pi);
+        // and right when the rate changes (overtime, Shabbat starts), so the widget switches to 150% on time
+        PendingIntent at = PendingIntent.getBroadcast(ctx, 79, new Intent(ctx, EtzbaWidget.class).setAction(TICK), flags);
+        am.cancel(at);
+        if (!on) return;
+        long now = System.currentTimeMillis(), next = 0;
+        try {
+            JSONArray segs = new JSONArray(prefs(ctx).getString("segs", "[]"));
+            for (int k = 0; k < segs.length(); k++) { long t = segs.getJSONArray(k).getLong(0); if (t > now) { next = t; break; } }
+        } catch (Exception ignored) { }
+        if (next > 0) {
+            if (Build.VERSION.SDK_INT >= 23) am.setAndAllowWhileIdle(AlarmManager.RTC, next + 1000, at);
+            else am.set(AlarmManager.RTC, next + 1000, at);
+        }
     }
 
     private static SharedPreferences prefs(Context ctx) { return ctx.getSharedPreferences(AppActionsPlugin.PREFS, Context.MODE_PRIVATE); }
