@@ -115,3 +115,22 @@ test('holiday shift with overtime', () => {
   const p = shiftPay(at('2026-09-21T07:00:00+03:00', 10), job(), place);   // Yom Kippur
   near(p.b.chag, 8.6, 'holiday regular'); near(p.b.chagOt1, 1.4, 'holiday overtime');
 });
+
+test('minors: 40-hour week, 8 hours a day (9 from 16 in a 5-day job), 7 before Shabbat', async () => {
+  const E = await import('../../js/pay-engine.js');
+  const job = E.defaultJob(); const place = { city: 'tel-aviv' };
+  const day = (h, d = '2026-11-16') => ({ start: `${d}T08:00:00`, end: new Date(+new Date(`${d}T08:00:00`) + h * 36e5).toISOString(), breakMin: 0 });
+  try {
+    E.setAgeOf(() => 17);
+    let j = E.jobAt(job, '2026-11-16');
+    assert.equal(j.weeklyLimit, 40); assert.equal(j.regHours, 8.6); assert.equal(j.shortHours, 7);
+    E.setAgeOf(() => 15);
+    j = E.jobAt(job, '2026-11-16');
+    assert.equal(j.regHours, 8);
+    const p = E.shiftPay(day(9), j, place, 0);
+    assert.ok(Math.abs(p.otHours - 1) < 0.01, 'overtime after 8 hours under 16');
+    E.setAgeOf(() => 18);
+    assert.equal(E.jobAt(job, '2026-11-16').regHours, 8.6);
+    assert.equal(E.jobAt(job, '2026-11-16').weeklyLimit, 42);
+  } finally { E.setAgeOf(null); }
+});

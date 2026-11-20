@@ -146,7 +146,19 @@ export function shiftPay(sh, job, place, weekRegBefore = 0) {
 export const RULE_KEYS = ['election', 'rate', 'weekDays', 'regHours', 'shortDay', 'shortHours', 'weeklyRule', 'weeklyLimit', 'nightRule', 'nightRegHours',
   'ot1Hours', 'r', 'restMode', 'fixedStart', 'fixedEnd', 'chag', 'shabbatOn', 'otOn', 'holidayPay', 'holidayPayHours', 'travel', 'travelMode', 'travelMonthCap', 'tipsMode', 'leaveMode', 'leaveHours'];
 export const rulesOf = job => JSON.parse(JSON.stringify(Object.fromEntries(RULE_KEYS.map(k => [k, job[k]]))));
-export function jobAt(job, when) {
+let AGE_OF = null;
+export function setAgeOf(fn) { AGE_OF = fn; PAY_CACHE.clear(); }
+const MINOR = new WeakMap();
+function forAge(job, when) {
+  const a = AGE_OF?.(when);
+  if (a == null || a >= 18) return job;
+  const b = a < 16 ? 'u16' : 'u18';
+  let m = MINOR.get(job); if (!m) MINOR.set(job, m = {});
+  return m[b] ||= { ...job, minor: true, weeklyRule: true, weeklyLimit: Math.min(+job.weeklyLimit || 40, 40),
+    regHours: Math.min(+job.regHours, b === 'u18' && +job.weekDays === 5 ? 9 : 8), shortHours: Math.min(+job.shortHours, 7), nightRegHours: Math.min(+job.nightRegHours, 7) };
+}
+export const jobAt = (job, when) => forAge(rawJobAt(job, when), when);
+function rawJobAt(job, when) {
   const vs = job.versions; if (!vs || !vs.length) return job;
   const t = +new Date(when);
   let best = null;
@@ -158,7 +170,7 @@ export function applyRulesFrom(oldJob, newJob, from) {
   if (from == null) { out.versions = []; return out; }
   const f = +new Date(from);
   const kept = (oldJob.versions || []).filter(v => +new Date(v.until) <= f);
-  const runningAtFrom = jobAt(oldJob, new Date(f - 1));
+  const runningAtFrom = rawJobAt(oldJob, new Date(f - 1));
   kept.push({ until: new Date(f).toISOString(), rules: rulesOf(runningAtFrom) });
   out.versions = kept.sort((a, b) => +new Date(a.until) - +new Date(b.until));
   return out;
@@ -178,13 +190,13 @@ export function computeAll(shifts, jobById, place) {
   const jobKey = j => { let k = keys.get(j); if (k === undefined) { k = JSON.stringify(j); keys.set(j, k); } return k; };
   // the rules in force for a shift, resolved once per rule period rather than once per shift
   const at = (j, when) => {
-    const vs = j.versions; if (!vs || !vs.length) return j;
+    const vs = j.versions; if (!vs || !vs.length) return forAge(j, when);
     const tt = +new Date(when); let best = null;
     for (const v of vs) if (tt < +new Date(v.until) && (!best || +new Date(v.until) < +new Date(best.until))) best = v;
-    if (!best) return j;
+    if (!best) return forAge(j, when);
     const k = j.id + '|' + best.until; let r = periods.get(k);
-    if (!r || r.src !== j) { r = { src: j, job: jobAt(j, when) }; periods.set(k, r); }
-    return r.job;
+    if (!r || r.src !== j) { r = { src: j, job: rawJobAt(j, when) }; periods.set(k, r); }
+    return forAge(r.job, when);
   };
   function week(w) {
     const g = weeks.get(w).sort((a, b) => a[0] - b[0]), reg = new Map(), travelDays = new Set();

@@ -1,6 +1,6 @@
 // אצבע — app
 import { grossToNet, taxFor } from './net-pay.js';
-import { rateChanges, computeAll, shiftPay, defaultJob, normalizeJob, holidayPayDays, shiftKind, KIND_NAME, TIERS, TIER_NAME, MIN_WAGE_HOURLY, weekStart, jobAt, applyRulesFrom, rulesChanged } from './pay-engine.js';
+import { setAgeOf, rateChanges, computeAll, shiftPay, defaultJob, normalizeJob, holidayPayDays, shiftKind, KIND_NAME, TIERS, TIER_NAME, MIN_WAGE_HOURLY, weekStart, jobAt, applyRulesFrom, rulesChanged } from './pay-engine.js';
 import { readSheets } from './file-reader.js';
 import { rowsToShifts, guessYear } from './shift-import.js';
 import { CITIES, nextRest, restWindows, holidaysOfGregorianYear } from './hebrew-calendar.js';
@@ -92,6 +92,7 @@ function minWage(when = new Date()) {
   const a = ageAt(when), y = a == null ? null : YOUTH.find(([u]) => a < u);
   return y ? Math.round(MIN_WAGE_HOURLY * 182.03 * y[1] / 173 * 100) / 100 : MIN_WAGE_HOURLY;
 }
+setAgeOf(d => ageAt(d));
 const pensionAge = () => +S.settings.sex === 2.75 ? 20 : 21;
 function ageLine() {
   const a = ageAt(new Date());
@@ -107,7 +108,7 @@ function pensionLine() {
 function netOpts(y, m) {
   const s = S.settings, b = s.birth;
   const minor = !!b && ageAt(new Date(y, m, 1)) < 18;
-  const youthPt = !!b && y - +b.slice(0, 4) <= 17 ? 1 : 0;
+  const youthPt = !!b && [16, 17].includes(y - +b.slice(0, 4)) ? 1 : 0;
   const pension = s.pension && !(b && ageAt(new Date(y, m + 1, 0)) < pensionAge());
   return { points: +s.sex + +s.extraPts + youthPt, pension, pEmp: +s.pEmp, pEr: +s.pEr, sev: +s.sev, hish: s.hish, minor };
 }
@@ -387,6 +388,7 @@ function explain(sh, job, p) {
   if (+sh.breakMin > 0) w('coffee', `הפסקה של ${sh.breakMin} דק׳ לא נספרת בשעות.`);
   else if (p.hours >= 6) w('coffee', 'במשמרת ארוכה מגיעה הפסקה. הפסקה שבה מותר לצאת לא בתשלום, אז אם לקחת אחת כדאי לרשום אותה.');
   if (p.rate < minWage(sh.start)) w('warn', `התעריף נמוך משכר המינימום (₪${minWage(sh.start)} לשעה).`, true);
+  if (job.minor && p.otHours > 0) w('warn', 'עד גיל 18 אסור לעבוד שעות נוספות, אבל אם עבדת אותן מגיע לך תשלום עליהן.', true);
   return `<div class="explain"><div class="ehead"><b class="num">${money2(p.pay)}</b><span class="num">${hm(p.hours)} שעות</span></div>${lines.join('')}${why.join('')}</div>`;
 }
 
@@ -1956,7 +1958,7 @@ function renderSet() {
   for (const k of ['candleMin', 'havdalahMin', 'extraPts', 'pEmp', 'pEr', 'sev']) $('#s-' + k, el) && ($('#s-' + k, el).onchange = e => set(k, +e.target.value || 0));
   for (const k of ['pension', 'hish']) $('#s-' + k, el) && ($('#s-' + k, el).onchange = e => set(k, e.target.checked));
   $('#s-net', el).onchange = e => { set('net', e.target.checked); renderSet(); };
-  $('#s-birth', el).onchange = e => { const v = e.target.value; set('birth', /^\d{4}-\d{2}-\d{2}$/.test(v) && v <= dateKey(new Date()) ? v : ''); renderSet(); };
+  $('#s-birth', el).onchange = e => { const v = e.target.value; S.settings.birth = /^\d{4}-\d{2}-\d{2}$/.test(v) && v <= dateKey(new Date()) ? v : ''; setAgeOf(d => ageAt(d)); commit(); };
   $$('#s-sex button', el).forEach(b => { b.classList.toggle('on', +b.dataset.v === +st.sex); b.onclick = () => set('sex', +b.dataset.v); });
   $$('#s-theme button, #s-theme2 button, #s-theme3 button, #s-theme4 button', el).forEach(b => b.onclick = () => {
     if ([...THEMES_SUPPORT, ...THEMES_GRAD].some(t => t[0] === b.dataset.t) && !isSup()) return openSupport();
@@ -2260,7 +2262,7 @@ function openJobSheet(job, isNew) {
       $('#hp-body', root).classList.toggle('hidden', !v('holidayPay').checked);
       $$('.otx', root).forEach(e => e.classList.toggle('dim', !ot));
       const r = +v('rate').value, mw = $('#j-minw', root);
-      mw.textContent = r < minWage() ? `נמוך משכר המינימום (₪${minWage()})` : ''; mw.className = 'hint' + (r < minWage() ? ' bad' : '');
+      mw.innerHTML = r < minWage() ? `<span>נמוך משכר המינימום (₪${minWage()})</span> ${!S.settings.birth ? '<span>מתחת לגיל 18? אפשר להזין תאריך לידה בהגדרות, ואז השכר והניכויים יחושבו לפי הגיל.</span>' : ''}` : ''; mw.className = 'hint' + (r < minWage() ? ' bad' : '');
       const g = k => +$(`[data-r=${k}]`, root).value;
       $('#j-othint', root).textContent = `כלומר: עד ${hm(+v('regHours').value)} ש׳ ביום ${g('reg')}%, אחר כך ${v('ot1Hours').value} שעות ב־${g('ot1')}%, ומשם ${g('ot2')}%.`;
     };
@@ -2602,7 +2604,7 @@ function syncWidget() {
   const a = S.active, job = a ? jobAt(jobById(a.jobId), a.start) : jobById(S.settings.lastJob);
   let segs = [], thr = job?.regHours || 8.6;
   if (a) {
-    const k = JSON.stringify([a.start, a.jobId, LANG, job, place()]);
+    const k = JSON.stringify([a.start, a.jobId, LANG, job, place(), S.settings.birth]);
     if (syncWidget.k !== k) {
       const wb = weekRegBefore(job, a.start), p1 = shiftPay({ start: a.start, end: new Date(+new Date(a.start) + 6e4).toISOString(), breakMin: 0 }, job, place(), wb);
       const per = key => Math.round(job.rate * job.r[key]) / 100, lab = key => tr(tierLabel(key, job));
@@ -2831,7 +2833,7 @@ function openOnboarding() {
     }));
     if ($o('#ob-import')) $o('#ob-import').onclick = () => finish(true);
     const rate = $o('#ob-rate');
-    if (rate) { const mw = () => { const r = +rate.value; $o('#ob-minw').textContent = r && r < minWage() ? `נמוך משכר המינימום (₪${minWage()} לשעה)` : ''; $o('#ob-minw').className = 'hint' + (r && r < minWage() ? ' bad' : ''); }; rate.oninput = mw; mw(); }
+    if (rate) { const mw = () => { const r = +rate.value; $o('#ob-minw').innerHTML = r && r < minWage() ? `<span>נמוך משכר המינימום (₪${minWage()} לשעה)</span> ${!S.settings.birth ? '<span>מתחת לגיל 18? אפשר להזין תאריך לידה אחר כך בהגדרות, ואז השכר והניכויים יחושבו לפי הגיל.</span>' : ''}` : ''; $o('#ob-minw').className = 'hint' + (r && r < minWage() ? ' bad' : ''); }; rate.oninput = mw; mw(); }
     const first = $o('#ob-name'); if (first && !d.name) setTimeout(() => first.focus(), 250);
   };
   draw();
