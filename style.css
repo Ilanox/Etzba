@@ -1,4 +1,3 @@
-/* Heebo (SIL Open Font License), served with the app: no request to Google */
 @font-face{font-family:Heebo;src:url(fonts/heebo.woff) format('woff');font-weight:100 900;font-display:swap}
 /* אצבע — warm "time card" theme */
 :root{
@@ -15,7 +14,8 @@
   --shadow:0 1px 0 rgba(0,0,0,.3);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0}
-html{background:var(--bg)}
+html{background:var(--bg);-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
 body{font-family:Heebo,"Noto Sans Hebrew",system-ui,-apple-system,Arial,sans-serif;color:var(--ink);background:var(--bg);
   font-size:16px;line-height:1.4;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none;min-height:100dvh}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -117,7 +117,6 @@ button.cell:active{background:var(--surface2)}
 .week-h .wk{color:var(--ink2)}
 .week-h .wk.over{color:var(--accent)}
 
-/* ---------- toolbar: month / chips / sort ---------- */
 .monthbar{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-radius:var(--r);padding:6px;box-shadow:var(--shadow)}
 .monthbar b{font-weight:700}
 .ibtn{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:var(--ink2)}
@@ -269,7 +268,6 @@ details.adv[open] summary svg{transform:rotate(180deg)}
 input[type=datetime-local].input{min-width:0;display:block;text-align:start}
 .prog{opacity:0}
 
-/* ================= v1.2 — colour, motion, fingerprint fill, in-app picker ================= */
 :root{--g-money-a:#0FA958;--g-money-b:#9BD64A;--g-ot-a:#FF9F1C;--g-ot-b:#FFD23F;--g-hot-a:#E5383B;--g-hot-b:#FF7A3C;--g-acc-a:#FF5A3C;--g-acc-b:#FF9F1C;--hero-net:#fff}
 body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none;
   background:radial-gradient(38% 30% at 82% 8%,color-mix(in srgb,var(--g-acc-b) 30%,transparent),transparent 70%),
@@ -311,8 +309,6 @@ body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none
 .tier.ot{background:linear-gradient(90deg,var(--g-ot-a),var(--g-acc-a));color:#fff}
 .tier:not(.ot):not(.rest):not(.plain){background:linear-gradient(90deg,var(--g-money-a),#3CC46B);color:#fff}
 
-.bit{position:fixed;width:9px;height:9px;border-radius:2px;z-index:99;pointer-events:none;animation:bit 1s cubic-bezier(.12,.7,.3,1) forwards}
-@keyframes bit{60%{opacity:1}100%{transform:translate(var(--dx),calc(var(--dy) + 60px)) rotate(var(--rot)) scale(.6);opacity:0}}
 
 /* tiles */
 .tile{position:relative;overflow:hidden}
@@ -411,7 +407,6 @@ details.adv-sec[open]>summary>svg{transform:rotate(180deg)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 .rule-b{padding-top:14px}.rule-b .grid2 .field:first-child,.rule-b .grid3 .field{margin-top:0}.rule-b .grid2{margin-top:12px}
 
-/* ================= v1.3 — calmer: no glow ring, no confetti, no drifting background; wheel time picker ================= */
 body::before{display:none}
 .punch-btn::before,.punch-btn::after{display:none}
 .punch-btn{box-shadow:0 0 0 7px var(--surface2),0 18px 36px -20px rgba(26,24,20,.35);transition:box-shadow .4s,transform .15s}
@@ -464,7 +459,6 @@ body::before{display:none}
 .themes button.on{border-color:var(--g-acc-a);color:var(--ink)}
 .themes i{display:block;height:34px;border-radius:9px;margin-bottom:6px;border:1px solid var(--line)}
 
-/* ================= v1.5 — flat "time card" look: no gradients, no soft shadows, squarer; charts ================= */
 :root{--r:10px;--r-lg:14px;--shadow:none;--hero-net:#fff;
   --g-acc-a:#D94A22;--g-acc-b:#F07A4E;--g-money-a:#17683E;--g-money-b:#2FA36A;--g-ot-a:#CF6A0E;--g-ot-b:#EE9A3A;--g-hot-a:#B93022;--g-hot-b:#E05A48;
   --c1:#1E7A4A;--c2:#DB7413;--c3:#4B5BD0}
@@ -550,7 +544,6 @@ h1.title{font-size:1.6rem;margin-top:14px}
 .split{display:flex;gap:2px;height:10px;margin-bottom:8px}.split i{border-radius:2px}
 .dotc{display:inline-block;width:9px;height:9px;border-radius:2px;margin-inline-end:6px}
 
-/* v1.6 — tonal gradients (one hue, dark to light) only on things you press or that show state */
 .tile .meter i{background:linear-gradient(90deg,var(--c3),color-mix(in srgb,var(--c3) 70%,#fff))}
 .kic{background:linear-gradient(180deg,color-mix(in srgb,var(--kc) 22%,transparent),color-mix(in srgb,var(--kc) 10%,transparent))}
 .c-stack .cg0{background:linear-gradient(180deg,color-mix(in srgb,var(--c1) 80%,#fff),var(--c1))}
@@ -563,7 +556,6 @@ h1.title{font-size:1.6rem;margin-top:14px}
 [dir=ltr] .tabs button{font-size:.66rem}
 [dir=ltr] :is(.seg button,.kpi small,.tile small,.sec span,.c-leg span,.cell .sub)::first-letter{text-transform:uppercase}
 
-/* ================= v1.7 — "paper time card": ink, ballpoint blue, stamp red, mustard. Square corners. ================= */
 :root,:root[data-theme=light]{
   --bg:#F1EEE6;--surface:#FBFAF6;--surface2:#E7E3D8;--ink:#1B1D22;--ink2:#55585F;--ink3:#8A8C90;--line:#D9D4C7;
   --accent:#C9341C;--accent-soft:#F4DDD6;--money:#1B1D22;--money-soft:#E7E3D8;--danger:#A8200E;--pen:#2F5FA8;--gold:#A87C10;
@@ -606,7 +598,6 @@ h1.title{font-size:1.6rem;margin-top:14px}
 .tp-sum b,.tdur b{color:var(--pen)}
 .tcard small em,.tp-cap em{color:var(--accent)}
 .c-col.on::before{border-radius:2px}
-/* home: fingerprint stays the centre; money is the loudest text; three unequal blocks instead of three equal tiles */
 .punch-btn{width:min(62vw,236px)}
 .punch-time{font-size:1.5rem;font-weight:700;color:var(--ink2);margin-top:14px;letter-spacing:.04em}
 .punch.live .punch-time{order:2;margin-top:0}
@@ -631,8 +622,6 @@ h1.title{font-size:1.6rem;margin-top:14px}
 .wkb-d.on em{color:var(--ink);font-weight:700}
 .wkb-sub{font-size:.78rem;color:var(--ink3);margin-top:26px}
 
-/* ================= v1.8 — accessible text tokens, three treatments of red, component states ================= */
-/* Fill colours (bars, fingerprint, buttons) keep their hue. Text gets its own token, tuned to pass 4.5:1 on bg, surface and surface2. */
 :root,:root[data-theme=light]{--g-acc-a:#B02A14;--g-acc-b:#D33E23;--ink3:#626367;--accent:#B9301A;--pen-ink:#2F5FA8;--gold-ink:#7A5A08;--accent-ink:#B9301A;--danger:#A8200E}
 :root[data-theme=dark]{--g-acc-a:#B02A14;--g-acc-b:#D33E23;--ink3:#95938F;--accent:#EB6E57;--pen-ink:#6E98E0;--gold-ink:#D9A520;--accent-ink:#EB6E57;--danger:#FF7A66}
 :root[data-theme=blurple]{--g-acc-a:#4752C4;--g-acc-b:#5864F4;--ink3:#A2A5AC;--accent:#989FF9;--pen-ink:#969EF7;--gold-ink:#F0B232;--accent-ink:#F79A88;--danger:#F38588}
@@ -643,10 +632,6 @@ h1.title{font-size:1.6rem;margin-top:14px}
 .tcard small em,.tp-cap em,.sec a,.sec button{color:var(--accent-ink)}
 .k-shabbat,.k-chag{--kc:var(--gold-ink)}
 
-/* Red, three ways:
-   1. filled red  = start or end work (.btn.accent, .fab)
-   2. red label   = overtime information (.pill.ot, .tier.ot) — tinted, never filled
-   3. outlined red, then filled on second tap = delete (.btn.danger) */
 .btn.danger{background:transparent;border:1.5px solid color-mix(in srgb,var(--danger) 55%,transparent);color:var(--danger)}
 .btn.danger.armed{background:var(--danger);border-color:var(--danger);color:#fff}
 :root[data-theme=dark] .btn.danger.armed,:root[data-theme=blurple] .btn.danger.armed{color:#1B1D22}
@@ -680,7 +665,6 @@ button:disabled,.btn:disabled,.btn[aria-disabled=true]{opacity:.38;pointer-event
 .today b{font-size:min(2.1rem,10vw)}
 .hero .big{font-size:min(2.5rem,12vw)}
 .punch-time{font-size:min(1.5rem,7vw)}
-/* touch targets: every control is at least 44×44px to tap. Small-looking controls get an invisible hit area. */
 .ibtn{width:44px;height:44px}
 .chip{height:40px}
 .seg button{min-height:44px}
@@ -697,7 +681,6 @@ details.adv summary{min-height:44px;padding-top:12px}
 .switch input{inset:-7px -2px;width:auto;height:auto}
 .c-bars{touch-action:pan-y}
 
-/* v1.9 — gross label, toast action, screen-reader only text, backup reminder dot */
 .earn-cap{order:1;display:none;font-size:.75rem;font-weight:700;color:var(--ink3);margin-top:12px;letter-spacing:.02em}
 .punch.live .earn-cap{display:block}
 .punch.live .earn{margin-top:0}
@@ -715,9 +698,6 @@ details.adv summary{min-height:44px;padding-top:12px}
 #probbar span{flex:1}
 #probbar button{min-height:44px;min-width:44px;padding:0 10px;background:transparent;color:inherit;border:1px solid currentColor;border-radius:8px;font:inherit}
 
-/* ================= lite rendering =================
-   For slower phones and embedded views: flat fills instead of the moving background, blur and endless
-   animations, which are expensive to redraw. Same look otherwise. Auto, or set in Settings → diagnostics. */
 .lite body::before{display:none}
 .lite body{background:radial-gradient(120% 60% at 85% 0%,color-mix(in srgb,var(--g-acc-b) 14%,transparent),transparent 60%) var(--bg) no-repeat;min-height:0}
 .lite .appbar,.lite .tabs,.lite .sheet,.lite .toast{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
@@ -729,7 +709,6 @@ details.adv summary{min-height:44px;padding-top:12px}
 .lite .view,.lite .view.on .card .srow{animation:none}
 #dbgmeter{position:fixed;top:calc(var(--safe-area-inset-top,env(safe-area-inset-top,0px)) + 2px);inset-inline-start:4px;z-index:95;padding:2px 6px;font:11px/1.3 ui-monospace,monospace;background:rgba(0,0,0,.72);color:#9f9;pointer-events:none;direction:ltr;border-radius:4px}
 
-/* ================= first open (welcome + job setup) ================= */
 #onboard{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;background:var(--bg);animation:obIn .25s ease-out}
 #onboard.out{opacity:0;transition:opacity .25s}
 @keyframes obIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -755,7 +734,6 @@ details.adv summary{min-height:44px;padding-top:12px}
 .ob-note svg{flex:none;width:18px;height:18px;margin-top:2px}
 .ob-foot{padding:10px 22px calc(var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)) + 16px);max-width:520px;width:100%;margin:0 auto;box-sizing:border-box}
 [dir=ltr] #ob-back svg{transform:scaleX(-1)}
-/* clock button: equal space above (below the header) and below (above the time) its outer ring */
 .punch{padding-top:30px}
 .punch-time{margin-top:20px}
 .punch-edit{display:inline-flex;align-items:center;gap:6px;margin-top:6px;min-height:40px;padding:0 14px;border-radius:999px;background:var(--surface2);color:var(--ink2);font:inherit;font-size:.9rem;font-weight:600;border:0}
@@ -765,12 +743,10 @@ details.adv summary{min-height:44px;padding-top:12px}
 .fab{transition:transform .2s ease,opacity .2s ease}
 .fab.tuck{transform:translateY(90px);opacity:0;pointer-events:none}
 main{padding-bottom:calc(var(--tab-h) + 110px + var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))}
-/* running shift: the change-time button sits under the "on shift since" line, and the ring gets the same space above and below */
 .punch .punch-edit{order:3}
 .punch.live .earn-cap{margin-top:23px}
 .toast:not(.on){pointer-events:none}
 
-/* notification status under the live shift, and in Settings */
 .nstat{display:flex;align-items:center;justify-content:center;gap:6px;margin:8px auto 0;font-size:.8rem;color:var(--ink3);background:none;border:0;font-family:inherit}
 .nstat svg{width:15px;height:15px}
 .nstat.warn{color:var(--accent);font-weight:600}
@@ -780,7 +756,6 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
 .legal .cell>svg{width:20px;height:20px;flex:none;color:var(--ink3);align-self:flex-start;margin-top:3px}
 .btnrow a.btn{text-decoration:none}
 
-/* ---- labels are words, not badges: no pill backgrounds or boxes anywhere ---- */
 .tier,.tier.ot,.tier.rest,.tier.plain,.tier.warn,.pill,.pill.ot,.pill.rest,.pill.jobp{background:none!important;border:0!important;box-shadow:none!important;padding:0!important;border-radius:0!important}
 .tier{gap:7px;margin-top:14px;font-size:.9rem;font-weight:600;letter-spacing:.005em}
 .tier svg{width:17px;height:17px;flex:none}
@@ -794,8 +769,6 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
 .estimate,button.estimate{border:0!important;padding:0!important;margin-inline-start:6px;font-size:.78em!important;font-weight:500!important;color:var(--ink3)!important;letter-spacing:0!important;vertical-align:baseline!important;background:none!important}
 .estimate::before{content:'· '}
 
-/* ---- polish ---- */
-/* shift rows: two steady lines, the same in every row */
 .srow .t1{flex-wrap:nowrap;white-space:nowrap;overflow:hidden}
 .srow .t1 .pill{flex:none}
 .srow .tline{align-items:center}
@@ -803,15 +776,12 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
 .srow .tmore .sep{margin:0 6px;color:var(--ink3)}
 .srow .jobp{display:inline-flex;align-items:center;gap:5px;color:var(--ink2);white-space:nowrap}
 .srow .jobp i{width:7px;height:7px;border-radius:50%;flex:none}
-/* every kind of shift gets the same quiet tile; the icon colour tells them apart */
 .kic,.k-night.kic,.k-shabbat.kic,.k-chag.kic{background:var(--surface2)!important;color:var(--kc)!important;box-shadow:none!important}
 .k-night.kic{color:var(--k-night)!important}
-/* sideways-scrolling rows fade at the edges instead of cutting a chip in half */
 .chips,.daystrip,#f-pre{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);padding-inline:14px;margin-inline:-14px}
 #f-pre{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
 #f-pre::-webkit-scrollbar,.chips::-webkit-scrollbar,.daystrip::-webkit-scrollbar{display:none}
 #f-pre button{flex:none}
-/* break: the minutes box sits in the same row as the presets */
 #f-bq,#j-brk{flex-wrap:nowrap}
 #f-bq button,#j-brk button{flex:1;padding:0 4px;min-width:0;white-space:nowrap;font-size:.8rem}
 #f-bq .input.mini{flex:none;width:64px}
@@ -822,7 +792,6 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
 #pTier{display:flex;flex-direction:column;align-items:center}
 #pTier .tier{justify-content:center;text-align:center}
 
-/* the day chart follows the reading direction: day 1 on the right in Hebrew, on the left in English */
 .c-plot{padding:0 0 22px 0;padding-inline-start:38px}
 .c-grid{inset:0 0 22px 0;inset-inline-start:38px}
 .c-grid em{left:auto;inset-inline-start:-38px;text-align:end}
@@ -848,7 +817,6 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
 .seg.kinds{margin-top:14px}
 .field .fhint{display:block;font-size:.74rem;color:var(--ink3);margin-top:5px;font-weight:400}
 
-/* color for each kind of entry: special rate, overtime, tips, vacation, sick, planned */
 :root{--c-special:#7B5CD6;--c-ot:#E07A3A;--c-tips:#C99A2E;--c-vac:#2A9D8F;--c-sick:#D9534F;--c-plan:#3B7DD8;--c-shift:var(--ink2)}
 .k-vac{--kc:var(--c-vac)}.k-sick{--kc:var(--c-sick)}.k-plan{--kc:var(--c-plan)}
 .kic{position:relative}
@@ -875,7 +843,6 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
 .srow.planned{opacity:.78}
 .srow.planned .amt{color:var(--ink2)}
 
-/* color for each kind of setting or action (icon tones) */
 .t-blue{--tc:#3B7DD8}.t-green{--tc:#2E9E5B}.t-teal{--tc:#2A9D8F}.t-gold{--tc:#C99A2E}.t-orange{--tc:#E07A3A}.t-violet{--tc:#7B5CD6}.t-indigo{--tc:#5363C9}.t-red{--tc:#D9534F}.t-gray{--tc:var(--ink3)}
 .cell-ic[class*=" t-"]{color:var(--tc);background:color-mix(in srgb,var(--tc) 13%,transparent)}
 .sec span{display:inline-flex;align-items:center;gap:7px}
@@ -897,7 +864,6 @@ button.estimate{font-family:inherit;cursor:pointer;background:none;color:inherit
 .sp-other summary{cursor:pointer;text-align:center;color:var(--ink2);font-weight:600;font-size:.9rem;list-style:none;padding:8px}
 .sp-other .qchips{justify-content:center;margin-top:8px}
 
-/* ================= supporter themes: gold, night, sunset ================= */
 :root[data-theme=gold]{
   --bg:#15130E;--surface:#1F1C15;--surface2:#2B271D;--ink:#F3EBD8;--ink2:#C9BC9C;--ink3:#8E8366;--line:#3A3426;
   --accent:#E2B65A;--accent-soft:#3A3020;--money:#F3EBD8;--money-soft:#2B271D;--danger:#F2826B;--pen:#E2B65A;--gold:#E2B65A;
@@ -945,7 +911,6 @@ html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;an
 .sp-pay{background:#D9534F!important;border-color:#D9534F!important;color:#fff!important}
 .sp-pay svg{fill:currentColor}
 
-/* ================= more supporter themes, and the developer theme ================= */
 :root[data-theme=ocean]{
   --bg:#0B1A1E;--surface:#11252A;--surface2:#183238;--ink:#E2F2F3;--ink2:#A3C7CB;--ink3:#6E959A;--line:#22414A;
   --accent:#5FD3D0;--accent-soft:#163B40;--money:#E2F2F3;--money-soft:#183238;--danger:#F28C7A;--pen:#5FD3D0;--gold:#E8C873;
@@ -981,7 +946,6 @@ html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;an
   --c1:#39D98A;--c2:#F2B866;--c3:#E6D15A;--pen-ink:#39D98A;--gold-ink:#E6D15A;--accent-ink:#39D98A;--shadow:none}
 :root[data-theme=dev] .k-night.kic{background:var(--ink);color:var(--bg)}
 
-/* ================= gradient supporter themes ================= */
 :root[data-theme=aurora]{
   --bg:#101531;--surface:rgba(24,26,60,.72);--surface2:rgba(44,46,92,.75);--ink:#EEF0FF;--ink2:#B9BDE8;--ink3:#8086B8;--line:rgba(160,170,255,.18);
   --accent:#7DE3E0;--accent-soft:rgba(125,227,224,.16);--money:#EEF0FF;--money-soft:rgba(44,46,92,.75);--danger:#FF6B7A;--pen:#7DE3E0;--gold:#F3D27A;
@@ -1025,7 +989,6 @@ html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;an
 :root[data-theme=aurora] .btn.primary,:root[data-theme=dawn] .btn.primary,:root[data-theme=neon] .btn.primary,:root[data-theme=rosegold] .btn.primary{background:linear-gradient(135deg,var(--g-acc-a),var(--g-acc-b));border:0;color:#fff}
 :root[data-theme=aurora] .fab,:root[data-theme=dawn] .fab,:root[data-theme=neon] .fab,:root[data-theme=rosegold] .fab{background:linear-gradient(135deg,var(--g-acc-a),var(--g-acc-b));color:#fff}
 .brand .devtag{font-size:.72rem;font-weight:600;color:var(--accent);margin-inline-start:4px;align-self:flex-end;margin-bottom:4px;letter-spacing:0}
-/* summary card in the dark supporter themes: the theme's own color, dark text */
 :root[data-theme=gold] .hero,:root[data-theme=night] .hero,:root[data-theme=forest] .hero,:root[data-theme=ocean] .hero,:root[data-theme=plum] .hero,:root[data-theme=ember] .hero,:root[data-theme=dev] .hero{background:linear-gradient(150deg,var(--g-acc-b),var(--g-acc-a));color:var(--bg)}
 :root[data-theme=gold] .hero :is(small,span,em,.sub,.meta),:root[data-theme=night] .hero :is(small,span,em,.sub,.meta),:root[data-theme=forest] .hero :is(small,span,em,.sub,.meta),:root[data-theme=ocean] .hero :is(small,span,em,.sub,.meta),:root[data-theme=plum] .hero :is(small,span,em,.sub,.meta),:root[data-theme=ember] .hero :is(small,span,em,.sub,.meta),:root[data-theme=dev] .hero :is(small,span,em,.sub,.meta){color:color-mix(in srgb,var(--bg) 78%,transparent)}
 :root[data-theme=rosegold] .hero{background:linear-gradient(135deg,#9A5463,#C7856A)}
@@ -1109,23 +1072,19 @@ html.supporter .punch-btn::after{content:"";display:block!important;opacity:1;an
 .rc-share svg{width:20px;height:20px}
 @media (prefers-reduced-motion:reduce){.rc-slide.in > *,.rc-dial .arc,.rc-bars i,.rc-kinds i::after{animation:none}.rc-prog i.now b{animation:none;width:100%}.rc-print{transition:none}}
 
-/* supporters: rings ripple from the dial on clock-in; confetti on the month's goal */
 .punch-btn .ripple{position:absolute;inset:0;border-radius:50%;border:3px solid var(--ring-a,var(--g-acc-a));pointer-events:none;animation:ripple 1.2s cubic-bezier(.2,.8,.2,1) both}
 @keyframes ripple{from{transform:scale(.92);opacity:.9}to{transform:scale(1.45);opacity:0}}
 .confetti{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:80}
 
-/* theme swatches: a clean split, no colour bleeding under the border */
 .themes i{border:0!important;box-shadow:inset 0 0 0 1px var(--line);background-clip:padding-box}
 .themes-h.dev svg{color:var(--accent)}
 
-/* notification status, under the switch, aligned with its title */
 .nline{display:flex;align-items:flex-start;gap:7px;padding:0 16px 14px;padding-inline-start:calc(16px + 34px + 12px);margin-top:-4px;font-size:.82rem;line-height:1.45;color:var(--ink3)}
 .nline svg{width:15px;height:15px;flex:none;margin-top:2px}
 .nline.ok svg{color:#2E9E5B}
 .nline span{flex:1}
 .nline .btn.mini{width:auto;height:32px;padding:0 12px;font-size:.8rem;margin-top:-4px}
 
-/* idle: a smaller dial, so the week's numbers fit on the first screen; full size while a shift runs */
 .punch[data-phase=idle] .punch-btn{width:min(58vw,220px)}
 .punch .punch-btn{transition:width .35s cubic-bezier(.2,.8,.2,1),transform .15s}
 details.adv-cell>summary{list-style:none;cursor:pointer}details.adv-cell>summary::-webkit-details-marker{display:none}
@@ -1137,12 +1096,10 @@ button.today{width:100%;border-inline-end:1px solid var(--line)}
 button.hero-amt{display:block;width:100%;padding:0}
 #steps,#f-explain{scroll-margin-top:120px}
 
-/* large system fonts (Android text zoom, measured into --tz): one-line header and tabs, wrapping rows */
 .brand,.brand .devtag,.chip-net small,.chip-net b{white-space:nowrap}
 .tabs button .tl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;padding:0 2px}
 .srow .mid .tline{flex-wrap:wrap;white-space:normal}
 .srow .t1{min-width:0}
-/* things with a fixed size keep it: the time wheels (rows are 44px) */
 .wi{font-size:calc(1.35rem / var(--tz,1))}
 /* 130% and up: a roomier layout */
 html.tz-big .brand .devtag{display:none}
@@ -1162,11 +1119,9 @@ html.tz-big .tp-arrow{display:none}
 html.tz-big .tp-col{width:100%}
 html.tz-big .punch-btn{width:min(48vw,190px)}
 html.tz-big .cell{flex-wrap:wrap}
-/* 165% and up: the biggest numbers stop growing so they still fit the width */
 html.tz-huge .punch-time,html.tz-huge .today b,html.tz-huge .hero .big,html.tz-huge .earn{font-size:calc(2rem / var(--tz,1) * 1.4)}
 html.tz-huge .rc-slide h1{font-size:calc(clamp(3.4rem,19vw,7rem) / var(--tz,1) * 1.2)}
 
-/* Wrapped, stats.fm style: rankings revealed bottom-up, the streak, the hours of the day, records */
 .rc-rank{list-style:none;margin:6px 0 4px;padding:0;display:grid;gap:10px}
 .rc-rank li{position:relative;display:grid;grid-template-columns:2.2em 1fr auto;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;overflow:hidden;
   background:color-mix(in srgb,var(--rc-fg) 9%,transparent);opacity:0;animation:rcrank .55s var(--d) cubic-bezier(.2,.9,.25,1.2) forwards}
@@ -1214,7 +1169,6 @@ html.tz-huge .rc-slide h1{font-size:calc(clamp(3.4rem,19vw,7rem) / var(--tz,1) *
 .tp.tp-one{grid-template-columns:1fr;max-width:220px;margin-inline:auto}
 #f-planbits .tp-next{margin-top:2px}
 
-/* shift kinds: one row of small tiles, icon over the word */
 .seg.kinds{gap:2px;padding:4px}
 .seg.kinds button{flex:1 1 0;min-width:0;flex-direction:column;gap:3px;height:auto;min-height:56px;padding:7px 2px 6px;font-size:.8rem;line-height:1.15;white-space:nowrap}
 .seg.kinds .ki svg{width:19px;height:19px}

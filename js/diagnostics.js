@@ -1,15 +1,12 @@
-// אצבע — diagnostics: a breadcrumb log that survives a crash, timings, and an optional on-screen meter.
-// Nothing here is needed for the app to work; every call is wrapped so it can never break it.
 
 const KEY = 'etzba.log', MAX = 300;
 const T0 = performance.now();
 let entries = [];
-let crashNote = null;          // what was happening when the app last closed unexpectedly
+let crashNote = null;
 
 const store = (() => { for (const s of ['localStorage', 'sessionStorage']) { try { const x = window[s]; x.setItem('etzba.t', '1'); x.removeItem('etzba.t'); return x; } catch {} } return null; })();
 try { entries = JSON.parse(store?.getItem(KEY) || '[]'); } catch { entries = []; }
 
-// A "begin" with no matching "end" means the page died in the middle of that step last time.
 (() => {
   const open = new Map();
   for (const e of entries) { if (e.k === 'begin') open.set(e.m, e); else if (e.k === 'end') open.delete(e.m); else if (e.k === 'boot') open.clear(); }
@@ -25,20 +22,16 @@ function save(now) {
   if (now) go(); else saveTimer = setTimeout(go, 300);
 }
 
-/** Add a line to the log. kind: info | tap | begin | end | warn | error | perf | boot */
 export function log(k, m, d) {
   try {
     entries.push({ t: Date.now(), k, m: String(m).slice(0, 300), ...(d !== undefined ? { d } : {}) });
-    // also to the console: on the phone it shows up in `npm run logs`
     if (k !== 'begin' && k !== 'end') (k === 'error' ? console.error : k === 'warn' ? console.warn : console.info)(`[etzba] ${k}: ${String(m).slice(0, 300)}`);
     if (entries.length > MAX * 1.5) entries = entries.slice(-MAX);
-    // begin/boot are written at once: if the page dies right after, the line is already saved
     save(k === 'begin' || k === 'boot' || k === 'error');
   } catch {}
 }
 
 const timings = {};
-/** Run fn as a named step: logged before and after, with its duration. Errors are logged and re-thrown. */
 export function timed(name, fn) {
   log('begin', name);
   const t = performance.now();
@@ -78,7 +71,6 @@ export function timingSummary() {
   return out;
 }
 
-// Slow work the browser itself reports (anything that froze the page for 50ms+).
 try {
   new PerformanceObserver(l => { for (const e of l.getEntries()) if (e.duration > 200) log('perf', 'long task', Math.round(e.duration)); })
     .observe({ type: 'longtask', buffered: true });

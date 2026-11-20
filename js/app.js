@@ -38,7 +38,6 @@ function normalizeState(d) {
   if (!d || !Array.isArray(d.jobs) || !d.jobs.length) d = fresh();
   const f = fresh();
   d.jobs = d.jobs.map(normalizeJob);
-  // a backup or import file is outside data: ids and colours end up inside HTML attributes, so only safe ones pass
   const okId = v => typeof v === 'string' && /^[\w.:-]{1,80}$/.test(v), okColor = v => typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v);
   const idMap = new Map();
   d.jobs.forEach((j, i) => { if (!okId(j.id)) { const n = 'j' + Date.now().toString(36) + i; idMap.set(j.id, n); j.id = n; } if (!okColor(j.color)) j.color = f.jobs[0].color; });
@@ -46,21 +45,17 @@ function normalizeState(d) {
   d.settings = { ...f.settings, ...d.settings };
   d.shifts = (d.shifts || []).filter(s => s && s.start && s.end && !isNaN(new Date(s.start)) && !isNaN(new Date(s.end))).map(fix);
   d.absences = (d.absences || []).filter(a => a && /^\d{4}-\d\d-\d\d$/.test(a.date) && (a.kind === 'sick' || a.kind === 'vac')).map(fix);
-  d.plans = (d.plans || []).filter(x => x && x.start && x.jobId && !isNaN(new Date(x.start))).map(fix);   // end may be null: not known yet
+  d.plans = (d.plans || []).filter(x => x && x.start && x.jobId && !isNaN(new Date(x.start))).map(fix);
   if (d.active && (!d.active.start || isNaN(new Date(d.active.start)))) d.active = null; else if (d.active && idMap.has(d.active.jobId)) d.active.jobId = idMap.get(d.active.jobId);
   d.ui = { sort: 'old', filter: 'all', ...(d.ui || {}) };
-  if (!d.settings.migSort) { if (d.ui.sort === 'new') d.ui.sort = 'old'; d.settings.migSort = 1; }   // 1.26: oldest first is the default
-  if (d.settings.onboarded == null && (d.shifts.length || d.active)) d.settings.onboarded = true;   // existing users skip the welcome
-  // 1.16: earlier imports stamped the file's travel on every shift, which locked it against the job
-  // setting. Shifts carrying their job's usual imported value now follow the job instead.
+  if (!d.settings.migSort) { if (d.ui.sort === 'new') d.ui.sort = 'old'; d.settings.migSort = 1; }
+  if (d.settings.onboarded == null && (d.shifts.length || d.active)) d.settings.onboarded = true;
   if (!d.settings.migTravel) {
     const byJob = new Map();
     for (const s of d.shifts) if (s.src === 'import' && s.travel != null) { const m = byJob.get(s.jobId) || new Map(); m.set(s.travel, (m.get(s.travel) || 0) + 1); byJob.set(s.jobId, m); }
     for (const [jid, m] of byJob) {
       const common = [...m.entries()].sort((a, b) => b[1] - a[1])[0][0], job = d.jobs.find(j => j.id === jid);
       if (!job) continue;
-      // follow the job when it pays travel (the person set it) or already pays the same amount;
-      // a job with no travel set keeps the file's amount on each shift, so nothing is lost
       for (const s of d.shifts) if (s.jobId === jid && s.src === 'import' && s.travel === common) {
         const jt = +jobAt(job, s.start).travel || 0;
         if (jt > 0 || jt === common) delete s.travel;
@@ -72,27 +67,26 @@ function normalizeState(d) {
 }
 let S = load();
 const hadLocal = (() => { try { return !!localStorage.getItem(KEY); } catch { return false; } })();
-loadRules();   // yearly figures: built in, or a newer saved copy
-/** The next election day (or the most recent), as d.m.yyyy. */
+loadRules();
 function electionDate() {
   const list = rules().elections.map(e => e.date).sort(), today = new Date().toISOString().slice(0, 10);
-  const d = list.find(x => x >= today);   // only an upcoming election; a past date would mislead
+  const d = list.find(x => x >= today);
   if (!d) return '';
   const [y, m, dd] = d.split('-').map(Number); return `${dd}.${m}.${y}`;
 }
 let LANG = langInfo(S.settings.lang || 'he').code;
-let EN = LANG !== 'he';          // any language other than Hebrew (built-in English texts are used where the app has them)
+let EN = LANG !== 'he';
 let PACK = null;
 document.documentElement.lang = LANG; document.documentElement.dir = langInfo(LANG).dir;
 const darkMQ = matchMedia('(prefers-color-scheme: dark)');
-// the developer can look at the app as everyone else does: as a regular user, a supporter, or the developer
+const NET = () => S.settings.net !== false;
 const viewAs = () => S.settings.owner ? (S.settings.viewAs || 'dev') : null;
 const isSup = () => { const v = viewAs(); return v ? v !== 'regular' : !!S.settings.supported; };
 const isOwner = () => viewAs() === 'dev';
 const FREE_THEMES = ['auto', 'light', 'dark', 'blurple'];
 function applyTheme() {
   let t = S.settings.theme || 'auto';
-  if ((!isSup() && !FREE_THEMES.includes(t)) || (t === 'dev' && !isOwner())) t = 'auto';   // a theme this view doesn't have
+  if ((!isSup() && !FREE_THEMES.includes(t)) || (t === 'dev' && !isOwner())) t = 'auto';
   const r = t === 'auto' ? (darkMQ.matches ? 'dark' : 'light') : t;
   document.documentElement.dataset.theme = r;
   const bg = { light: '#F1EEE6', dark: '#141518', blurple: '#1E1F22', gold: '#15130E', night: '#0C1322', sunset: '#F7EEE8', forest: '#0F1712', ocean: '#0B1A1E', plum: '#171021', ember: '#1A100C', sand: '#F2EDDF', dev: '#07090B', aurora: '#101531', dawn: '#FBEFE8', neon: '#0A0712', rosegold: '#F6EAE4' }[r];
@@ -106,15 +100,12 @@ function applyTheme() {
 applyTheme(); darkMQ.addEventListener?.('change', applyTheme);
 let PAY = new Map();
 const persist = () => { invalidate(); S.updatedAt = Date.now(); planNotifications(); syncGeo(); syncWidget(); const json = JSON.stringify(S); native.snapshot.save(json); try { localStorage.setItem(KEY, json); localOk = true; } catch {
-  // no phone storage (blocked in some frames, or full): keep working; the account copy or a backup keeps the data
   localOk = false;
   if (!warnedLocal) { warnedLocal = true; toast('לא הצלחתי לשמור בטלפון. כדאי לגבות', 'err', { label: 'גיבוי עכשיו', fn: () => backupNow() }); }
 }
   return true; };
 let localOk = true, warnedLocal = false;
 const recompute = () => { invalidate(); PAY = computeAll(S.shifts, jobById, place()); };
-/* Shift lookups by month and week, built once per change instead of scanning every shift on
-   every screen. Month results are remembered until the next change. */
 let IDX = null; const MEMO = new Map();
 function invalidate() { IDX = null; MEMO.clear(); }
 function index() {
@@ -147,7 +138,6 @@ const pad = n => String(n).padStart(2, '0');
 const tm = d => { d = new Date(d); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 const dShort = d => { d = new Date(d); return `${d.getDate()}.${d.getMonth() + 1}`; };
 const dFull = d => { d = new Date(d); return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`; };
-const toInput = d => { d = new Date(d); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '' + Math.random());
 const HE_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
@@ -158,9 +148,7 @@ const COLORS = ['#E4572E', '#1E7A4A', '#4B5BD0', '#C98E00', '#1F8F84', '#A1458F'
 const place = () => ({ city: S.settings.city, candleMin: S.settings.candleMin, havdalahMin: S.settings.havdalahMin });
 const jobById = id => S.jobs.find(j => j.id === id) || S.jobs[0];
 const buzz = ms => { if (native.haptic(+ms >= 30 || Array.isArray(ms) ? 'medium' : 'light')) return; try { navigator.vibrate?.(ms); } catch {} };
-/** A name the person typed (job, note), kept apart from the text around it so mixed Hebrew/English reads in order. */
 const nm = t => `<bdi>${esc(t)}</bdi>`;
-// a special shift's rate is its own; in month totals several special rates add up under one line
 const tierLabel = (k, job, pct) => k === 'special' ? (pct ? `${TIER_NAME[k]} ${pct}%` : TIER_NAME[k]) : `${TIER_NAME[k]} ${job.r[k]}%`;
 
 let viewY = new Date().getFullYear(), viewM = new Date().getMonth();
@@ -168,20 +156,16 @@ let view = 'home';
 
 function toast(msg, kind = '', action = null) {
   const t = $('#toast'); t.className = 'toast ' + kind + (action ? ' act' : '');
-  // the screen reader hears it in its own language (English by default): the visible Hebrew is hidden from it
   const spoken = say(tr(msg)), alt = spoken !== tr(msg);
   t.innerHTML = (kind === 'ok' ? I.check : kind === 'err' ? I.warn : '') + `<span${alt ? ' aria-hidden="true"' : ''}>${esc(msg)}</span>${alt ? `<span class="sr" lang="en">${esc(spoken)}</span>` : ''}` + (action ? `<button type="button" class="t-act">${esc(action.label)}</button>` : '');
   if (action) {
     $('.t-act', t).onclick = () => { t.classList.remove('on'); clearTimeout(toast.t); action.fn(); };
-    // an action message waits while the finger or keyboard focus is on it
     const hold = () => clearTimeout(toast.t), go = () => { clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 4000); };
     t.onpointerdown = t.onfocusin = hold; t.onpointerup = t.onpointercancel = t.onfocusout = go;
   } else t.onpointerdown = t.onfocusin = t.onpointerup = t.onpointercancel = t.onfocusout = null;
   void t.offsetWidth; t.classList.add('on');
   clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), action ? 8000 : 2400);
 }
-/** Spoken by screen readers (polite), never shown. */
-/** A date as the screen reader should say it, in its own language. */
 const spokenDate = d => new Date(d).toLocaleDateString(speechLang() === 'en' ? 'en-GB' : 'he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
 function announce(msg) { const el = $('#sr'); el.textContent = ''; setTimeout(() => { el.textContent = say(tr(msg)); el.lang = /[\u0590-\u05FF]/.test(el.textContent) ? 'he' : 'en'; }, 60); }
 
@@ -190,7 +174,6 @@ function monthCalc(y, m) {
   const mk = y * 12 + m; if (MEMO.has(mk)) return MEMO.get(mk);
   const r = monthCalcRaw(y, m); MEMO.set(mk, r); return r;
 }
-/** The month including the shift that's running now (if it's this month), so every screen shows the same totals. */
 function withLive(M) {
   const L = livePay(); if (!L) return M;
   const st = new Date(S.active.start); if (st.getFullYear() !== M.y || st.getMonth() !== M.m) return M;
@@ -215,7 +198,6 @@ function monthCalcRaw(y, m) {
     per.set(job.id, J); gross += p.pay; hours += p.hours;
   }
   for (const job0 of S.jobs) {
-    // holiday pay follows the rules that were in force on each holiday
     const days = holidayPayDays(y, m, { ...job0, holidayPay: true }).filter(h => jobAt(job0, h.date).holidayPay); if (!days.length) continue;
     const job = jobAt(job0, monthEnd), J = per.get(job.id) || J0(job);
     J.holDays = days; J.holiday = days.reduce((sum, h) => { const r = jobAt(job0, h.date); return sum + r.holidayPayHours * r.rate; }, 0);
@@ -238,7 +220,6 @@ function monthCalcRaw(y, m) {
     absPay.set(a.id, { pay: v, share });
     per.set(job0.id, J); gross += v;
   }
-  // recuperation pay paid monthly: a twelfth of the year's amount, once the first year is done
   for (const J of per.values()) {
     if (J.job.havraaMode !== 'month') { J.havraa = 0; continue; }
     const H = havraaOf(J.job, monthEnd);
@@ -250,7 +231,6 @@ function monthCalcRaw(y, m) {
   const net = grossToNet(gross, { points: +st.sex + +st.extraPts, pension: st.pension, pEmp: +st.pEmp, pEr: +st.pEr, sev: +st.sev, hish: st.hish }, taxFor(y));
   return { y, m, shifts, absent, absPay, perJob: [...per.values()], gross, hours, net, tipsOwn };
 }
-/** A job's shifts in the 90 days before a date, with what the hours paid (for an ordinary day's pay). */
 function workedFor(jobId, date) {
   const t = +new Date(date + 'T00:00:00'), from = t - 91 * 864e5, out = [];
   for (const s of S.shifts) {
@@ -284,7 +264,7 @@ function livePay() {
 const sheet = $('#sheet'), scrim = $('#scrim');
 function openSheet(html, mount) {
   dbg.log('tap', 'sheet: ' + (/<h2[^>]*>([^<]*)/.exec(html)?.[1] || '?'));
-  $('#toast').classList.remove('on');   // a message would cover the sheet's buttons
+  $('#toast').classList.remove('on');
   sheet.innerHTML = '<div class="grab"></div>' + html;
   sheet.scrollTop = 0; sheet.style.transform = '';
   scrim.classList.add('on'); sheet.classList.add('on');
@@ -292,9 +272,8 @@ function openSheet(html, mount) {
 }
 function closeSheet() { scrim.classList.remove('on'); sheet.classList.remove('on'); sheet.style.transform = ''; }
 scrim.onclick = () => { if (pop.classList.contains('on')) return closePop(); closeSheet(); };
-(() => { // swipe down to close
+(() => {
   let y0 = null, dy = 0;
-  // only a drag that starts on the handle area (top of the sheet) closes it; scrolling the content never does
   sheet.addEventListener('touchstart', e => {
     const top = sheet.getBoundingClientRect().top, y = e.touches[0].clientY;
     if (y - top < 56 && !e.target.closest('button,input,select,.wheel,.qchips,.chips,.daystrip')) { y0 = y; dy = 0; sheet.style.transition = 'none'; }
@@ -325,7 +304,6 @@ function shiftRow(s) {
     p.specialPct ? `<span class="pill special">${p.specialPct}%</span>` : '',
   ].join('');
   const second = [S.jobs.length > 1 ? `<span class="jobp"><i style="background:${job.color}"></i>${nm(job.name)}</span>` : esc(KIND_NAME[k]), s.note ? nm(s.note) : ''].filter(Boolean);
-  // small marks on the icon's corner, one color each, for what makes this shift different
   const marks = [p.specialPct ? ['special', 'pct'] : null, p.otHours > 0.01 ? ['ot', 'ot'] : null, p.tips ? ['tips', 'coins'] : null].filter(Boolean).slice(0, 2);
   return `<button class="srow" data-id="${s.id}">
     <span class="kic k-${k}" title="${KIND_NAME[k]}">${I[k]}${marks.length ? `<span class="marks">${marks.map(([c, i]) => `<i class="mk c-${c}">${I[i]}</i>`).join('')}</span>` : ''}</span>
@@ -333,40 +311,33 @@ function shiftRow(s) {
       <span class="t2 num tline"><bdi dir="ltr" class="trange">${tm(s.start)}–${tm(s.end)}</bdi><span class="tmore">${second.map(x => `<span class="sep">·</span>${x}`).join('')}</span></span></span>
     <span class="end"><span class="amt num">${money(p.pay)}</span><br><span class="t2 num">${hm(p.hours)} ש׳</span></span></button>`;
 }
-/* ---- change against the period before: +13% in green, −15% in red ---- */
-/** Gross, hours and shifts between two moments (by shift start). */
 function sumPeriod(from, to) {
   let g = 0, h = 0, c = 0;
   for (const s of S.shifts) { const d = new Date(s.start); if (d >= from && d < to) { const p = PAY.get(s.id); if (p) { g += p.pay; h += p.hours; c++; } } }
   return { g, h, c };
 }
 const pctChange = (cur, prev) => prev > 0.5 && isFinite(cur) ? Math.round((cur - prev) / prev * 100) : null;
-/** "+13%" / "-15%" coloured by direction; empty when there's nothing to compare with. */
 function dlt(cur, prev, what = '') {
   const p = pctChange(cur, prev); if (p === null) return '';
   const cls = p > 0 ? 'up' : p < 0 ? 'down' : 'flat';
   const he = p > 0 ? `עלייה של ${p}%` : p < 0 ? `ירידה של ${-p}%` : 'ללא שינוי';
   return `<span class="dlt ${cls}" dir="ltr" role="img" aria-label="${he}${what ? ' ' + what : ''}">${p > 0 ? '+' : p < 0 ? '-' : ''}${Math.abs(p)}%</span>`;
 }
-/** This month so far against the same days of last month (or whole months for a past month). */
 function monthVsLast(y, m) {
   const now = new Date(), from = new Date(y, m, 1), cur = y === now.getFullYear() && m === now.getMonth();
   const to = cur ? now : new Date(y, m + 1, 1), pFrom = new Date(y, m - 1, 1);
   const pTo = cur ? new Date(Math.min(+new Date(y, m, 1), +pFrom + (now - from))) : new Date(y, m, 1);
   return { a: sumPeriod(from, to), b: sumPeriod(pFrom, pTo), pm: (m + 11) % 12, partial: cur ? now.getDate() : 0 };
 }
-/** This year so far against the same part of last year (whole years for a past year). */
 function yearVsLast(y) {
   const now = new Date(), cur = y === now.getFullYear(), from = new Date(y, 0, 1), to = cur ? now : new Date(y + 1, 0, 1);
   const pFrom = new Date(y - 1, 0, 1), pTo = cur ? new Date(+pFrom + (now - from)) : new Date(y, 0, 1);
   return { a: sumPeriod(from, to), b: sumPeriod(pFrom, pTo), partial: cur };
 }
 
-/** A shift's sheet, scrolled to "how it's calculated". */
 function showWhy(sh) { openShiftSheet(sh, 'edit'); setTimeout(() => $('#f-explain')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 350); }
 function bindRows(root) { $$('.srow', root).forEach(r => r.onclick = () => openShiftSheet(index().byId.get(r.dataset.id), 'edit')); }
 
-/** Plain-language explanation of a shift's pay. */
 function explain(sh, job, p) {
   const lines = TIERS.filter(k => p.b[k] > 0.004).map(k => `<div class="ln"><span class="l">${tierLabel(k, job, p.specialPct)}<small class="num">${hm(p.b[k])} ש׳ × ${money2(p.rate * (k === 'special' ? p.specialPct : job.r[k]) / 100)}</small></span><span class="v num">${money2(p.money[k])}</span></div>`);
   if (p.travel) lines.push(`<div class="ln"><span class="l">נסיעות</span><span class="v num">${money2(p.travel)}</span></div>`);
@@ -398,18 +369,6 @@ function countUp(el, to, fmt = money) {
   const step = t => { const k = Math.min(1, (t - t0) / 650), e = 1 - Math.pow(1 - k, 3); el.textContent = fmt(from + (to - from) * e); if (k < 1) el._raf = requestAnimationFrame(step); };
   el._raf = requestAnimationFrame(step);
 }
-function burst(el, n = 26) {
-  if (reduced || !el) return;
-  const r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-  const cols = ['#FF5A3C', '#FF9F1C', '#12A150', '#FFD23F', '#4B5BD0', '#1F8F84'];
-  for (let i = 0; i < n; i++) {
-    const s = document.createElement('i'); s.className = 'bit';
-    const a = Math.random() * Math.PI * 2, d = 60 + Math.random() * 130;
-    s.style.cssText = `left:${cx}px;top:${cy}px;background:${cols[i % cols.length]};--dx:${Math.cos(a) * d}px;--dy:${Math.sin(a) * d - 30}px;--rot:${Math.random() * 540 - 270}deg;animation-delay:${Math.random() * 90}ms`;
-    if (i % 3 === 0) s.style.borderRadius = '50%';
-    document.body.appendChild(s); setTimeout(() => s.remove(), 1200);
-  }
-}
 
 function punchSVG() {
   const R = ridges();
@@ -438,7 +397,6 @@ function setFill(p) {
 function renderHome() {
   const el = $('#v-home');
   const multi = S.jobs.length > 1;
-  // the starting rate is only an example: until it's changed or confirmed, say so where the pay is
   const rj = jobById(S.active?.jobId || S.settings.lastJob) || S.jobs[0], rateUnset = rj && !rj.rateOk && +rj.rate === 40;
   el.innerHTML = `
     ${rateUnset ? `<div class="card rate-card" id="rateCard"><div class="rc-top"><span class="cell-ic t-orange">${I.coins}</span><span class="grow"><b>השכר לשעה הוא ₪40 לדוגמה</b><small>כדי שהחישובים יהיו נכונים, כדאי לשים את השכר שלך.</small></span></div>
@@ -494,17 +452,14 @@ function tickHome(full) {
   punch.classList.toggle('live', !!a);
   const job = a ? jobAt(jobById(a.jobId), a.start) : jobAt(jobById(S.settings.lastJob), new Date());
   if (a) {
-    // timer and amount are both computed from the same whole second, so they always agree
     const st = new Date(a.start), sec = Math.floor(Math.max(0, now - st) / 1000), ms = sec * 1000;
     const mNow = Math.floor(ms / 6e4), wb = weekRegBefore(job, a.start);
     const p = shiftPay({ start: a.start, end: new Date(+st + mNow * 6e4), breakMin: 0 }, job, place(), wb);
-    // the rate for the minute in progress decides the label and the per-second ticking
     const key = shiftPay({ start: a.start, end: new Date(+st + (mNow + 1) * 6e4), breakMin: 0 }, job, place(), wb).lastKey || 'reg';
     $('#pTime').textContent = `${pad(Math.floor(sec / 3600))}:${pad(Math.floor(sec / 60) % 60)}:${pad(sec % 60)}`;
     $('#pEarn').textContent = money2(p.base + ((ms % 6e4) / 3.6e6) * p.rate * job.r[key] / 100);
     $('#pLabel').textContent = `${+st > +now ? 'המשמרת מתחילה ב־' : 'במשמרת מ־'}${tm(a.start)}${S.jobs.length > 1 ? ' · ' + job.name : ''}`;
     $('#pEdit').hidden = false;
-    // fingerprint fills over the regular day, then refills in overtime colours
     const hrs = ms / 3.6e6, T = p.threshold;
     let phase = 'reg', frac;
     if (!p.otOn || hrs < T) frac = hrs / T;
@@ -552,7 +507,6 @@ function renderTiles(L) {
     ${goalCell(M)}`;
   $('#mcell', el).onclick = () => { viewY = now.getFullYear(); viewM = now.getMonth(); S.ui.sumView = 'month'; go('sum'); };
   $('#goal', el).onclick = openGoal;
-  // tapping an amount shows how it was worked out: today's shift opens with its breakdown, otherwise the shift list
   $('#tcell', el).onclick = () => {
     const today = S.shifts.filter(x => sameDay(x.start, now)).sort((a, b) => new Date(b.start) - new Date(a.start));
     if (today.length === 1) return showWhy(today[0]);
@@ -561,16 +515,13 @@ function renderTiles(L) {
   $$('[data-plan]', el).forEach(b => b.onclick = e => { e.stopPropagation(); planAction(b.dataset.plan, b.dataset.do); });
 }
 
-/* ================= planned shifts: the schedule ahead, a reminder before each ================= */
-const PLAN_EARLY = 2 * 36e5;   // "start" shows up to two hours before a planned shift
-/** A future shift with no end yet counts as a usual-length shift (the average of the last weeks, else 8 hours). */
+const PLAN_EARLY = 2 * 36e5;
 function usualHours() {
   const from = Date.now() - 56 * 864e5, h = S.shifts.filter(s => +new Date(s.start) >= from).map(s => PAY.get(s.id)?.hours).filter(Boolean);
   return h.length ? h.reduce((a, b) => a + b, 0) / h.length : 8;
 }
 const planEndOf = x => x.end || new Date(+new Date(x.start) + usualHours() * 36e5).toISOString();
 const planPay = x => { const j = jobAt(jobById(x.jobId), x.start); return shiftPay({ ...x, end: planEndOf(x), rest: 'auto' }, j, place(), weekRegBefore(j, x.start)).pay; };
-/** "16:00–23:00", or "מ־16:00" when the end isn't known. */
 const planTime = x => x.end ? `<span class="num" dir="ltr">${tm(x.start)}–${tm(x.end)}</span>` : `<span>מ־<span class="num">${tm(x.start)}</span></span>`;
 function planNow(jobId, t = Date.now()) {
   return S.plans.find(x => (!jobId || x.jobId === jobId) && +new Date(x.start) - PLAN_EARLY <= t && t <= +new Date(x.end || +new Date(x.start) + 12 * 36e5));
@@ -601,7 +552,7 @@ function planAction(id, act) {
   if (act === 'worked') {
     drop(); S.shifts.push({ id: uid(), jobId: x.jobId, start: x.start, end: planEndOf(x), breakMin: x.breakMin || 0, bonus: 0, note: '', rest: 'auto', ...(x.specialPct ? { specialPct: x.specialPct } : {}) });
     const sh = S.shifts[S.shifts.length - 1]; commit(); buzz(25);
-    if (!x.end) { openShiftSheet(sh, 'edit'); return toast('מתי סיימת? אפשר לתקן את שעת היציאה', 'ok'); }   // the end was never known: ask
+    if (!x.end) { openShiftSheet(sh, 'edit'); return toast('מתי סיימת? אפשר לתקן את שעת היציאה', 'ok'); }
     toast('המשמרת נוספה', 'ok', { label: 'עריכה', fn: () => openShiftSheet(sh, 'edit') }); return;
   }
   if (act === 'drop' || act === 'missed') { const was = { ...x }; drop(); commit(); toast(act === 'missed' ? 'סומנה כמשמרת שלא התקיימה' : 'הוסרה', '', { label: 'ביטול', fn: () => { S.plans.push(was); commit(); } }); return; }
@@ -636,7 +587,7 @@ function celebrate(kind) {
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   native.haptic(kind === 'goal' ? 'success' : 'heavy') || (() => { try { navigator.vibrate?.([30, 40, 60]); } catch {} })();
   if (reduce) return;
-  if (kind === 'in') {   // rings ripple out from the dial
+  if (kind === 'in') {
     const b = $('#punchBtn'); if (!b) return;
     for (let k = 0; k < 3; k++) { const r = document.createElement('i'); r.className = 'ripple'; r.style.animationDelay = k * 140 + 'ms'; b.appendChild(r); setTimeout(() => r.remove(), 1400); }
     return;
@@ -655,9 +606,6 @@ function celebrate(kind) {
   requestAnimationFrame(step);
 }
 
-/* ================= the month's goal ================= */
-/** What an ordinary shift pays: the average of the last 8 weeks, leaving out Shabbat, holiday and
-    election-day shifts (they pay more and would make the count too hopeful). Hours, travel and bonus. */
 function typicalShift(now = new Date()) {
   const from = +now - 56 * 864e5, list = [];
   for (const s of S.shifts) {
@@ -668,7 +616,6 @@ function typicalShift(now = new Date()) {
   if (!list.length) return null;
   return list.reduce((a, b) => a + b, 0) / list.length;
 }
-/** Shabbat, holiday and election days still ahead this month (from tomorrow, or today if nothing worked yet). */
 function restDaysLeft(now = new Date()) {
   const y = now.getFullYear(), m = now.getMonth(), last = new Date(y, m + 1, 0).getDate();
   const workedToday = S.shifts.some(s => sameDay(s.start, now)) || S.active;
@@ -681,8 +628,6 @@ function restDaysLeft(now = new Date()) {
   }
   return { list: out, daysLeft: last - first + 1 };
 }
-/** What a Shabbat or holiday shift pays: the average of such shifts in the last 90 days, or else
-    an ordinary shift at the job's Shabbat rate. Null when the job doesn't pay extra on Shabbat. */
 function typicalRestShift(avg, now = new Date()) {
   const job = jobById(S.settings.lastJob);
   if (job.shabbatOn === false && job.chag === false) return null;
@@ -697,10 +642,9 @@ function typicalRestShift(avg, now = new Date()) {
 function goalState(M) {
   const g = S.settings.goal; if (!g || !(+g.amount > 0)) return null;
   const st = S.settings, opts = { points: +st.sex + +st.extraPts, pension: st.pension, pEmp: +st.pEmp, pEr: +st.pEr, sev: +st.sev, hish: st.hish }, T = taxFor(M.y);
-  const isNet = g.kind !== 'gross', value = gross => isNet ? grossToNet(gross, opts, T).net : gross;
+  const isNet = g.kind !== 'gross' && NET(), value = gross => isNet ? grossToNet(gross, opts, T).net : gross;
   const have = isNet ? M.net.net : M.gross, goal = +g.amount, left = Math.max(0, goal - have);
   const avg = typicalShift(), now = new Date(), R = restDaysLeft(now), rest = typicalRestShift(avg, now);
-  // fewest ordinary shifts that reach the goal on top of k Shabbat/holiday shifts
   const ordinaryWith = k => {
     if (!avg) return null;
     for (let r = 0; r <= 500; r++) if (value(M.gross + r * avg + k * (rest?.pay || 0)) >= goal) return r;
@@ -712,7 +656,7 @@ function goalState(M) {
     if (rest && rest.pay > avg * 1.02) for (let k = 1; k <= R.list.length; k++) {
       const r = ordinaryWith(k); if (r == null) break;
       options.push({ k, ordinary: r, total: r + k });
-      if (r === 0) break;   // the goal is reached with Shabbat shifts alone; more add nothing
+      if (r === 0) break;
     }
   }
   const best = options.reduce((b, o) => !b || o.total < b.total ? o : b, null);
@@ -736,7 +680,6 @@ function goalCell(M) {
     ${tip ? `<div class="goal-tip${G.tight ? ' warn' : ''}">${G.tight ? I.warn : I.shabbat}<span>${tip}</span></div>` : ''}
   </button>`;
 }
-/** The plan behind the goal: every way to get there with the Shabbat and holiday days left. */
 function goalPlan(G) {
   if (!G || G.left <= 0 || !G.avg) return '';
   const L = (l, v, sub = '') => `<div class="ln"><span class="l">${l}${sub ? `<small>${sub}</small>` : ''}</span><span class="v num">${v}</span></div>`;
@@ -748,10 +691,10 @@ function goalPlan(G) {
 }
 function openGoal() {
   const g = S.settings.goal || { amount: '', kind: 'net' };
-  let kind = g.kind || 'net';
+  let kind = NET() ? g.kind || 'net' : 'gross';
   const avg = typicalShift();
   openSheet(`<h2>יעד לחודש</h2><p class="shsub">כמה רוצים להרוויח החודש. הפס בבית מראה כמה נשאר וכמה משמרות עוד צריך.</p>
-    <div class="seg" id="g-kind" style="margin-top:14px"><button type="button" data-k="net">נטו</button><button type="button" data-k="gross">ברוטו</button></div>
+    ${NET() ? `<div class="seg" id="g-kind" style="margin-top:14px"><button type="button" data-k="net">נטו</button><button type="button" data-k="gross">ברוטו</button></div>` : ''}
     <label class="field"><span>היעד (₪)</span><input class="input num" type="number" inputmode="numeric" id="g-amt" value="${+g.amount || ''}" placeholder="5000"></label>
     <p class="hint">${avg ? `משמרת רגילה שלך שווה בערך ${money(avg)} ברוטו (ממוצע 8 השבועות האחרונים, בלי שבתות וחגים).` : 'אחרי כמה משמרות נדע להגיד כמה משמרות עוד צריך.'}</p>
     ${goalPlan(goalState(withLive(monthCalc(new Date().getFullYear(), new Date().getMonth()))))}
@@ -771,8 +714,8 @@ function onPunch() {
   if (!S.active) {
     const jobId = S.settings.lastJob && S.jobs.some(j => j.id === S.settings.lastJob) ? S.settings.lastJob : S.jobs[0].id;
     S.active = { jobId, start: new Date().toISOString() };
-    const plan = planNow(jobId);   // clocking in for a planned shift: it's happening, so it's no longer a plan
-    if (plan) { S.plans = S.plans.filter(x => x !== plan); S.active.planned = plan.start; }   // the planned start is kept beside the real one
+    const plan = planNow(jobId);
+    if (plan) { S.plans = S.plans.filter(x => x !== plan); S.active.planned = plan.start; }
     if (!persist()) { S.active = null; if (plan) S.plans.push(plan); return; }
     if (isSup()) celebrate('in'); else buzz(35);
     askPersist(); planNotifications(true);
@@ -780,7 +723,6 @@ function onPunch() {
     toast(`נכנסת למשמרת ב־${tm(S.active.start)} · אפשר לשנות את השעה`, 'ok', { label: 'ביטול', fn: () => { S.active = null; if (plan) S.plans.push(plan); persist(); renderHome(); toast('הכניסה בוטלה'); announce('הכניסה בוטלה'); } });
     renderHome();
   } else {
-    // clocking out saves the shift straight away; a small popup shows it, with a way to edit or undo
     const a = S.active, job = jobById(a.jobId);
     let end = new Date();
     if (end - new Date(a.start) < 6e4) end = new Date(+new Date(a.start) + 6e4);
@@ -790,13 +732,11 @@ function onPunch() {
     const g0 = goalState(withLive(monthCalc(viewY, viewM)));
     commit(); buzz(25); announce('המשמרת נשמרה');
     openShiftDone(sh, a);
-    // reaching the month's goal with this shift: a small celebration (supporters)
     const g1 = goalState(monthCalc(viewY, viewM));
     if (isSup() && g0 && g1 && g0.left > 0 && g1.left <= 0) setTimeout(() => { celebrate('goal'); toast('הגעת ליעד של החודש!', 'ok'); }, 450);
   }
 }
 
-/* ================= after clock-out: a popup instead of a full form ================= */
 const pop = $('#pop');
 function closePop() { if (!pop.classList.contains('on')) return; pop.classList.remove('on'); if (!sheet.classList.contains('on')) scrim.classList.remove('on'); pop._close?.(); pop._close = null; }
 function openShiftDone(sh, was) {
@@ -813,7 +753,7 @@ function openShiftDone(sh, was) {
       <button class="btn ghost" id="pd-undo">ביטול, המשמרת ממשיכה</button>
     </div>`;
   const tipsIn = $('#pd-tips', pop);
-  const keepTips = () => {   // tips typed here are saved however the popup closes
+  const keepTips = () => {
     const v = tipsIn ? Math.max(0, +tipsIn.value || 0) : 0, cur = S.shifts.find(x => x.id === sh.id);
     if (cur && v !== (+cur.tips || 0)) { cur.tips = v || undefined; commit(); }
   };
@@ -835,7 +775,6 @@ function openShiftSheet(sh, mode) {
   const job = jobById(sh.jobId);
   const st0 = new Date(sh.start), en0 = new Date(sh.end), today = new Date(); today.setHours(0, 0, 0, 0);
   const T = { date: new Date(st0.getFullYear(), st0.getMonth(), st0.getDate()), s: [st0.getHours(), st0.getMinutes()], e: [en0.getHours(), en0.getMinutes()], active: mode === 'end' ? 'e' : 's' };
-  // ends the next day: automatic when the end time is earlier than the start; can also be set by hand (a shift of 24 hours or more)
   { const d0 = new Date(st0.getFullYear(), st0.getMonth(), st0.getDate()), d1 = new Date(en0.getFullYear(), en0.getMonth(), en0.getDate());
     T.next = d1 > d0 && (T.e[0] * 60 + T.e[1]) >= (T.s[0] * 60 + T.s[1]); }
   const mstep = [T.s[1], T.e[1]].every(x => x % 5 === 0) ? 5 : 1;
@@ -844,8 +783,7 @@ function openShiftSheet(sh, mode) {
   const sub = mode === 'end' ? `${nm(job.name)} · אם שכחת להחתים בזמן, אפשר לתקן את השעות.` : '';
   const d0 = new Date(Math.min(+today - 45 * 864e5, +T.date - 3 * 864e5)), d1 = new Date(Math.max(+today + 7 * 864e5, +T.date + 3 * 864e5));
   let days = '';
-  // oldest first: in Hebrew the days run right to left, like reading
-  d0.setHours(0, 0, 0, 0); d1.setHours(0, 0, 0, 0);   // whole days, also across a clock change
+  d0.setHours(0, 0, 0, 0); d1.setHours(0, 0, 0, 0);
   for (let d = new Date(d0); d <= d1; d.setDate(d.getDate() + 1)) {
     const diff = Math.round((today - d) / 864e5);
     days += `<button type="button" class="day${d.getDay() === 6 ? ' sat' : ''}" data-d="${+d}" aria-label="${spokenDate(d)}"><small>${diff === 0 ? 'היום' : diff === 1 ? 'אתמול' : diff === -1 ? 'מחר' : DAY_SHORT[d.getDay()]}</small><b class="num">${d.getDate()}</b><em class="num">${MONTHS[d.getMonth()].slice(0, 3)}${EN ? '' : '׳'}</em></button>`;
@@ -933,7 +871,6 @@ function openShiftSheet(sh, mode) {
       $('#f-shiftonly', root).classList.toggle('hidden', leave);
       $('#f-leave', root).classList.toggle('hidden', !leave);
       if (mode === 'new') $('#f-title', root).textContent = kind === 'vac' ? 'יום חופשה' : kind === 'sick' ? 'יום מחלה' : kind === 'plan' ? 'משמרת עתידית' : title;
-      // a future shift: when it starts; when it ends only if known, and no pay details
       const plan = kind === 'plan';
       $('#f-planbits', root).classList.toggle('hidden', !plan);
       $('#f-paybits', root).classList.toggle('hidden', plan);
@@ -953,8 +890,7 @@ function openShiftSheet(sh, mode) {
       }, 80); }, { passive: true });
       $$('.wi', w).forEach(it => it.onclick = () => { W[id][0][W[id][1]] = +it.dataset.v; setWheel(id, true); upd(); });
     }
-    // typing a time instead of turning the wheels: the phone's own time picker (with a keyboard option)
-    const restep = id => {   // a typed minute the 5-minute wheel can't show: switch both minute wheels to every minute
+    const restep = id => {
       const w = $('#w-' + id, root); if (+w.dataset.step === 1) return;
       w.dataset.step = 1; w.innerHTML = Array.from({ length: 60 }, (_, i) => `<div class="wi num" data-v="${i}">${pad(i)}</div>`).join('');
       $$('.wi', w).forEach(it => it.onclick = () => { W[id][0][W[id][1]] = +it.dataset.v; setWheel(id, true); upd(); });
@@ -982,7 +918,7 @@ function openShiftSheet(sh, mode) {
     $$('#f-pq button', root).forEach(b => b.onclick = () => { $('#f-pct', root).value = b.dataset.p; upd(); });
     $$('#f-kind button', root).forEach(b => b.onclick = () => {
       const k = b.dataset.k;
-      if (k === 'plan' && +T.date <= +new Date(new Date().setHours(0, 0, 0, 0))) {   // planning is for days ahead: tomorrow
+      if (k === 'plan' && +T.date <= +new Date(new Date().setHours(0, 0, 0, 0))) {
         const t = new Date(); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() + 1); T.date = t;
         // the usual start time (the most common one lately), else 9:00
         const hs = S.shifts.slice(-30).map(x => new Date(x.start).getHours()), c = {}; hs.forEach(h => c[h] = (c[h] || 0) + 1);
@@ -996,25 +932,24 @@ function openShiftSheet(sh, mode) {
     $$('input', root).forEach(i => i.addEventListener('input', upd));
     upd();
     for (const id in W) setWheel(id, false);
-    // bring the chosen day to the middle of the strip (works the same right-to-left and left-to-right)
     const centerDay = () => { const st = $('#f-days', root), on = $('.day.on', root); if (!st || !on) return;
       const a = on.getBoundingClientRect(), b = st.getBoundingClientRect(); st.scrollLeft += (a.left + a.width / 2) - (b.left + b.width / 2); };
     centerDay(); requestAnimationFrame(() => requestAnimationFrame(centerDay)); setTimeout(centerDay, 350);
     $('#f-save', root).onclick = () => {
-      if (kind === 'vac' || kind === 'sick') {   // a vacation or sick day isn't a shift: days off from the day chosen
+      if (kind === 'vac' || kind === 'sick') {
         const n = addLeave(jobId, kind, dateKey(T.date), +$('#f-ndays', root).value);
         const d = new Date(T.date); viewY = d.getFullYear(); viewM = d.getMonth();
         closeSheet(); commit(); buzz(20); return toast(n === 1 ? 'נשמר יום אחד' : `נשמרו ${n} ימים`, 'ok');
       }
       const s = read(), len = new Date(s.end) - new Date(s.start);
-      if (kind === 'plan') {   // a future shift: start, and the end only if known
+      if (kind === 'plan') {
         if (+new Date(s.start) < Date.now() - 6e4) return toast('משמרת עתידית צריכה להתחיל אחרי עכשיו', 'err');
         const np = { id: sh.planId || uid(), jobId: s.jobId, start: s.start, end: planEnd ? s.end : null, breakMin: 0 };
         if (sh.planId) S.plans = S.plans.map(x => x.id === sh.planId ? np : x); else S.plans.push(np);
         closeSheet(); commit(); planNotifications(true); buzz(20);
         return toast(sh.planId ? 'המשמרת העתידית עודכנה' : `נשמרה משמרת עתידית ל${dayWord(s.start)} · תזכורת שעה לפני`, 'ok');
       }
-      if (mode === 'new' && +new Date(s.start) > Date.now() + 10 * 6e4 && len > 0) {   // a shift ahead is a plan, not pay yet
+      if (mode === 'new' && +new Date(s.start) > Date.now() + 10 * 6e4 && len > 0) {
         S.plans.push({ id: uid(), jobId: s.jobId, start: s.start, end: s.end, breakMin: s.breakMin, ...(s.specialPct ? { specialPct: s.specialPct } : {}) });
         closeSheet(); commit(); planNotifications(true); buzz(20);
         return toast(`נשמרה משמרת מתוכננת ל${dayWord(s.start)} · תזכורת שעה לפני`, 'ok');
@@ -1041,16 +976,14 @@ function openShiftSheet(sh, mode) {
     });
   });
 }
-/** Change when the running shift started: earlier (forgot to clock in) or later (clocked in early). */
 function openStartTime() {
   const a = S.active; if (!a) return;
-  $('#toast').classList.remove('on');   // the clock-in message would cover the wheels
+  $('#toast').classList.remove('on');
   const now = new Date(), st0 = new Date(a.start);
   const T = [st0.getHours(), st0.getMinutes()];
   const IH = 44;
   const wheel = (id, n) => `<div class="wheel" id="w-${id}" data-step="1">${Array.from({ length: n }, (_, i) => `<div class="wi num" data-v="${i}">${pad(i)}</div>`).join('')}</div>`;
   const QUICK = [['עכשיו', 0], ['לפני 15 דק׳', -15], ['לפני 30 דק׳', -30], ['לפני שעה', -60], ['בעוד 15 דק׳', 15], ['בעוד 30 דק׳', 30]];
-  // the chosen clock time, on whichever day puts it closest to now (yesterday for a night shift, never more than 12h ahead)
   const pick = () => {
     const d = new Date(now); d.setHours(T[0], T[1], 0, 0);
     if (+d - +now > 12 * 3.6e6) d.setDate(d.getDate() - 1);
@@ -1161,16 +1094,16 @@ function renderShifts() {
 
 /* ================= SUMMARY (תלוש) ================= */
 function sumMonth(el) {
-  const M = withLive(monthCalc(viewY, viewM)), n = M.net;
+  const M = withLive(monthCalc(viewY, viewM)), n = M.net, net = NET(), heroAmt = net ? n.net : M.gross;
   const ded = n.tax + n.ni + n.health + n.pEmp + n.hEmp;
   const parts = [[n.net, 'var(--hero-net)', 'נטו'], [n.tax, 'var(--accent)', 'מס הכנסה'], [n.ni + n.health, 'var(--gold)', 'ביטוח לאומי ובריאות'], [n.pEmp + n.hEmp, 'var(--ink3)', 'חיסכון (פנסיה)']].filter(x => x[0] > 0);
   const L = (l, v, cls = '', sub = '') => `<div class="ln ${cls}"><span class="l">${l}${sub ? `<small>${sub}</small>` : ''}</span><span class="v num">${v}</span></div>`;
   const hol = holidaysOfGregorianYear(viewY).filter(h => h.date.getMonth() === viewM);
   el.innerHTML = `${monthBar()}
-    <div class="card hero" style="margin-top:12px"><small>נטו משוער ל${MONTHS[viewM]}<button type="button" class="estimate" data-legal aria-label="הערכה: מה החישוב כן ולא">הערכה ⓘ</button></small><button type="button" class="big num hero-amt" id="netWhy" aria-label="איך מחושב הנטו">${money(n.net)}</button>
-      <div class="meta num"><b>ברוטו ${money(M.gross)}</b>${M.tipsOwn ? ` · <span>טיפים ${money(M.tipsOwn)}</span>` : ''}<br>${M.shifts.length} משמרות${M.live ? ' + המשמרת הנוכחית' : ''} · ${hm(M.hours)} שעות</div>
+    <div class="card hero" style="margin-top:12px"><small>${net ? `נטו משוער ל${MONTHS[viewM]}` : `ברוטו ל${MONTHS[viewM]}`}<button type="button" class="estimate" data-legal aria-label="הערכה: מה החישוב כן ולא">הערכה ⓘ</button></small><button type="button" class="big num hero-amt" id="netWhy" aria-label="${net ? 'איך מחושב הנטו' : 'איך מחושב הברוטו'}">${money(n.net)}</button>
+      <div class="meta num">${net ? `<b>ברוטו ${money(M.gross)}</b>` : ''}${M.tipsOwn ? ` · <span>טיפים ${money(M.tipsOwn)}</span>` : ''}<br>${M.shifts.length} משמרות${M.live ? ' + המשמרת הנוכחית' : ''} · ${hm(M.hours)} שעות</div>
 
-      ${M.gross ? `<div class="stack">${parts.map(([v, c]) => `<span style="flex:${v};background:${c}"></span>`).join('')}</div>
+      ${M.gross && net ? `<div class="stack">${parts.map(([v, c]) => `<span style="flex:${v};background:${c}"></span>`).join('')}</div>
       <div class="legend">${parts.map(([, c, l]) => `<span><i style="background:${c}"></i>${l}</span>`).join('')}</div>` : ''}</div>
       ${(() => { const c = monthVsLast(viewY, viewM); if (!c.b.g) return ''; const vs = `לעומת ${MONTHS[c.pm]}${c.partial ? ` עד ה־${c.partial}` : ''}`;
         return `<div class="card dlts">${dlt(c.a.g, c.b.g, 'בברוטו')}<span>ברוטו</span>${dlt(c.a.h, c.b.h, 'בשעות')}<span>שעות</span>${dlt(c.a.h ? c.a.g / c.a.h : 0, c.b.h ? c.b.g / c.b.h : 0, 'בשכר לשעה')}<span>לשעה</span><small>${vs}</small></div>`; })()}
@@ -1181,11 +1114,11 @@ function sumMonth(el) {
     <div class="card steps" id="steps">
       ${L('עבדת', hm(M.hours) + ' ש׳')}
       ${L('הרווחת ברוטו', money(M.gross), '', 'לפני ניכויים, כולל שעות נוספות, תוספות ונסיעות')}
-      ${L('מס הכנסה', n.tax ? '−' + money(n.tax) : '₪0', n.tax ? 'neg' : '', n.tax ? `אחרי ${(+S.settings.sex + +S.settings.extraPts)} נקודות זיכוי (${money(n.pointsCredit)})` : 'נקודות הזיכוי מכסות את כל המס')}
+      ${net ? `${L('מס הכנסה', n.tax ? '−' + money(n.tax) : '₪0', n.tax ? 'neg' : '', n.tax ? `אחרי ${(+S.settings.sex + +S.settings.extraPts)} נקודות זיכוי (${money(n.pointsCredit)})` : 'נקודות הזיכוי מכסות את כל המס')}
       ${L('ביטוח לאומי ובריאות', '−' + money(n.ni + n.health), 'neg', 'יורד מכל שכר')}
       ${n.pEmp + n.hEmp ? L('חיסכון לפנסיה' + (n.hEmp ? ' והשתלמות' : ''), '−' + money(n.pEmp + n.hEmp), 'neg', 'הכסף נשאר שלך, בקרן') : ''}
-      ${L('נכנס לחשבון', money(n.net), 'tot money')}
-      ${M.tipsOwn ? L('טיפים שלך', '+' + money(M.tipsOwn), '', 'במזומן או מהלקוחות, לא בתלוש') + L('סה״כ בכיס', money(n.net + M.tipsOwn), 'tot') : ''}
+      ${L('נכנס לחשבון', money(n.net), 'tot money')}` : ''}
+      ${M.tipsOwn ? L('טיפים שלך', '+' + money(M.tipsOwn), '', 'במזומן או מהלקוחות, לא בתלוש') + L('סה״כ בכיס', money(heroAmt + M.tipsOwn), 'tot') : ''}
     </div>
     <div class="sec"><span>${secIc('ot', 'orange')}פירוט שעות ותוספות</span></div>
     ${M.perJob.map(J => `<div class="card">
@@ -1214,9 +1147,9 @@ function sumMonth(el) {
       <button class="cell" id="xMonth"><span class="cell-ic t-blue">${I.file}</span><span class="grow">משמרות ${MONTHS[viewM]} (CSV)<div class="sub">נפתח באקסל ובגוגל שיטס</div></span><span class="chev">${I.chevL}</span></button>
       <button class="cell" id="xMore"><span class="cell-ic t-blue">${I.download}</span><span class="grow">עוד אפשרויות ייצוא</span><span class="chev">${I.chevL}</span></button>
     </div>
-    <p class="fine">הערכה לפי מדרגות מס וביטוח לאומי 2026. התלוש בפועל יכול להיות שונה (הטבות, זקיפות, הסכמים).</p>`;
+    ${net ? `<p class="fine">הערכה לפי מדרגות מס וביטוח לאומי 2026. התלוש בפועל יכול להיות שונה (הטבות, זקיפות, הסכמים).</p>` : ''}`;
   bindMonthBar(el);
-  { const big = $('.hero .big', el); big._v = heroV; countUp(big, n.net); heroV = n.net; }
+  { const big = $('.hero .big', el); big._v = heroV; countUp(big, heroAmt); heroV = heroAmt; }
   if ($('#dayChart', el)) {
     const nd = new Date(viewY, viewM + 1, 0).getDate(), items = [];
     for (let d = 1; d <= nd; d++) { const A = agg(M.shifts.filter(s => new Date(s.start).getDate() === d)); items.push({ ...A, title: `${DAYS[new Date(viewY, viewM, d).getDay()]} ${d}.${viewM + 1}`, label: d === 1 || d % 5 === 0 ? d : '' }); }
@@ -1265,13 +1198,11 @@ function bindLeave(root) {
 const leaveHint = kind => kind === 'sick'
   ? 'דמי מחלה: היום הראשון בלי תשלום, השני והשלישי 50%, ומהרביעי 100%. צריך אישור מחלה. ימים ברצף נספרים יחד.'
   : 'ימי עבודה בלבד: בלי שבתות וחגים שלא עובדים בהם.';
-/** Adds n sick or vacation days from a date (YYYY-MM-DD). Returns how many. */
 function addLeave(jobId, kind, from, n) {
   n = Math.min(60, Math.max(1, Math.round(+n || 1)));
   const job = jobById(jobId), [y, m, dd] = from.split('-').map(Number);
   let added = 0;
   for (let d = new Date(y, m - 1, dd); added < n; d.setDate(d.getDate() + 1)) {
-    // vacation counts work days only; sick days run on in a row, as the law counts them
     if (kind === 'vac' && (d.getDay() === 6 || (+job.weekDays !== 6 && d.getDay() === 5))) continue;
     const k = dateKey(d);
     if (!S.absences.some(a => a.jobId === jobId && a.date === k)) S.absences.push({ id: uid(), jobId, kind, date: k });
@@ -1318,7 +1249,7 @@ function openReport() {
   let jobId = used.length === 1 ? used[0].id : 'all';
   openSheet(`<h2>דוח חודשי</h2><p class="shsub">${MONTHS[viewM]} ${viewY}: כל המשמרות, השעות לפי סוג והשכר, בקובץ PDF שאפשר לשלוח למעסיק או לשמור.</p>
     ${used.length > 1 ? `<div class="chips" id="rp-jobs" style="margin-top:14px"><button type="button" class="chip" data-j="all">כל העבודות</button>${used.map(j => `<button type="button" class="chip" data-j="${j.id}"><span class="dot" style="background:${j.color}"></span>${nm(j.name)}</button>`).join('')}</div>` : ''}
-    <label class="cell flat" style="margin-top:10px"><span class="grow">עם נטו משוער<div class="sub">בלי זה הדוח מראה רק שעות וברוטו</div></span><span class="switch"><input type="checkbox" id="rp-net"><i></i></span></label>
+    <label class="cell flat" style="margin-top:10px"><span class="grow">עם נטו משוער<div class="sub">בלי זה הדוח מראה רק שעות וברוטו</div></span><span class="switch"><input type="checkbox" id="rp-net"${NET() ? '' : ' disabled'}><i></i></span></label>
     <div class="btnrow"><button class="btn primary" id="rp-go">${I.share}שיתוף הדוח</button></div>`, root => {
     const ui = () => $$('#rp-jobs .chip', root).forEach(b => b.classList.toggle('on', b.dataset.j === jobId));
     $$('#rp-jobs .chip', root).forEach(b => b.onclick = () => { jobId = b.dataset.j; ui(); }); ui();
@@ -1393,9 +1324,6 @@ async function buildReport(y, m, jobId, withNet) {
   return pagesToPDF(pages);
 }
 
-/* ================= supporting the app ================= */
-// Google Play in-app products, permanent (each acknowledged, never used up): the account keeps them, so the perks
-// come back after a reinstall. Three main amounts, and more; an amount already given is shown with thanks.
 const SUPPORT_MAIN = [['support_10', 10], ['support_20', 20], ['support_50', 50]];
 const SUPPORT_MORE = [['support_5', 5], ['support_15', 15], ['support_30', 30], ['support_75', 75], ['support_100', 100], ['support_200', 200]];
 async function openSupport() {
@@ -1454,19 +1382,14 @@ async function openSupport() {
   });
 }
 
-/* ================= the year in Etzba (a Wrapped-style recap) ================= */
-// Early access: supporters get it right away, everyone else from a date the server sends
-// (etzba.ilanox.dev/data/early.json, set with `npm run early`). Offline: the last one received, else the rules file.
 const EARLY_URL = 'https://etzba.ilanox.dev/data/early.json';
 let EARLY = (() => { try { return JSON.parse(localStorage.getItem('etzba.early') || 'null'); } catch { return null; } })();
 const earlyDates = () => EARLY || rules().early || {};
-// a feature's dates: "2026-12-07" (everyone; supporters right away) or { supporters: "2026-12-01", all: "2026-12-07" }
 const earlyEntry = name => { const v = earlyDates()[name]; return v && typeof v === 'object' ? v : { all: v }; };
 const earlyDate = (name, who = 'all') => earlyEntry(name)[who];
 const isDate = d => typeof d === 'string' && /^\d{4}-\d\d-\d\d$/.test(d);
 const earlyOpen = (name, who = 'all') => { const d = earlyDate(name, who); return !d || dateKey(new Date()) >= d; };
-const earlyLater = (name, who = 'all') => (earlyDate(name, who) || '') >= '2090';   // "off": no date yet
-/** Open for this person: supporters by their date (if any), everyone else by the date for all. */
+const earlyLater = (name, who = 'all') => (earlyDate(name, who) || '') >= '2090';
 const openForMe = name => isSup() ? earlyOpen(name, 'supporters') || earlyOpen(name) : earlyOpen(name);
 const earlyWhen = name => {
   const all = earlyLater(name) ? null : earlyDate(name), sup = earlyDate(name, 'supporters'), supOpen = earlyOpen(name, 'supporters');
@@ -1474,7 +1397,6 @@ const earlyWhen = name => {
   if (!all) return supOpen ? 'בינתיים לתומכים בלבד' : sup && !earlyLater(name, 'supporters') ? `לתומכים מ־${dShort(sup)}` : 'עוד לא נקבע מתי ייפתח';
   return supOpen ? `ייפתח לכולם ב־${dShort(all)} · לתומכים כבר עכשיו` : sup ? `ייפתח לכולם ב־${dShort(all)} · לתומכים כבר ב־${dShort(sup)}` : `ייפתח לכולם ב־${dShort(all)}`;
 };
-// what to say when a feature opens: to everyone, or to supporters first
 const EARLY_NEWS = {
   recap: { title: 'השנה שלך באצבע פתוחה לכולם', supTitle: 'השנה שלך באצבע כאן, לפני כולם', body: 'סיכום השנה שלך כמו סטורי, עם תמונה לשיתוף.', btn: 'לסיכום השנה', go: () => openRecap(RECAP_YEAR) },
 };
@@ -1492,7 +1414,6 @@ async function checkEarly() {
   } catch (err) { dbg.log('info', 'early: ' + err.message); }
   announceEarly();
 }
-/** A feature this person saw locked has opened to everyone: tell them once. */
 function announceEarly() {
   let locked; try { locked = new Set(JSON.parse(localStorage.getItem('etzba.early.locked') || '[]')); } catch { locked = new Set(); }
   let news = null;
@@ -1502,7 +1423,6 @@ function announceEarly() {
     else if (locked.has(name) && !news && !pop.classList.contains('on') && !sheet.classList.contains('on')) { locked.delete(name); news = newsFor(name); }
   }
   try { localStorage.setItem('etzba.early.locked', JSON.stringify([...locked])); } catch {}
-  // with the app closed: the phone checks twice a day and sends a notification when one opens
   const watch = [...locked].filter(n => EARLY_NEWS[n]).map(n => ({ name: n, group: who, title: tr(newsFor(n).title), body: tr(newsFor(n).body) })), wsig = JSON.stringify(watch);
   if (wsig !== announceEarly.watched) { announceEarly.watched = wsig; native.watchEarly(EARLY_URL, watch); }
   if (!news) return;
@@ -1518,8 +1438,6 @@ function announceEarly() {
   $('#en-later', pop).onclick = closePop;
 }
 const recapOpen = () => openForMe('recap');
-/** Under the header while the year's recap is open: November to January (or right after it opens), until seen or closed. */
-// Wrapped is a one-off for 2026
 const RECAP_YEAR = 2026;
 function recapBanner() {
   const el = $('#rcBanner'); if (!el) return;
@@ -1554,7 +1472,6 @@ function recapStats(y) {
   const first = list.reduce((a, x) => new Date(x.s.start) < new Date(a.s.start) ? x : a);
   const jobs = {}; for (const x of list) jobs[x.s.jobId] = (jobs[x.s.jobId] || 0) + x.p.hours;
   const topJob = jobById(Object.entries(jobs).sort((a, b) => b[1] - a[1])[0][0]);
-  // stats.fm-style extras: streaks, rankings, the hours of the day, records
   const dayKeys = [...new Set(list.map(x => dateKey(new Date(x.s.start))))].sort();
   let streak = 1, runN = 1, streakEnd = dayKeys[0];
   for (let k = 1; k < dayKeys.length; k++) {
@@ -1572,7 +1489,6 @@ function recapStats(y) {
   const bestShift = list.reduce((a, x) => x.p.pay > a.p.pay ? x : a);
   const weeks = {}; for (const x of list) { const k = +weekStart(new Date(x.s.start)); weeks[k] = (weeks[k] || 0) + x.p.hours; }
   const [bwK, bwH] = Object.entries(weeks).sort((a, b) => b[1] - a[1])[0];
-  // the latest finish: after midnight counts as later than any evening, but a morning end after a night shift isn't "late"
   const lateKey = x => { const e = new Date(x.s.end), m = e.getHours() * 60 + e.getMinutes(); return m < 6 * 60 ? m + 1440 : m; };
   const latest = list.reduce((a, x) => lateKey(x) > lateKey(a) ? x : a);
   const last = list.reduce((a, x) => new Date(x.s.start) > new Date(a.s.start) ? x : a);
@@ -1582,16 +1498,15 @@ function recapStats(y) {
     workDays: dayKeys.length, dayKeys, streak, streakEnd, monthRank, dayRank, hourH, peak, bestShift, bestWeek: { start: +bwK, hours: bwH }, latest };
 }
 const hrs = h => { const r = Math.round(h * 2) / 2; return (r % 1 ? r.toFixed(1) : String(r)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
-// each story has its own colour field: background, text, and the fingerprint ridges behind it
 const RECAP_PAL = [
-  { bg: '#24102F', fg: '#FFF4EC', ac: '#FF6A3D' },   // plum and ember
-  { bg: '#FF6A3D', fg: '#2A0E06', ac: '#FFD9C7', light: 1 },   // ember
-  { bg: '#0D3634', fg: '#EFFFF8', ac: '#62E0B6' },   // deep teal
-  { bg: '#FFC64A', fg: '#2E1A02', ac: '#FF8A2B', light: 1 },   // sun
-  { bg: '#101A3A', fg: '#EEF3FF', ac: '#7FA6FF' },   // midnight
-  { bg: '#F2557F', fg: '#2B0716', ac: '#FFD1DF', light: 1 },   // rose
-  { bg: '#1A1A1A', fg: '#FFFFFF', ac: '#FF6A3D' },   // ink
-  { bg: '#24102F', fg: '#FFF4EC', ac: '#FF6A3D' },   // back to the start
+  { bg: '#24102F', fg: '#FFF4EC', ac: '#FF6A3D' },
+  { bg: '#FF6A3D', fg: '#2A0E06', ac: '#FFD9C7', light: 1 },
+  { bg: '#0D3634', fg: '#EFFFF8', ac: '#62E0B6' },
+  { bg: '#FFC64A', fg: '#2E1A02', ac: '#FF8A2B', light: 1 },
+  { bg: '#101A3A', fg: '#EEF3FF', ac: '#7FA6FF' },
+  { bg: '#F2557F', fg: '#2B0716', ac: '#FFD1DF', light: 1 },
+  { bg: '#1A1A1A', fg: '#FFFFFF', ac: '#FF6A3D' },
+  { bg: '#24102F', fg: '#FFF4EC', ac: '#FF6A3D' },
 ];
 const RC_POS = [[50, 50, 1.25, 0], [88, 18, 1.1, 18], [10, 85, 1.3, -24], [92, 80, 1.05, 160], [8, 12, 1.2, 200], [80, 50, 1.4, -70], [20, 40, 1.15, 40], [50, 62, 1.35, 0]];
 const rcPrint = () => `<svg class="rc-print" viewBox="-2 -2 104 112" aria-hidden="true">${ridges(50, 54, 9, 5.6, 4).map(d => `<path d="${d}"/>`).join('')}</svg>`;
@@ -1604,7 +1519,6 @@ function openRecap(y) {
   if (!R) return toast(`אין משמרות ב־${y}`);
   const days = Math.floor(R.hours / 24), maxM = Math.max(...R.months, 1);
   const cnt = (v, f = 'int') => `<b class="num rc-count" data-to="${v}" data-f="${f}">${f === 'money' ? money(v) : f === 'hrs' ? hrs(v) : Math.round(v).toLocaleString('he-IL')}</b>`;
-  // the longest shift on a 24-hour dial, like the app's clock: midnight at the top
   const ls = new Date(R.longest.s.start), le = new Date(R.longest.s.end), h0 = ls.getHours() + ls.getMinutes() / 60, len = Math.min(23.9, R.longest.p.hours);
   const line = `<div class="rc-dial"><svg viewBox="0 0 200 200" aria-hidden="true">
       <circle class="tr" cx="100" cy="100" r="78" />
@@ -1612,7 +1526,6 @@ function openRecap(y) {
       <circle class="arc" cx="100" cy="100" r="78" pathLength="24" style="--len:${len};transform:rotate(${h0 * 15 - 90}deg)" />
     </svg><div class="rc-dial-in num" dir="ltr"><b>${tm(ls)}</b><i></i><b>${tm(le)}</b></div></div>`;
   const kindsTot = Object.values(R.kinds).reduce((a, b) => a + b, 0) || 1;
-  // a ranking, stats.fm style: revealed from the bottom up, number one last
   const rank = (rows, max) => `<ol class="rc-rank">${rows.map((r, k) => `<li class="${k === 0 ? 'top' : ''}" style="--d:${(rows.length - 1 - k) * 380 + 250}ms;--w:${Math.max(8, r.v / max * 100)}%"><span class="rk num">${k + 1}</span><span class="nm">${r.name}</span><b class="num">${r.val}</b><i></i></li>`).join('')}</ol>`;
   // the streak, as the days around it
   const sEnd = new Date(R.streakEnd + 'T12:00:00'), worked = new Set(R.dayKeys), dots = [];
@@ -1674,12 +1587,11 @@ function openRecap(y) {
     $$('.rc-prog i', ov).forEach((p, k) => { p.className = k < i ? 'done' : k === i ? 'now' : ''; });
     ov.classList.remove('paused'); ov.classList.toggle('first', i === 0);
     countUp(sl); run(msOf(i));
-    if (i === slides.length - 1 && !still) celebrate('goal');   // the end: a little confetti
+    if (i === slides.length - 1 && !still) celebrate('goal');
     $('#rc-share', ov) && ($('#rc-share', ov).onclick = e => { e.stopPropagation(); shareRecap(R); });
   };
   const close = () => { clearTimeout(timer); ov.remove(); };
   $('.rc-x', ov).onclick = e => { e.stopPropagation(); close(); };
-  // like stories: hold to pause; tap the far side (the way the story moves) for next, the near side for back
   ov.addEventListener('pointerdown', e => {
     if (e.target.closest('button')) return;
     pressAt = Date.now(); held = false;
@@ -1754,7 +1666,6 @@ function mountChart(el, items, sel) {
       const parts = it[met], last = parts.reduce((a, v, j) => v > 0.004 ? j : a, -1);
       return `<button class="c-col${i === sel ? ' on' : ''}" data-i="${i}" aria-label="${it.title}"><span class="c-stack" style="height:${tot(it) / max * 100}%">${parts.map((v, j) => v > 0.004 ? `<i class="cg${j}${j === last ? ' top' : ''}" style="flex:${v}"></i>` : '').join('')}</span><em class="num">${it.label ?? ''}</em></button>`;
     }).join('')}</div></div>`;
-  // tapping anywhere over the plot picks the nearest column, so thin month columns are still easy to hit
   const cols = $$('.c-col', el), pick = b => { cols.forEach(x => x.classList.toggle('on', x === b)); $('.c-read', el).innerHTML = read(+b.dataset.i); };
   $('.c-bars', el).addEventListener('click', e => {
     let best = null, d = 1e9;
@@ -1792,12 +1703,11 @@ function sumYear(el) {
   const H = items.reduce((a, x) => (a[0] += x.h[0], a[1] += x.h[1], a[2] += x.h[2], a), [0, 0, 0]);
   const k = (l, v, s = '', d = '') => `<div class="kpi"><small>${l}</small><b class="num">${v}</b>${d ? `<span class="dline">${d}</span>` : ''}${s ? `<em>${s}</em>` : ''}</div>`;
   const C = yearVsLast(viewY), vsY = `לעומת ${viewY - 1}`;
-  // net and monthly averages only compare whole years; the rest compares the same part of the year
   const prevNet = !C.partial && C.b.g ? Array.from({ length: 12 }, (_, m) => monthCalc(viewY - 1, m)).reduce((a, M) => a + (M.gross ? M.net.net : 0), 0) : 0;
   el.innerHTML = `<div class="monthbar"><button class="ibtn" data-yn="-1" aria-label="שנה קודמת">${I.chevR}</button><b class="num">${viewY}</b><button class="ibtn" data-yn="1" aria-label="שנה הבאה">${I.chevL}</button></div>
     ${T.count && viewY === RECAP_YEAR ? `<button class="recap-btn${recapOpen() ? '' : ' locked'}" id="openRecap"><span class="grow"><b>השנה שלך באצבע</b><small>${recapOpen() ? 'סיכום השנה כמו סטורי, עם תמונה לשיתוף' : earlyWhen('recap')}</small></span>${recapOpen() ? I.chevL : I.lock}</button>` : ''}
     ${T.count ? `<div class="kpis" style="margin-top:12px">
-      ${k('ברוטו שנתי', money(T.gross), '', dlt(C.a.g, C.b.g, vsY))}${k('נטו משוער', money(T.net), `מס הכנסה ${money(T.tax)}`, prevNet ? dlt(T.net, prevNet, vsY) : '')}
+      ${k('ברוטו שנתי', money(T.gross), '', dlt(C.a.g, C.b.g, vsY))}${NET() ? k('נטו משוער', money(T.net), `מס הכנסה ${money(T.tax)}`, prevNet ? dlt(T.net, prevNet, vsY) : '') : k('משמרות', T.count, `${hm(T.count ? T.hours / T.count : 0)} ש׳ בממוצע`)}
       ${k('שעות', hm(T.hours), `${T.count} משמרות`, dlt(C.a.h, C.b.h, vsY))}${k('ממוצע לשעה', money2(T.hours ? T.gross / T.hours : 0), 'כולל תוספות', dlt(C.a.h ? C.a.g / C.a.h : 0, C.b.h ? C.b.g / C.b.h : 0, vsY))}
       ${k('ממוצע לחודש', money(act ? T.gross / act : 0), `${act} חודשי עבודה`)}${k('חודש שיא', MONTHS[best.m], money(best.gross))}</div>
     ${C.b.g ? `<p class="dl-note">האחוזים: לעומת ${viewY - 1}${C.partial ? ', באותה תקופה בשנה' : ''}.</p>` : ''}
@@ -1807,10 +1717,10 @@ function sumYear(el) {
     <div class="card pad"><div class="split">${H.map((v, j) => v > 0.004 ? `<i class="cg${j}" style="flex:${v}"></i>` : '').join('')}</div>
       ${GROUPS.map((g, j) => `<div class="ln flat"><span class="l"><i class="dotc cg${j}"></i>${g}</span><span class="v num">${hm(H[j])} ש׳ · ${T.hours ? Math.round(H[j] / T.hours * 100) : 0}%</span></div>`).join('')}</div>
     <div class="sec"><span>${secIc('cal', 'blue')}חודשים</span></div>
-    <div class="card">${Ms.map((M, m) => M.shifts.length || M.gross ? `<button class="cell" data-gm="${m}"><span class="grow">${MONTHS[m]}<div class="sub num">${M.shifts.length} משמרות · ${hm(M.hours)} ש׳</div></span><span class="val num" style="text-align:end;color:var(--ink)"><b>${money(M.gross)}</b><div class="sub">נטו ${money(M.net.net)}</div></span><span class="chev">${I.chevL}</span></button>` : '').join('')}</div>
+    <div class="card">${Ms.map((M, m) => M.shifts.length || M.gross ? `<button class="cell" data-gm="${m}"><span class="grow">${MONTHS[m]}<div class="sub num">${M.shifts.length} משמרות · ${hm(M.hours)} ש׳</div></span><span class="val num" style="text-align:end;color:var(--ink)"><b>${money(M.gross)}</b>${NET() ? `<div class="sub">נטו ${money(M.net.net)}</div>` : ''}</span><span class="chev">${I.chevL}</span></button>` : '').join('')}</div>
     <div class="card" style="margin-top:12px"><button class="cell" id="xYear"><span class="cell-ic t-blue">${I.file}</span><span class="grow">ייצוא סיכום חודשי (CSV)</span><span class="chev">${I.chevL}</span></button></div>`
     : `<div class="card" style="margin-top:12px"><div class="empty"><div class="eic">${I.receipt}</div>אין משמרות ב־${viewY}</div></div>`}
-    <p class="fine">הנטו השנתי הוא סכום ההערכות החודשיות. החישוב הסופי נעשה בתיאום מס שנתי.</p>`;
+    ${NET() ? `<p class="fine">הנטו השנתי הוא סכום ההערכות החודשיות. החישוב הסופי נעשה בתיאום מס שנתי.</p>` : ''}`;
   $$('[data-yn]', el).forEach(b => b.onclick = () => { viewY += +b.dataset.yn; renderSum(); });
   $('#openRecap', el) && ($('#openRecap', el).onclick = () => recapOpen() ? openRecap(viewY) : (native.billing.available() && !isSup() ? openSupport() : toast(earlyWhen('recap'))));
   if (!T.count) return;
@@ -1866,7 +1776,7 @@ function renderRights() {
       <div class="rate-grid"><span>שכר מינימום לשעה (מ־1.4.2026)</span><span>₪35.40</span><span>שכר מינימום חודשי</span><span>₪6,443.85</span>
       <span>דמי הבראה ליום (מגזר פרטי)</span><span>₪451.5</span><span>נקודת זיכוי ממס</span><span>₪242</span></div>`)}
     <p class="fine">מידע כללי בלבד, לא ייעוץ משפטי. מבוסס על חוק שעות עבודה ומנוחה וצווי ההרחבה. מקורות: כל זכות, משרד העבודה, ביטוח לאומי.</p>`;
-  if (speechLang() === 'en') {   // the reader speaks English: each question's name comes from the English page
+  if (speechLang() === 'en') {
     const tmp = document.createElement('div'); tmp.innerHTML = rightsEN(y, low, w, qaEN);
     const en = [...tmp.querySelectorAll('summary')].map(x => x.textContent.trim()), he = $$('summary', el);
     if (en.length === he.length) he.forEach((x, i) => x.setAttribute('aria-label', en[i]));
@@ -1916,10 +1826,6 @@ function rightsEN(y, low, w, qa) {
     <p class="fine">General information only, not legal advice. Based on the Hours of Work and Rest Law and extension orders. Sources: Kol Zchut, Ministry of Labor, National Insurance.</p>`;
 }
 
-/* ================= SETTINGS ================= */
-// developer status: no code in the app. On the developer's computer, `npm run dev-unlock` signs this
-// phone's ID with a private key that never leaves that computer, and opens the app with the signature;
-// the app checks it against the public key in js/dev-key.js. A signature for one phone doesn't work on another.
 const devOK = () => FEATURES.devTools || !!S.settings.owner;
 async function devUnlock(sig) {
   try {
@@ -1934,7 +1840,6 @@ async function devUnlock(sig) {
   } catch (e) { dbg.log('warn', 'dev unlock: ' + (e?.message || e)); toast('לא הצלחתי להפעיל מצב מפתח', 'err'); }
 }
 const THEMES = [['auto', 'אוטומטי', 'linear-gradient(90deg,#F1EEE6 50%,#141518 50%)'], ['light', 'בהיר', '#F1EEE6'], ['dark', 'כהה', '#141518'], ['blurple', 'בלרפל', 'linear-gradient(90deg,#1E1F22 60%,#5865F2 60%)']];
-// for supporters, as a thank-you: looks only, never anything that changes pay
 const THEMES_SUPPORT = [['gold', 'זהב', 'linear-gradient(135deg,#15130E 50%,#E2B65A 50%)'], ['night', 'לילה', 'linear-gradient(135deg,#0C1322 50%,#8DB8FF 50%)'], ['sunset', 'שקיעה', 'linear-gradient(135deg,#F7EEE8 50%,#D2486A 50%)'], ['forest', 'יער', 'linear-gradient(135deg,#0F1712 50%,#7FD6A0 50%)'],
   ['ocean', 'ים', 'linear-gradient(135deg,#0B1A1E 50%,#5FD3D0 50%)'], ['plum', 'שזיף', 'linear-gradient(135deg,#171021 50%,#C49BFF 50%)'],
   ['ember', 'גחלים', 'linear-gradient(135deg,#1A100C 50%,#FF8A4C 50%)'], ['sand', 'חול', 'linear-gradient(135deg,#F2EDDF 50%,#6E7F2E 50%)'],
@@ -1947,7 +1852,6 @@ const ICONS = [['default', 'רגיל', 'app-default.png'], ['gold', 'זהב', 'a
   ['sunset', 'שקיעה', 'app-sunset.png'], ['ocean', 'ים', 'app-ocean.png'], ['plum', 'שזיף', 'app-plum.png'], ['ember', 'גחלים', 'app-ember.png'], ['sand', 'חול', 'app-sand.png']];
 const themeBtn = ([k, n, bg]) => { const locked = [...THEMES_SUPPORT, ...THEMES_GRAD].some(t => t[0] === k) && !isSup();
   return `<button data-t="${k}" class="${(S.settings.theme || 'auto') === k ? 'on' : ''}${locked ? ' locked' : ''}"><i style="background:${bg}"></i>${n}${locked ? `<span class="lk">${I.lock}</span>` : ''}</button>`; };
-// a small colored icon before a section title; the same colors as the rows below it
 const secIc = (i, t) => `<i class="sec-ic t-${t}">${I[i]}</i>`;
 function renderSet() {
   const el = $('#v-set'), st = S.settings;
@@ -1962,61 +1866,60 @@ function renderSet() {
     <div class="card pad"><div class="themes" id="s-theme">${THEMES.map(themeBtn).join('')}</div>
       ${native.billing.available() || isSup() ? `<div class="themes-h">${I.heart}${isSup() ? 'בתודה על התמיכה' : 'לתומכים באצבע'}</div><div class="themes" id="s-theme2">${THEMES_SUPPORT.map(themeBtn).join('')}</div>
         <div class="themes-h">מעברי צבע</div><div class="themes" id="s-theme3">${THEMES_GRAD.map(themeBtn).join('')}</div>` : ''}
-      ${isOwner() ? `<div class="themes-h dev">${I.gear}מצב מפתח</div><div class="themes" id="s-theme4">${themeBtn(THEME_DEV)}</div>` : ''}
-      ${isSup() && native.PLATFORM === 'android' ? `<div class="themes-h">סגנון הווידג׳ט</div><div class="seg" id="s-wstyle">${[['classic', 'רגיל'], ['glass', 'שקוף'], ['bold', 'גדול'], ['accent', 'צבעוני']].map(([k, n]) => `<button data-w="${k}" class="${(st.widgetStyle || 'classic') === k ? 'on' : ''}">${n}</button>`).join('')}</div>` : ''}
-      ${isSup() && (native.billing.available() || native.PLATFORM === 'android') ? `<div class="themes-h">אייקון האפליקציה</div><div class="icons" id="s-icon">${ICONS.map(([k, n, f]) => `<button data-ic="${k}" class="${(st.icon || 'default') === k ? 'on' : ''}"><img src="icons/${f}" alt="">${n}</button>`).join('')}</div>` : ''}
-      <div class="field"><span>שפה</span><div class="seg" id="s-lang">${LANGS.map(l => `<button data-l="${l.code}" class="${l.code === LANG ? 'on' : ''}" data-keep>${l.name}</button>`).join('')}</div></div>
-      <div class="field"><span>קריאה בקול (TalkBack)</span><div class="seg" id="s-speech"><button data-s="en" class="${speechLang() === 'en' ? 'on' : ''}" data-keep>English</button><button data-s="he" class="${speechLang() === 'he' ? 'on' : ''}" data-keep>עברית</button></div>
-        <p class="hint">השפה שבה קורא המסך מקריא כפתורים והודעות. בסמסונג הקול לרוב לא תומך בעברית, ולכן ברירת המחדל היא אנגלית.</p></div></div>
+      ${isOwner() ? `<div class="themes-h dev">${I.gear}מצב מפתח</div><div class="themes" id="s-theme4">${themeBtn(THEME_DEV)}</div>` : ''}</div>
+    ${isSup() && (native.billing.available() || native.PLATFORM === 'android') ? `<div class="card" style="margin-top:12px"><details class="adv-cell"><summary class="cell"><span class="cell-ic">${I.gear}</span><span class="grow">ווידג׳ט ואייקון<div class="sub">סגנון הווידג׳ט ואייקון האפליקציה</div></span><span class="chev">${I.chevDown}</span></summary><div class="pad">${isSup() && native.PLATFORM === 'android' ? `<div class="themes-h">סגנון הווידג׳ט</div><div class="seg" id="s-wstyle">${[['classic', 'רגיל'], ['glass', 'שקוף'], ['bold', 'גדול'], ['accent', 'צבעוני']].map(([k, n]) => `<button data-w="${k}" class="${(st.widgetStyle || 'classic') === k ? 'on' : ''}">${n}</button>`).join('')}</div>` : ''}${isSup() && (native.billing.available() || native.PLATFORM === 'android') ? `<div class="themes-h">אייקון האפליקציה</div><div class="icons" id="s-icon">${ICONS.map(([k, n, f]) => `<button data-ic="${k}" class="${(st.icon || 'default') === k ? 'on' : ''}"><img src="icons/${f}" alt="">${n}</button>`).join('')}</div>` : ''}</div></details></div>` : ''}
 
-    <div class="sec"><span>${secIc('shabbat', 'gold')}זמני שבת וחג</span></div>
+    <div class="sec"><span>${secIc('coins', 'green')}שכר ונטו</span></div>
+    <div class="card">
+      <label class="cell"><span class="cell-ic t-green">${I.coins}</span><span class="grow">חישוב נטו<div class="sub">${NET() ? 'מס, ביטוח לאומי ופנסיה' : 'כבוי: מוצג רק ברוטו, למשל בשירות צבאי'}</div></span>${sw('s-net', NET())}</label>
+      ${NET() ? `<details class="adv-cell"><summary class="cell"><span class="cell-ic">${I.receipt}</span><span class="grow">נקודות זיכוי ופנסיה<div class="sub"><span class="num">${+st.sex + +st.extraPts}</span> נק׳ זיכוי${st.pension ? ' · פנסיה' : ''}${st.hish ? ' · השתלמות' : ''}</div></span><span class="chev">${I.chevDown}</span></summary><div class="pad"><div class="seg" id="s-sex"><button data-v="2.25">גבר · 2.25 נק׳</button><button data-v="2.75">אישה · 2.75 נק׳</button></div>
+      <label class="field"><span>נקודות זיכוי נוספות</span><input class="input num" type="number" step="0.25" inputmode="decimal" id="s-extraPts" value="${st.extraPts}">
+        <p class="hint">למשל: ילדים, תואר אקדמי, חייל/ת משוחרר/ת, צעירים עד גיל 23. אפשר לבדוק בטופס 101.</p></label></div><label class="cell"><span class="cell-ic t-green">${I.coins}</span><span class="grow">פנסיה<div class="sub">לעובד שעתי בדרך כלל אחרי 6 חודשים</div></span>${sw('s-pension', st.pension)}</label>
+      <div class="cell ${st.pension ? '' : 'hidden'}" id="penRow"><span class="grow">עובד / מעסיק / פיצויים %</span>
+        <input class="input num" style="width:64px;height:44px;text-align:center;padding:0 4px" type="number" step="0.5" id="s-pEmp" value="${st.pEmp}">
+        <input class="input num" style="width:64px;height:44px;text-align:center;padding:0 4px" type="number" step="0.5" id="s-pEr" value="${st.pEr}">
+        <select class="input num" style="width:76px;height:44px" id="s-sev"><option${+st.sev === 8.33 ? ' selected' : ''}>8.33</option><option${+st.sev === 6 ? ' selected' : ''}>6</option></select></div>
+      <label class="cell"><span class="cell-ic t-teal">${I.book}</span><span class="grow">קרן השתלמות<div class="sub">2.5% עובד · 7.5% מעסיק</div></span>${sw('s-hish', st.hish)}</label></details>` : ''}
+    </div>
+
+    <div class="sec"><span>${secIc('shabbat', 'gold')}כללי</span></div>
     <div class="card">
       <label class="cell"><span class="cell-ic t-orange">${I.pin}</span><span class="grow">עיר</span>
         <select class="val" id="s-city" style="border:0;background:none;text-align:end;font-weight:600">${Object.keys(CITIES).map(c => `<option value="${c}"${c === st.city ? ' selected' : ''}>${c}</option>`).join('')}</select></label>
-<details class="adv-cell"><summary class="cell"><span class="cell-ic">${I.clockEdit}</span><span class="grow">כניסת ויציאת שבת<div class="sub num">${st.candleMin} דק׳ לפני השקיעה · ${st.havdalahMin} דק׳ אחריה</div></span><span class="chev">${I.chevDown}</span></summary>
+      <details class="adv-cell"><summary class="cell"><span class="cell-ic">${I.clockEdit}</span><span class="grow">כניסת ויציאת שבת<div class="sub num">${st.candleMin} דק׳ לפני השקיעה · ${st.havdalahMin} דק׳ אחריה</div></span><span class="chev">${I.chevDown}</span></summary>
             <label class="cell"><span class="cell-ic t-gold">${I.shabbat}</span><span class="grow">הדלקת נרות<div class="sub">דקות לפני השקיעה</div></span>
         <input class="input num" style="width:76px;height:44px;text-align:center" type="number" id="s-candleMin" value="${st.candleMin}"></label>
       <label class="cell"><span class="cell-ic t-indigo">${I.night}</span><span class="grow">צאת שבת<div class="sub">דקות אחרי השקיעה</div></span>
         <input class="input num" style="width:76px;height:44px;text-align:center" type="number" id="s-havdalahMin" value="${st.havdalahMin}"></label>
       </details>
-    </div>
-
-    <div class="sec"><span>${secIc('coins', 'green')}מס ונטו</span></div>
-    <div class="card pad">
-      <div class="seg" id="s-sex"><button data-v="2.25">גבר · 2.25 נק׳</button><button data-v="2.75">אישה · 2.75 נק׳</button></div>
-      <label class="field"><span>נקודות זיכוי נוספות</span><input class="input num" type="number" step="0.25" inputmode="decimal" id="s-extraPts" value="${st.extraPts}">
-        <p class="hint">למשל: ילדים, תואר אקדמי, חייל/ת משוחרר/ת, צעירים עד גיל 23. אפשר לבדוק בטופס 101.</p></label>
-    </div>
-    <div class="card">
-      <label class="cell"><span class="cell-ic t-green">${I.coins}</span><span class="grow">פנסיה<div class="sub">לעובד שעתי בדרך כלל אחרי 6 חודשים</div></span>${sw('s-pension', st.pension)}</label>
-      <div class="cell ${st.pension ? '' : 'hidden'}" id="penRow"><span class="grow">עובד / מעסיק / פיצויים %</span>
-        <input class="input num" style="width:64px;height:44px;text-align:center;padding:0 4px" type="number" step="0.5" id="s-pEmp" value="${st.pEmp}">
-        <input class="input num" style="width:64px;height:44px;text-align:center;padding:0 4px" type="number" step="0.5" id="s-pEr" value="${st.pEr}">
-        <select class="input num" style="width:76px;height:44px" id="s-sev"><option${+st.sev === 8.33 ? ' selected' : ''}>8.33</option><option${+st.sev === 6 ? ' selected' : ''}>6</option></select></div>
-      <label class="cell"><span class="cell-ic t-teal">${I.book}</span><span class="grow">קרן השתלמות<div class="sub">2.5% עובד · 7.5% מעסיק</div></span>${sw('s-hish', st.hish)}</label>
+      <details class="adv-cell"><summary class="cell"><span class="cell-ic">${I.book}</span><span class="grow">שפה וקריאה בקול<div class="sub">${LANGS.find(l => l.code === LANG)?.name || LANG} · <span>${speechLang() === 'en' ? 'TalkBack באנגלית' : 'TalkBack בעברית'}</span></div></span><span class="chev">${I.chevDown}</span></summary><div class="pad"><div class="field"><span>שפה</span><div class="seg" id="s-lang">${LANGS.map(l => `<button data-l="${l.code}" class="${l.code === LANG ? 'on' : ''}" data-keep>${l.name}</button>`).join('')}</div></div>
+      <div class="field"><span>קריאה בקול (TalkBack)</span><div class="seg" id="s-speech"><button data-s="en" class="${speechLang() === 'en' ? 'on' : ''}" data-keep>English</button><button data-s="he" class="${speechLang() === 'he' ? 'on' : ''}" data-keep>עברית</button></div>
+        <p class="hint">השפה שבה קורא המסך מקריא כפתורים והודעות. בסמסונג הקול לרוב לא תומך בעברית, ולכן ברירת המחדל היא אנגלית.</p></div></div></details>
+      ${native.NATIVE ? `<label class="cell"><span class="cell-ic t-orange">${I.bell}</span><span class="grow">התראות במשמרת<div class="sub">כשמתחילות שעות נוספות, בכניסת שבת וחג, ואם שכחת לצאת</div></span><span class="switch"><input type="checkbox" id="s-notif"${notifOn() ? ' checked' : ''}><i></i></span></label><div id="s-nstat"></div>` : ''}
     </div>
 
     <div class="sec"><span>${secIc('download', 'blue')}נתונים וגיבוי</span></div>
     ${backupDue() ? `<div class="note" style="margin-bottom:10px">${I.warn}<span>${S.settings.lastBackup ? `הגיבוי האחרון לפני ${Math.floor((Date.now() - new Date(S.settings.lastBackup)) / 864e5)} ימים.` : 'עוד לא גיבית.'} יש ${S.shifts.length} משמרות שקיימות רק בטלפון הזה.</span></div>` : ''}
     <div class="card">
       <button class="cell" id="s-backup"><span class="cell-ic t-blue">${I.download}</span><span class="grow">גיבוי מלא עכשיו<div class="sub">${S.settings.lastBackup ? 'גיבוי אחרון: ' + dFull(S.settings.lastBackup) : 'עוד לא גיבית'}</div></span><span class="chev">${I.chevL}</span></button>
-      <button class="cell" id="s-import"><span class="cell-ic t-blue">${I.file}</span><span class="grow">שחזור או העברה מטלפון אחר<div class="sub">מציג מה בקובץ לפני שמשנים משהו</div></span><span class="chev">${I.chevL}</span></button>
+      <details class="adv-cell"><summary class="cell"><span class="cell-ic">${I.file}</span><span class="grow">שחזור, ייבוא וייצוא<div class="sub">מטלפון אחר, מאקסל, או ל־CSV</div></span><span class="chev">${I.chevDown}</span></summary><button class="cell" id="s-import"><span class="cell-ic t-blue">${I.file}</span><span class="grow">שחזור או העברה מטלפון אחר<div class="sub">מציג מה בקובץ לפני שמשנים משהו</div></span><span class="chev">${I.chevL}</span></button>
       <button class="cell" id="s-fimport"><span class="cell-ic t-teal">${I.list}</span><span class="grow">ייבוא משמרות מקובץ<div class="sub">Excel או CSV, גם מאפליקציות אחרות</div></span><span class="chev">${I.chevL}</span></button>
-      <button class="cell" id="s-export"><span class="cell-ic t-green">${I.receipt}</span><span class="grow">ייצוא ל־CSV<div class="sub">לאקסל או לגוגל שיטס</div></span><span class="chev">${I.chevL}</span></button>
+      <button class="cell" id="s-export"><span class="cell-ic t-green">${I.receipt}</span><span class="grow">ייצוא ל־CSV<div class="sub">לאקסל או לגוגל שיטס</div></span><span class="chev">${I.chevL}</span></button><div class="pad"><div class="note info" id="storeNote">${storeNote()}</div></div></details>
     </div>
-    <div class="note info" style="margin-top:10px" id="storeNote">${storeNote()}</div>
-    ${native.NATIVE ? `<div class="card" style="margin-top:12px"><label class="cell"><span class="cell-ic t-orange">${I.bell}</span><span class="grow">התראות במשמרת<div class="sub">כשמתחילות שעות נוספות, בכניסת שבת וחג, ואם שכחת לצאת</div></span><span class="switch"><input type="checkbox" id="s-notif"${notifOn() ? ' checked' : ''}><i></i></span></label><div id="s-nstat"></div></div>` : ''}
-    ${devOK() ? `<div class="card" style="margin-top:12px"><button class="cell" id="s-debug"><span class="cell-ic t-violet">${I.info}</span><span class="grow">אבחון ותקלות<div class="sub">${dbg.lastCrash() ? 'האפליקציה נסגרה בפעם הקודמת · פרטים כאן' : 'מידע טכני לשליחה כשמשהו לא עובד'}</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
-    ${devOK() && S.settings.dev ? `<div class="card" style="margin-top:12px" data-keep><button class="cell" id="s-dev"><span class="cell-ic t-gray">${I.gear}</span><span class="grow">כלי פיתוח<div class="sub">בדיקת התראות, משמרות לדוגמה ועוד</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
-    ${native.billing.available() || isOwner() ? `<div class="card" style="margin-top:12px"><button class="cell" id="s-support"><span class="cell-ic t-red">${I.heart}</span><span class="grow">${isOwner() ? 'מפתח' : isSup() ? 'תומך/ת באצבע' : 'תמיכה באצבע'}<div class="sub">${isOwner() ? 'כל האפשרויות פתוחות במכשיר הזה' : isSup() ? `מאז ${dFull(S.settings.supportedAt || S.updatedAt)} · תודה! אפשר לתמוך שוב מתי שרוצים` : 'האפליקציה חינמית ובלי פרסומות. תומכים מקבלים ערכות צבע ואייקונים'}</div></span><span class="chev">${I.chevL}</span></button></div>` : ''}
-    <div class="card" style="margin-top:12px"><button class="cell" id="s-legal"><span class="cell-ic t-gray">${I.lock}</span><span class="grow">פרטיות ומשפטי<div class="sub">מה נשמר, ומה החישוב כן ולא</div></span><span class="chev">${I.chevL}</span></button></div>
+    <div class="card" style="margin-top:12px">
+    ${devOK() ? `<button class="cell" id="s-debug"><span class="cell-ic t-violet">${I.info}</span><span class="grow">אבחון ותקלות<div class="sub">${dbg.lastCrash() ? 'האפליקציה נסגרה בפעם הקודמת · פרטים כאן' : 'מידע טכני לשליחה כשמשהו לא עובד'}</div></span><span class="chev">${I.chevL}</span></button>` : ''}
+    ${devOK() && S.settings.dev ? `<button class="cell" id="s-dev"><span class="cell-ic t-gray">${I.gear}</span><span class="grow">כלי פיתוח<div class="sub">בדיקת התראות, משמרות לדוגמה ועוד</div></span><span class="chev">${I.chevL}</span></button>` : ''}
+    ${native.billing.available() || isOwner() ? `<button class="cell" id="s-support"><span class="cell-ic t-red">${I.heart}</span><span class="grow">${isOwner() ? 'מפתח' : isSup() ? 'תומך/ת באצבע' : 'תמיכה באצבע'}<div class="sub">${isOwner() ? 'כל האפשרויות פתוחות במכשיר הזה' : isSup() ? `מאז ${dFull(S.settings.supportedAt || S.updatedAt)} · תודה! אפשר לתמוך שוב מתי שרוצים` : 'האפליקציה חינמית ובלי פרסומות. תומכים מקבלים ערכות צבע ואייקונים'}</div></span><span class="chev">${I.chevL}</span></button>` : ''}
+    <button class="cell" id="s-legal"><span class="cell-ic t-gray">${I.lock}</span><span class="grow">פרטיות ומשפטי<div class="sub">מה נשמר, ומה החישוב כן ולא</div></span><span class="chev">${I.chevL}</span></button>
+    </div>
     <p class="fine" id="s-ver"><b>אצבע</b> · גרסה ${VERSION}${isSup() ? ' <span style="color:#D9534F">♥</span>' : ''}<br>An Edvin Studios Project</p>`;
   $$('[data-job]', el).forEach(b => b.onclick = () => openJobSheet(jobById(b.dataset.job), false));
   $('#addJob', el).onclick = () => { const j = defaultJob('עבודה ' + (S.jobs.length + 1)); j.color = COLORS[S.jobs.length % COLORS.length]; openJobSheet(j, true); };
   const set = (k, v) => { S.settings[k] = v; commit(); };
   $('#s-city', el).onchange = e => { S.settings.candleMin = CITIES[e.target.value][2]; set('city', e.target.value); };
-  for (const k of ['candleMin', 'havdalahMin', 'extraPts', 'pEmp', 'pEr', 'sev']) $('#s-' + k, el).onchange = e => set(k, +e.target.value || 0);
-  for (const k of ['pension', 'hish']) $('#s-' + k, el).onchange = e => set(k, e.target.checked);
+  for (const k of ['candleMin', 'havdalahMin', 'extraPts', 'pEmp', 'pEr', 'sev']) $('#s-' + k, el) && ($('#s-' + k, el).onchange = e => set(k, +e.target.value || 0));
+  for (const k of ['pension', 'hish']) $('#s-' + k, el) && ($('#s-' + k, el).onchange = e => set(k, e.target.checked));
+  $('#s-net', el).onchange = e => { set('net', e.target.checked); renderSet(); };
   $$('#s-sex button', el).forEach(b => { b.classList.toggle('on', +b.dataset.v === +st.sex); b.onclick = () => set('sex', +b.dataset.v); });
   $$('#s-theme button, #s-theme2 button, #s-theme3 button, #s-theme4 button', el).forEach(b => b.onclick = () => {
     if ([...THEMES_SUPPORT, ...THEMES_GRAD].some(t => t[0] === b.dataset.t) && !isSup()) return openSupport();
@@ -2058,7 +1961,6 @@ function renderSet() {
 
 /* ================= RETROACTIVE OR NOT ================= */
 const rulesDiffer = (rules, job) => JSON.stringify({ ...rules, rate: 0 }) !== JSON.stringify({ ...Object.fromEntries(Object.keys(rules).map(k => [k, job[k]])), rate: 0 });
-/** Saving changed pay rules: choose from when they apply. Earlier shifts keep the rules they were paid under. */
 function openApplyFrom(old, nj) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1), yearStart = new Date(today.getFullYear(), 0, 1);
@@ -2100,8 +2002,6 @@ function openApplyFrom(old, nj) {
   });
 }
 
-/* ================= IMPORT FROM FILE ================= */
-/** f: an optional File (or {name, arrayBuffer()}) to read straight away, e.g. one shared from another app. */
 function openFileImport(f0) {
   let parsed = null, sheetIx = 0, year = null, jobId = S.settings.lastJob, newJobName = null, fileName = '';
   openSheet(`<h2>ייבוא משמרות מקובץ</h2><p class="shsub">Excel (xls, xlsx) או CSV, גם מאפליקציות משמרות אחרות. קודם רואים מה ייכנס, ורק אז מייבאים.</p>
@@ -2189,12 +2089,10 @@ function openFileImport(f0) {
   });
 }
 
-/* ---- files shared to Etzba from other apps (Android share menu → אצבע) ----
-   The service worker receives the file, keeps it in a cache, and opens the app with ?shared=1. */
 async function takeSharedFile() {
   try {
     if (!/[?&]shared=1/.test(location.search) || !('caches' in window)) return;
-    history.replaceState(null, '', location.pathname);       // a reload won't import twice
+    history.replaceState(null, '', location.pathname);
     const c = await caches.open('etzba-share'), r = await c.match('shared-file');
     if (!r) { toast('הקובץ ששותף לא הגיע. אפשר לנסות שוב'); dbg.log('warn', 'share: no file'); return; }
     const name = decodeURIComponent(r.headers.get('x-name') || 'shared.xls'), buf = await r.arrayBuffer();
@@ -2371,7 +2269,6 @@ function openJobSheet(job, isNew) {
 
 /* ================= CSV / EXPORT ================= */
 function toCSV(rows) {
-  // a text starting with = + - @ would run as a formula in Excel: such text gets a leading apostrophe (numbers stay numbers)
   const cell = c => { c = c == null ? '' : String(c); if (/^[=+\-@\t\r]/.test(c) && isNaN(+c)) c = "'" + c; return /[",\r\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; };
   return '﻿' + rows.map(r => r.map(cell).join(',')).join('\r\n');
 }
@@ -2455,7 +2352,6 @@ async function backupNow(how = 'file') {
   const ok = how === 'copy' ? await copyText(j) : await deliver(`אצבע-גיבוי-${dFull(new Date()).replace(/\//g, '-')}.json`, j, 'application/json');
   if (ok) { S.settings.lastBackup = new Date().toISOString(); persist(); if (view === 'set') renderSet(); updateBackupDot(); }
 }
-/** Backup is "due" once there is something worth losing and the last backup is old. */
 function backupDue() {
   if (S.shifts.length < 10) return false;
   const last = S.settings.lastBackup ? new Date(S.settings.lastBackup) : null;
@@ -2472,7 +2368,6 @@ function summarize(d) {
   const ts = d.shifts.map(s => +new Date(s.start)).filter(x => !isNaN(x)).sort((x, y) => x - y);
   return { shifts: d.shifts.length, jobs: d.jobs.length, from: ts[0], to: ts[ts.length - 1], exported: d.exported };
 }
-/** Where the data lives right now, in plain words. */
 function storeNote() {
   return native.NATIVE
     ? `${I.info}<span>הנתונים נשמרים <b>רק בטלפון הזה</b>, בלי חשבון ובלי שרת. מחיקת האפליקציה מוחקת אותם, אז כדאי לגבות מדי פעם. כדי לעבור לטלפון חדש: גיבוי מלא כאן, ואז ״שחזור״ בטלפון החדש.</span>`
@@ -2490,7 +2385,6 @@ function openImport() {
       try { d = JSON.parse(txt); if (!Array.isArray(d.jobs) || !Array.isArray(d.shifts)) throw 0; }
       catch { $('#imp-prev', root).innerHTML = `<div class="note">${I.warn}<span>הקובץ לא נראה כמו גיבוי של אצבע. שום דבר לא השתנה.</span></div>`; return; }
       const f = summarize(d), cur = S.shifts.length, ids = new Set(S.shifts.map(s => s.id));
-      // a shift already on this phone is never imported twice: same id, or same job with the same start and end
       const sig = s => `${s.jobId}|${+new Date(s.start)}|${+new Date(s.end)}`, sigs = new Set(S.shifts.map(sig));
       const isDup = s => ids.has(s.id) || sigs.has(sig(s));
       const freshList = d.shifts.filter(s => s.start && s.end && !isDup(s)), fresh = freshList.length, dups = d.shifts.length - fresh;
@@ -2507,7 +2401,7 @@ function openImport() {
         const jobIds = new Set(S.jobs.map(j => j.id));
         S.jobs.push(...d.jobs.filter(j => !jobIds.has(j.id)).map(normalizeJob));
         S.shifts.push(...freshList);
-        S = normalizeState(S);   // the file's ids and colours pass the same checks as on load
+        S = normalizeState(S);
         closeSheet(); commit(); toast(`נוספו ${fresh} משמרות`, 'ok');
       };
       $('#imp-replace', root).onclick = () => confirmBtn($('#imp-replace', root), `ללחוץ שוב: ${cur} משמרות יימחקו`, () => {
@@ -2519,11 +2413,6 @@ function openImport() {
   });
 }
 
-/* ================= notifications during a shift =================
-   Only about the shift that's running: the rate changing (overtime, weekly limit), Shabbat or a holiday
-   starting or ending, and a shift left open for 12 hours. Scheduled on the phone when the shift starts. */
-/** The notifications a shift will get: [{ at, title, body }] (Hebrew; translated when sent). */
-/** One switch for all shift notifications (older saves kept three). */
 const notifOn = () => { const n = S.settings.notif || {}; return n.rates !== false || n.rest !== false || n.long !== false; };
 function buildNotifications(a, N = { rates: true, rest: true, long: true, ...(S.settings.notif || {}) }) {
   const job = jobAt(jobById(a.jobId), a.start), start = +new Date(a.start), items = [], wb = weekRegBefore(job, a.start);
@@ -2555,10 +2444,8 @@ function buildNotifications(a, N = { rates: true, rest: true, long: true, ...(S.
   return items;
 }
 var planTimer = null;
-/* What happened the last time notifications were planned: shown under the live shift, and in Settings. */
 let NOTIF = { state: 'unknown', next: null, exact: null };
 const PRIVACY_URL = 'https://etzba.ilanox.dev/privacy.html', CONTACT = 'ilan@edvin.co.il';
-/** Privacy and the calculation disclaimer, in one place. */
 function openLegal() {
   openSheet(`<h2>פרטיות ומשפטי</h2>
     <div class="card legal">
@@ -2569,7 +2456,6 @@ function openLegal() {
     <div class="note" style="margin-top:12px">${I.warn}<span><b>החישובים הם הערכה.</b> לפי חוק שעות עבודה ומנוחה, הכללים המקובלים וההגדרות שהזנת. זה לא תלוש שכר רשמי ולא ייעוץ משפטי, מיסוי או פיננסי. הסכם קיבוצי או חוזה אישי יכולים לקבוע אחרת.</span></div>
     <div class="btnrow"><a class="btn soft" href="${PRIVACY_URL}" target="_blank" rel="noopener">${I.file}מדיניות הפרטיות המלאה</a><a class="btn soft" href="mailto:${CONTACT}">${I.receipt}יצירת קשר · ${CONTACT}</a></div>`);
 }
-/** Under the Settings switch: whether the phone lets them through, and how exactly. */
 async function drawNotifStatus() {
   const box = $('#s-nstat'); if (!box || !native.NATIVE) return;
   if (!notifOn()) { box.innerHTML = ''; return; }
@@ -2610,7 +2496,6 @@ function planNotifications(ask = false) {
   }, 400);
 }
 
-/* ================= workplace location (arrive → "start a shift?", leave → "end it?") ================= */
 function drawPlace(root, j) {
   const el = $('#j-place', root), p = j.place;
   el.innerHTML = `
@@ -2622,8 +2507,6 @@ function drawPlace(root, j) {
       <div class="field"><span>או כתובת</span><div style="display:flex;gap:8px"><input class="input" id="pl-addr" type="text" placeholder="למשל: יפו 97, ירושלים" autocomplete="street-address"><button class="btn soft" type="button" style="width:auto;padding:0 16px" id="pl-find">חיפוש</button></div></div>
       <div id="pl-res"></div>`}`;
   const set = place => { j.place = place; drawPlace(root, j); };
-  // "Allow all the time" is what lets the phone notice arriving at work while the app is closed. Asked here,
-  // inside the job sheet, so nothing typed in the sheet is lost.
   if (p && p.on !== false) native.geo.status().then(st => {
     const box = $('#pl-perm', el); if (!box || st.background) return;
     box.innerHTML = `<div class="note" style="margin-top:12px">${I.info}<span>${st.location ? 'עוד אישור אחד: כדי לדעת שהגעת לעבודה גם כשאצבע סגורה, צריך לבחור במסך הבא <b>"לאפשר כל הזמן"</b>. אצבע לא שומרת ולא שולחת את המיקום לשום מקום.' : 'צריך אישור מיקום כדי שההתראות על הגעה יעבדו.'}</span></div>
@@ -2668,10 +2551,7 @@ function syncGeo(force = false) {
   native.geo.setFences(fences, texts).then(r => dbg.log('info', `geofences: ${fences.length}${r.registered ? '' : ' (not allowed)'}`));
   native.geo.setActive(!!S.active, S.active?.jobId);
 }
-/** The widget was tapped, or an arrival/departure notification. */
-/** The home-screen widget mirrors the running shift. */
 let lastWidget = '';
-/** A theme colour as #RRGGBB, whatever form the stylesheet wrote it in. */
 function cssHex(name) {
   try {
     const el = document.createElement('i'); el.style.color = `var(${name})`; el.style.display = 'none'; document.body.appendChild(el);
@@ -2683,10 +2563,9 @@ function cssHex(name) {
 function syncWidget() {
   if (!native.NATIVE) return;
   const a = S.active, job = a ? jobAt(jobById(a.jobId), a.start) : jobById(S.settings.lastJob);
-  // pay rate over the shift (regular → overtime → Shabbat…), so the widget can work out pay and status on its own
   let segs = [], thr = job?.regHours || 8.6;
   if (a) {
-    const k = JSON.stringify([a.start, a.jobId, LANG, job, place()]);   // any change to the job, city or Shabbat times recalculates
+    const k = JSON.stringify([a.start, a.jobId, LANG, job, place()]);
     if (syncWidget.k !== k) {
       const wb = weekRegBefore(job, a.start), p1 = shiftPay({ start: a.start, end: new Date(+new Date(a.start) + 6e4).toISOString(), breakMin: 0 }, job, place(), wb);
       const per = key => Math.round(job.rate * job.r[key]) / 100, lab = key => tr(tierLabel(key, job));
@@ -2714,7 +2593,6 @@ function appAction({ action, jobId, sig }) {
   if (action === 'dev_unlock') return devUnlock(sig);
   if (action === 'toggle') {
     go('home');
-    // a running shift: confirm before ending it. none: start on the last job.
     if (S.active) openSheet(`<h2>לסיים את המשמרת?</h2><p class="shsub">${nm(jobById(S.active.jobId).name)} · ${hm((Date.now() - new Date(S.active.start)) / 36e5)}</p>
       <div class="btnrow"><button class="btn primary" id="wa-end">${I.check}סיום משמרת</button><button class="btn soft" id="wa-no">עדיין לא</button></div>`, root => {
       $('#wa-end', root).onclick = () => { closeSheet(); if (S.active) onPunch(); };
@@ -2735,7 +2613,6 @@ function appAction({ action, jobId, sig }) {
 }
 
 /* translations: skip-start (developer tools stay in Hebrew) */
-/* ================= developer tools (Settings → tap the version 7 times) ================= */
 function openDevTools() {
   const scen = {
     weekday: ['יום חול ארוך מ־08:00', () => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; }],
@@ -2778,7 +2655,7 @@ function openDevTools() {
     $$('#dv-scen button', root).forEach(b => b.onclick = () => { pick = b.dataset.s; draw(); });
     const send = async list => { if (!native.NATIVE) return toast('התראות עובדות רק באפליקציה לאנדרואיד', 'err');
       const ok = await native.testNotifications(list.map(x => ({ title: tr(x.title), body: tr(x.body) })));
-      planNotifications.last = null;   // the test replaced the real ones: plan them again next time
+      planNotifications.last = null;
       toast(ok ? `נשלחו ${list.length} התראות` : 'אין הרשאה להתראות. אפשר לאשר בהגדרות הטלפון', ok ? 'ok' : 'err'); };
     $('#dv-one', root).onclick = () => send([{ title: 'אצבע · בדיקה', body: 'ככה נראית התראה. אם רואים את זה, הכל עובד.' }]);
     $('#dv-send', root).onclick = () => send(items);
@@ -2816,9 +2693,6 @@ function openDevTools() {
 }
 /* translations: skip-end */
 
-/* ================= first open: welcome and job setup =================
-   Four short steps, every one skippable. Nothing here is required: the defaults already work. */
-/** Once, right after the welcome (or on the first start of this version): the phone's notification permission. */
 async function askFirstPerms() {
   if (!native.NATIVE || S.settings.askedPerms) return;
   S.settings.askedPerms = true; persist();
@@ -2838,7 +2712,6 @@ function openOnboarding() {
   document.body.appendChild(el);
   dbg.log('info', 'onboarding opened');
   const dots = () => `<div class="ob-dots" aria-hidden="true">${[0, 1, 2, 3, 4].map(i => `<i class="${i === step ? 'on' : ''}"></i>`).join('')}</div>`;
-  // pay questions can be answered "not sure": then the law's default is used, and it says so
   const yesNo = (k, on, unsure) => `<div class="seg" data-k="${k}"><button type="button" data-v="1" class="${on && !d[k + 'Unsure'] ? 'on' : ''}">כן</button><button type="button" data-v="0" class="${on ? '' : 'on'}">לא</button>${unsure ? `<button type="button" data-v="?" class="${d[k + 'Unsure'] ? 'on' : ''}">לא בטוח/ה</button>` : ''}</div>`;
   const STEPS = [
     () => `<div class="ob-hero sm">${mark({ ink: 'var(--ink)', accent: 'var(--accent)' })}</div>
@@ -2915,7 +2788,7 @@ function openOnboarding() {
     el.querySelectorAll('#ob-lang button').forEach(b => b.onclick = async () => { await setLang(b.dataset.l); d.lang = b.dataset.l; draw(); });
     el.querySelectorAll('.seg[data-k]').forEach(g => g.querySelectorAll('button').forEach(b => b.onclick = () => {
       const k = g.dataset.k; read();
-      if (b.dataset.v === '?') { d[k] = true; d[k + 'Unsure'] = true; }   // the law's default
+      if (b.dataset.v === '?') { d[k] = true; d[k + 'Unsure'] = true; }
       else { d[k] = k === 'weekDays' ? +b.dataset.v : k === 'tipsMode' ? b.dataset.v : b.dataset.v === '1'; d[k + 'Unsure'] = false; }
       draw(); buzz(8);
     }));
@@ -2981,7 +2854,6 @@ function openDebug() {
     $('#d-test', root).onclick = () => selfTest($('#d-test-out', root));
   });
 }
-/** Draws every screen off to the side and computes every shift, timing each step. */
 function selfTest(out) {
   out.textContent = 'בודק…';
   setTimeout(() => {
@@ -3006,21 +2878,17 @@ function selfTest(out) {
   }, 50);
 }
 
-/* ================= language ================= */
-/** Switch language in place, without reloading. */
-/** Switch language in place: load its pack, set direction, day/month names, and translate what's on screen. */
 async function setLang(l, save = true) {
   const info = langInfo(l);
-  const pack = preferPack(info.code, await loadPack(info.code).catch(() => null));   // built in, or a newer downloaded copy
+  const pack = preferPack(info.code, await loadPack(info.code).catch(() => null));
   LANG = info.code; EN = LANG !== 'he'; PACK = pack;
   document.documentElement.lang = LANG; document.documentElement.dir = info.dir;
   DAYS = pack?.days || HE_DAYS; MONTHS = pack?.months || HE_MONTHS; DAY_SHORT = pack?.daysShort || HE_DAY_SHORT;
   stopTranslating(); usePack(pack);
   if (pack) startTranslating();
-  // save only now: saving also updates the widget, which must get the new language's texts and direction
   if (save) { S.settings.lang = LANG; persist(); }
   render(); updateBackupDot();
-  syncGeo(true); planNotifications(); syncWidget();   // texts the phone shows on its own follow the language
+  syncGeo(true); planNotifications(); syncWidget();
 }
 
 /* ================= router ================= */
@@ -3035,21 +2903,19 @@ function go(v) {
   render();
 }
 function render() {
-  // a screen that fails to draw shows what went wrong in its place; the rest of the app keeps working
   const v = view;
   try { dbg.timed('draw ' + v, RENDER[v]); } catch (e) { showFailure($('#v-' + v), e); }
-  // the phone paints after this returns; mark it so a crash while painting is visible next time
   dbg.log('begin', 'paint ' + v);
   requestAnimationFrame(() => requestAnimationFrame(() => dbg.log('end', 'paint ' + v)));
   try {
     const now = new Date(), M = withLive(monthCalc(now.getFullYear(), now.getMonth()));
-    countUp($('#barNet'), M.net.net);
+    countUp($('#barNet'), NET() ? M.net.net : M.gross);
+    { const l = $('#chipNet small'); if (l) l.textContent = NET() ? 'נטו משוער' : 'ברוטו החודש'; $('#chipNet')?.setAttribute('aria-label', NET() ? 'נטו משוער החודש, לסיכום' : 'ברוטו החודש, לסיכום'); }
     $('#brandMark').innerHTML = mark({ t: now, sw: 5.4 });
     recapBanner();
   } catch (e) { report(e); }
 }
 
-/* ---- problems: shown on screen with a copy button, never a dead page ---- */
 const PROBLEMS = [];
 function describe(e) { return ((e && (e.stack || e.message)) || String(e)).split('\n').slice(0, 4).join('\n'); }
 function problemText() { return debugReport(); }
@@ -3085,22 +2951,18 @@ $('#fab').onclick = () => {
   openShiftSheet({ id: null, jobId: job.id, start: start.toISOString(), end: end.toISOString(), breakMin: job.breakMin, bonus: 0, note: '', rest: 'auto' }, 'new');
 };
 
-/* ---- start: draw first, everything else after, and never let one failing step blank the app ---- */
 const step = (name, fn) => { try { fn(); } catch (e) { (window.__etzbaErr || []).push(name + ': ' + (e && e.message)); console.error(name, e); } };
 step('recompute', recompute);
 step('render', render);
-// (index.html starts in Hebrew if the last start in another language never finished)
 if (LANG !== 'he') step('language', () => { setLang(LANG, false); });
 step('langCheck', () => {
   let failed = null; try { failed = localStorage.getItem('etzba.langFailed'); localStorage.removeItem('etzba.langFailed'); } catch {}
   if (failed) {
     dbg.log('error', `language ${failed}: the last start didn't finish, back to Hebrew`);
-    // what happened, to send to the developer (works without developer tools)
     let errs = ''; try { errs = localStorage.getItem('etzba.bootErr') || ''; } catch {}
     const report = [`language ${failed} failed to start · v${VERSION}`, errs || '(no error recorded: it stopped responding)', ...dbg.getLog().slice(-40).map(e => JSON.stringify(e)), navigator.userAgent].join('\n');
     setTimeout(() => toast('השפה הוחזרה לעברית בגלל תקלה. אפשר לנסות שוב בהגדרות', 'err', { label: 'העתקת פרטים', fn: () => copyText(report).then(() => toast('הועתק', 'ok')) }), 800);
   }
-  // this start worked: clear the mark a few seconds after everything is drawn
   setTimeout(() => { try { localStorage.removeItem('etzba.langBoot'); } catch {} }, 4000);
 });
 window.__etzbaReady = true;
@@ -3108,7 +2970,6 @@ dbg.log('perf', 'ready', dbg.sinceStart());
 step('crashNote', () => { const c = dbg.lastCrash(); if (c) { dbg.log('warn', 'last session ended during: ' + c.step); if (FEATURES.devTools) toast(`בפעם הקודמת האפליקציה נסגרה (${c.step}). פרטים באבחון`, 'err', { label: 'פרטים', fn: openDebug }); } });
 step('debugHash', () => { if (!FEATURES.devTools) return; if (location.hash === '#debug') openDebug(); addEventListener('hashchange', () => { if (location.hash === '#debug') openDebug(); }); });
 step('restore', async () => {
-  // the WebView's storage came back empty but the app's own copy has data: bring it back
   if (!native.NATIVE || hadLocal) return;
   const json = await native.snapshot.load(); if (!json) return;
   let d; try { d = JSON.parse(json); } catch (e) { dbg.log('error', 'snapshot unreadable'); return; }
@@ -3144,8 +3005,6 @@ step('notifications', () => {
     native.openNotificationSettings();
   });
 });
-/** How much the phone enlarges text (Android's font size): big text gets a roomier layout, and a few
-    fixed-size things (time wheels, the big clock digits) stay their size. etzba.tz in storage simulates it. */
 function measureTextZoom() {
   let z = 1;
   try {
@@ -3166,7 +3025,6 @@ step('textzoom', measureTextZoom);
 step('billing', () => {
   if (!native.billing.available()) return;
   native.billing.onPaid(() => { if (S.settings.supported) return; S.settings.supported = true; persist(); applyTheme(); render(); toast('התשלום עבר. תודה על התמיכה!', 'ok'); });
-  // a new install or phone: if this Google account supported before, the perks come back by themselves (checked once)
   if (!S.settings.supported && !S.settings.histChecked) native.billing.owned().then(r => {
     S.settings.histChecked = 1;
     if (r.supported) { S.settings.supported = true; applyTheme(); render(); toast('התמיכה שלך שוחזרה. תודה!', 'ok'); }
@@ -3175,9 +3033,7 @@ step('billing', () => {
 });
 step('a11y', () => { setSpeech(S.settings.speech || 'en', LANGS.find(l => l.code === 'en')?.pack); startA11y(); });
 step('rules', () => {
-  // newer yearly figures from the internet (once a day at most); everything works without them
   const changed = () => { recompute(); render(); toast('עודכנו נתוני השכר והחגים', 'ok'); };
-  // and the language pack: fixed translations arrive without a new app release
   const packChanged = () => { if (LANG !== 'he') setLang(LANG, false); };
   const both = () => { checkForUpdates(changed); checkPack(LANG, packChanged); };
   both(); checkEarly();
@@ -3190,8 +3046,6 @@ setInterval(() => { if (document.hidden) return; tickHome(false); if (new Date()
 $('#chipNet') && ($('#chipNet').onclick = () => { const n = new Date(); viewY = n.getFullYear(); viewM = n.getMonth(); S.ui.sumView = 'month'; go('sum'); setTimeout(() => $('#steps')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 300); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { render(); planNotifications(); checkEarly(); } });
 
-/* Offline cache for the website version. Inside an embedded frame service workers aren't allowed,
-   so any old one is removed there instead. The Android app has everything built in and needs none. */
 const framed = (() => { try { return window.self !== window.top; } catch { return true; } })();
 try {
   if (!native.NATIVE && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {

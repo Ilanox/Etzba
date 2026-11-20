@@ -1,6 +1,3 @@
-// Builds the Android app without opening Android Studio.
-//   npm run apk       test build → etzba.apk (copy it to the phone, or: npm run install-apk)
-//   npm run release   Google Play build → etzba-<version>.aab (upload this) + a signed etzba-<version>.apk to try first
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
@@ -18,8 +15,6 @@ const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 const RELEASE = process.argv[2] === 'release';
 const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
 
-// Gradle 8 runs on Java 17–24 (not 25). Use JAVA_HOME if it's a version that works, otherwise find one:
-// a system JDK 21/17, or Android Studio's bundled Java if that is 24 or older.
 const javaMajor = home => {
   try { const m = /JAVA_VERSION="(\d+)/.exec(readFileSync(join(home, 'release'), 'utf8')); return m ? +m[1] : 0; } catch { return 0; }
 };
@@ -46,8 +41,6 @@ run(process.execPath, [join(root, 'scripts/build-www.mjs')]);
 run(process.execPath, [join(root, 'scripts/native-setup.mjs')]);
 run(npx, ['cap', 'sync', 'android']);
 
-/* Release builds are signed with your own upload key. It's made once and must never be lost:
-   Google Play only accepts updates signed with the same key (or after a reset through Play support). */
 async function ensureKey() {
   const props = join(root, 'keystore.properties');
   if (existsSync(props)) return;
@@ -61,7 +54,7 @@ async function ensureKey() {
     '-validity', '10000', '-storepass', pass, '-keypass', pass, '-dname', 'CN=Ilan Levy, O=Edvin Studios, C=IL']);
   writeFileSync(props, `storeFile=etzba-upload.jks\nstorePassword=${pass}\nkeyAlias=etzba\nkeyPassword=${pass}\n`);
   console.log('\n✓ Key made: etzba-upload.jks + keystore.properties.\n  BACK THEM UP NOW (e.g. a password manager or a USB stick). Without them you cannot update the app.\n');
-  run(process.execPath, [join(root, 'scripts/native-setup.mjs')]);   // adds the signing settings to Gradle
+  run(process.execPath, [join(root, 'scripts/native-setup.mjs')]);
 }
 
 const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';

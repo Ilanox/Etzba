@@ -1,5 +1,3 @@
-// Adds אצבע's native pieces to the generated android/ and ios/ projects. Safe to run any number of times.
-//   node scripts/native-setup.mjs   (iOS support is kept for later: it only runs if an ios/ folder exists)
 import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, cpSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -8,18 +6,16 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 const only = process.argv[2];
-// build-time switches (features.json): what goes into the Android app
 const features = { arrivalDetection: false, widget: true, support: true, ...JSON.parse(readFileSync(join(root, 'features.json'), 'utf8')) };
 const GEO = features.arrivalDetection, WIDGET = features.widget, SUPPORT = features.support;
 const [maj, min, pat] = pkg.version.split('.').map(Number);
-const versionCode = maj * 1000000 + min * 1000 + pat;        // 1.0.0 → 1000000 (above every 1.x test build), always increasing
+const versionCode = maj * 1000000 + min * 1000 + pat;
 const MIMES = ['text/csv', 'text/comma-separated-values', 'application/csv', 'text/tab-separated-values', 'text/plain',
   'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/octet-stream'];
 
 function android() {
   const app = join(root, 'android/app');
   if (!existsSync(app)) return console.log('android/ not found, run: npx cap add android');
-  // 1. our plugins, and the activity that registers them (generated, so switched-off features leave no code behind)
   const pkgDir = join(app, 'src/main/java/com/edvinstudios/etzba'); mkdirSync(pkgDir, { recursive: true });
   const files = { 'ShareInPlugin.java': true, 'AppActionsPlugin.java': true, 'EtzbaWidget.java': WIDGET, 'GeoPlugin.java': GEO, 'GeoReceiver.java': GEO, 'BillingPlugin.java': SUPPORT, 'NotifyPlugin.java': true, 'NotifyReceiver.java': true, 'BootReceiver.java': true };
   for (const [f, on] of Object.entries(files)) {
@@ -63,22 +59,17 @@ ${plugins.map(p => `        registerPlugin(${p}.class);`).join('\n')}
     if (!on && has) x = x.replace(new RegExp(`\\s*<uses-permission android:name="android.permission.${p}"\\s*/>`), '');
   };
   setPerm('POST_NOTIFICATIONS', true);
-  // no exact alarms: notifications arrive on time or within a few minutes, which is fine for a pay app, and
-  // Google Play keeps that permission for alarm and calendar apps. Removed even if a library asks for it.
   setPerm('SCHEDULE_EXACT_ALARM', false);
   if (!x.includes('xmlns:tools=')) x = x.replace(/<manifest\b/, '<manifest xmlns:tools="http://schemas.android.com/tools"');
   for (const p of ['SCHEDULE_EXACT_ALARM', 'USE_EXACT_ALARM'])
     if (!x.includes(`${p}" tools:node="remove"`)) x = x.replace(/<application/, `<uses-permission android:name="android.permission.${p}" tools:node="remove" />\n    <application`);
-  // backups: shifts and settings are kept by Google backup and phone-to-phone transfer (res/xml/*_rules.xml)
   if (!x.includes('dataExtractionRules')) x = x.replace(/<application\b/, '<application android:dataExtractionRules="@xml/data_extraction_rules" android:fullBackupContent="@xml/backup_rules"');
-  // workplace arrival needs location all the time, and re-arming after a reboot
   for (const p of ['ACCESS_COARSE_LOCATION', 'ACCESS_FINE_LOCATION', 'ACCESS_BACKGROUND_LOCATION']) setPerm(p, GEO);
-  // scheduled notifications are put back after a reboot (NotifyReceiver)
   setPerm('RECEIVE_BOOT_COMPLETED', true);
   const block = (name, xml, on) => {
     const re = new RegExp(`\\s*<!-- etzba:${name} -->[\\s\\S]*?<!-- /etzba:${name} -->`);
     x = x.replace(re, '');
-    if (name === 'geo') x = x.replace(/\s*<receiver android:name="\.GeoReceiver"[\s\S]*?<\/receiver>/, '');   // older setups
+    if (name === 'geo') x = x.replace(/\s*<receiver android:name="\.GeoReceiver"[\s\S]*?<\/receiver>/, '');
     if (on) x = x.replace(/<\/application>/, `    <!-- etzba:${name} -->\n${xml}\n        <!-- /etzba:${name} -->\n    </application>`);
   };
   block('geo', `        <receiver android:name=".GeoReceiver" android:exported="true">
@@ -87,7 +78,6 @@ ${plugins.map(p => `        registerPlugin(${p}.class);`).join('\n')}
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>`, GEO);
-  // NotifyReceiver is private (only the app's own alarms reach it); BootReceiver only hears restart and update
   block('notify', `        <receiver android:name=".NotifyReceiver" android:exported="false" />
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
@@ -101,7 +91,6 @@ ${plugins.map(p => `        registerPlugin(${p}.class);`).join('\n')}
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/etzba_widget_info" />
         </receiver>`, WIDGET);
-  // supporters can pick another app icon: the launcher entry moves to aliases, one per icon, only one enabled
   x = x.replace(/(<intent-filter>\s*<action android:name="android.intent.action.MAIN" \/>)(\s*<category android:name="android.intent.category.LAUNCHER" \/>)?/,
     (m, a) => SUPPORT ? a : `${a}\n                <category android:name="android.intent.category.LAUNCHER" />`);
   const alias = (n, icon, on) => `        <activity-alias android:name=".Icon${n}" android:enabled="${on}" android:exported="true" android:label="@string/app_name"
@@ -134,7 +123,6 @@ ${data}
     x = x.replace(/(<action android:name="android.intent.action.MAIN" \/>[\s\S]*?<\/intent-filter>)/, `$1\n${filters}`);
     writeFileSync(mf, x);
   }
-  // 3. app icon and splash screens (pre-made, so no image tools are needed)
   cpSync(join(root, 'native/android/res'), join(app, 'src/main/res'), { recursive: true });
   // 4. tell Gradle where the Android SDK is, if it isn't set yet
   const lp = join(root, 'android/local.properties');
@@ -144,7 +132,6 @@ ${data}
     if (sdk) writeFileSync(lp, `sdk.dir=${sdk.replace(/\\/g, '/')}\n`);
     else console.log('! Android SDK not found. Install Android Studio and open it once (it downloads the SDK), then run this again.');
   }
-  // 5. version from package.json, and Google's location library (geofencing)
   const bg = join(app, 'build.gradle');
   if (existsSync(bg)) {
     let g = readFileSync(bg, 'utf8');
@@ -155,7 +142,6 @@ ${data}
     const bill = "    implementation 'com.android.billingclient:billing:7.1.1'";
     if (SUPPORT && !g.includes('com.android.billingclient')) g = g.replace(/dependencies\s*\{/, m => `${m}\n${bill}`);
     if (!SUPPORT) g = g.replace(/\n\s*implementation 'com\.android\.billingclient:billing:[^']*'/, '');
-    // release signing, from keystore.properties in the project folder (made by npm run release)
     if (!g.includes('// etzba-signing')) g += `
 // etzba-signing: release builds are signed with the key in keystore.properties (project folder, never committed)
 def etzbaKeysFile = rootProject.file('../keystore.properties')
@@ -202,7 +188,7 @@ function ios() {
 \t\t</dict>
 \t</array>`);
   add('LSSupportsOpeningDocumentsInPlace', '\t<false/>');
-  add('ITSAppUsesNonExemptEncryption', '\t<false/>');          // no export-compliance question on every upload
+  add('ITSAppUsesNonExemptEncryption', '\t<false/>');
   add('CFBundleDevelopmentRegion', '\t<string>he</string>');
   x = x.replace(/(<key>CFBundleShortVersionString<\/key>\s*<string>)[^<]*/, `$1${pkg.version}`);
   writeFileSync(plist, x);

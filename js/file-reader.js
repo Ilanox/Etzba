@@ -1,6 +1,3 @@
-// אצבע — read spreadsheet files with no libraries, fully offline.
-// Supports: old Excel .xls (Compound File + BIFF8), .xlsx (zip + XML), .csv / .tsv.
-// Returns [{ name, rows: string[][] }]. Numbers stay numbers so dates/times can be recognised later.
 
 const u16 = (b, o) => b[o] | (b[o + 1] << 8);
 const u32 = (b, o) => (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16)) + b[o + 3] * 0x1000000;
@@ -22,7 +19,7 @@ function decodeText(b) {
   if (b[0] === 0xFF && b[1] === 0xFE) return new TextDecoder('utf-16le').decode(b.subarray(2));
   const utf8 = new TextDecoder('utf-8').decode(b);
   if (!utf8.includes('�')) return utf8.replace(/^﻿/, '');
-  try { return new TextDecoder('windows-1255').decode(b); } catch { return utf8; } // older Hebrew Excel CSVs
+  try { return new TextDecoder('windows-1255').decode(b); } catch { return utf8; }
 }
 export function readCSV(text) {
   const first = text.split(/\r?\n/, 1)[0];
@@ -93,11 +90,11 @@ function readXLS(b) {
   const sheetsAt = new Map(), sst = [];
   for (let i = 0; i < recs.length; i++) {
     const r = recs[i];
-    if (r.t === 0x0085) { // BOUNDSHEET8
+    if (r.t === 0x0085) {
       const pos = u32(r.d, 0), cch = r.d[6], hi = r.d[7] & 1;
       let name = ''; for (let k = 0; k < cch; k++) name += String.fromCharCode(hi ? u16(r.d, 8 + k * 2) : r.d[8 + k]);
       sheetsAt.set(pos, name);
-    } else if (r.t === 0x00FC) { // SST + CONTINUE
+    } else if (r.t === 0x00FC) {
       const segs = [r.d]; while (recs[i + 1] && recs[i + 1].t === 0x003C) segs.push(recs[++i].d);
       readSST(segs, sst);
     }
@@ -124,7 +121,6 @@ function readXLS(b) {
   for (const s of out) s.rows = Array.from(s.rows, r => Array.from(r || [], c => c ?? ''));
   return out;
 }
-/** SST strings can be split across CONTINUE records; a split inside characters restarts with a fresh flags byte. */
 function readSST(segs, out) {
   let si = 0, o = 8; const n = u32(segs[0], 4);
   const need = k => { if (o + k > segs[si].length && o >= segs[si].length) { si++; o = 0; } };

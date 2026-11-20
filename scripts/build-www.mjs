@@ -1,4 +1,3 @@
-// Copies the web app into www/ for the native apps, with the Heebo font bundled so nothing loads from the internet.
 import { spawnSync } from 'node:child_process';
 import { cpSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -7,18 +6,14 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..'), out = join(root, 'www');
 const WEB = ['index.html', 'style.css', 'manifest.webmanifest', 'js', 'languages', 'icons', 'fonts'];
 
-// build switches → js/features.js (the app reads them from there)
 { const f = JSON.parse(readFileSync(join(root, 'features.json'), 'utf8'));
   writeFileSync(join(root, 'js/features.js'), `// Generated from features.json by scripts/build-www.mjs: edit features.json, not this.\nexport default ${JSON.stringify(Object.fromEntries(Object.entries(f).filter(([k]) => !k.startsWith('_'))))};\n`); }
 
-// language packs → data/lang/*.json (what phones download) and the built-in versions
 spawnSync(process.execPath, [join(root, 'scripts/build-data.mjs')], { stdio: 'inherit' });
 
 rmSync(out, { recursive: true, force: true }); mkdirSync(join(out, 'fonts'), { recursive: true });
 for (const f of WEB) cpSync(join(root, f), join(out, f), { recursive: true });
 
-// Capacitor's JS core (registerPlugin etc.). The app has no bundler, so the ES module is copied in as-is
-// and loaded only inside the native app (see js/native-bridge.js).
 const coreSrc = join(root, 'node_modules/@capacitor/core/dist/index.js');
 if (existsSync(coreSrc)) { mkdirSync(join(out, 'js/vendor'), { recursive: true }); cpSync(coreSrc, join(out, 'js/vendor/capacitor-core.js')); }
 else console.warn('! @capacitor/core not installed: run npm install (the Android app needs it)');
@@ -45,7 +40,6 @@ let html = readFileSync(join(out, 'index.html'), 'utf8');
 html = html.replace(/<link rel="preconnect"[^>]*>\s*/g, '').replace(/<link href="https:\/\/fonts\.googleapis\.com[^>]*>/, '<link rel="stylesheet" href="fonts/fonts.css">');
 const mods = [...readdirSync(join(root, 'js')).filter(f => f.endsWith('.js')).map(f => 'js/' + f), ...readdirSync(join(root, 'languages')).filter(f => f.endsWith('.js')).map(f => 'languages/' + f)];
 html = html.replace('<script type="module"', mods.map(m => `<link rel="modulepreload" href="${m}">`).join('') + '\n<script type="module"');
-// the content security policy is for the website: Capacitor puts its own inline script into the page on the phone
 html = html.replace(/<meta http-equiv="Content-Security-Policy"[^>]*data-web-only>\n?/, '');
 writeFileSync(join(out, 'index.html'), html);
 console.log(`www ready: ${mods.length} modules, ${n} font files${n ? '' : ' (run npm install to bundle Heebo; system font used meanwhile)'}`);

@@ -24,11 +24,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-/**
- * Shows the app's scheduled notifications (see NotifyPlugin), and twice a day asks the website whether a
- * feature this person is waiting for has opened to everyone (data/early.json); if so, says so once.
- * After a reboot or an app update, puts everything back (alarms don't survive a reboot).
- */
 public class NotifyReceiver extends BroadcastReceiver {
     static final String CHANNEL = "etzba_shift";
     static final String EARLY = "com.edvinstudios.etzba.EARLY_CHECK";
@@ -67,10 +62,9 @@ public class NotifyReceiver extends BroadcastReceiver {
             .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
             .setContentIntent(tap)
             .setAutoCancel(true);
-        try { nm.notify(id, b.build()); } catch (SecurityException ignored) { /* permission taken back */ }
+        try { nm.notify(id, b.build()); } catch (SecurityException ignored) {  }
     }
 
-    /** Twice a day, roughly (inexact: no special permission). Off when nothing is being waited for. */
     static void armEarly(Context ctx, boolean on) {
         AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
         PendingIntent pi = PendingIntent.getBroadcast(ctx, 6999, new Intent(ctx, NotifyReceiver.class).setAction(EARLY), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
@@ -105,7 +99,6 @@ public class NotifyReceiver extends BroadcastReceiver {
             JSONArray still = new JSONArray();
             for (int i = 0; i < wait.length(); i++) {
                 JSONObject x = wait.getJSONObject(i);
-                // "2026-12-07", or { "supporters": "2026-12-01", "all": "2026-12-07" }
                 Object v = dates.opt(x.optString("name"));
                 String d = "";
                 if (v instanceof JSONObject) {
@@ -119,6 +112,6 @@ public class NotifyReceiver extends BroadcastReceiver {
             }
             p.edit().putString("early", still.toString()).apply();
             if (still.length() == 0) armEarly(ctx, false);
-        } catch (Exception ignored) { /* offline: try again next time */ }
+        } catch (Exception ignored) {  }
     }
 }

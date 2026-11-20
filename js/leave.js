@@ -1,23 +1,12 @@
-// אצבע — sick days and vacation for hourly workers (Sick Pay Law, Annual Leave Law).
-// Pure functions: the app passes in a job's shifts and absences; nothing here touches storage.
-//
-//   Sick days: 1.5 a month for a full month's work, less in proportion for fewer days, up to 90 saved.
-//              Pay: first day 0%, second and third 50%, from the fourth 100%, per run of sick days.
-//   Vacation:  a full year's days for 200 work days in a calendar year (240 when the job didn't run
-//              the whole year), less in proportion for fewer days. Paid as an ordinary day's pay.
-//   An ordinary day's pay: the average pay per day worked in the three months before.
 
 const DAY = 864e5;
 export const SICK_PER_MONTH = 1.5, SICK_MAX = 90;
 export const dateKey = d => { d = new Date(d); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const fromKey = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
 
-/** Vacation days for a full year's work, by the work week (first years at a job). */
 export const lawVacDays = job => (+job.weekDays === 6 ? 14 : 12);
-/** Work days that make a full month, for sick-day accrual. */
 const fullMonthDays = job => (+job.weekDays === 6 ? 25 : 21.66);
 
-/** Share of a day's pay for each sick day: { [absence id]: 0 | 0.5 | 1 }. Runs are consecutive dates. */
 export function sickShares(absences) {
   const sick = absences.filter(a => a.kind === 'sick').sort((a, b) => a.date < b.date ? -1 : 1);
   const out = {}; let prev = null, n = 0;
@@ -29,11 +18,6 @@ export function sickShares(absences) {
   return out;
 }
 
-/**
- * The day each absence takes its pay from: the first day of its run. One vacation (or one illness)
- * is paid at one daily rate, worked out from the three months before it began, so its days don't
- * drift apart as old shifts fall out of the window. A weekend in the middle doesn't end a run.
- */
 export function runStarts(absences) {
   const out = {};
   for (const kind of ['sick', 'vac']) {
@@ -47,10 +31,8 @@ export function runStarts(absences) {
   return out;
 }
 
-/** A day's pay for a vacation or sick day: the rate × the job's hours for a day, or (if the job says so)
-    the average pay (hours only: no travel, tips or bonus) per day worked in the 90 days before `date`. */
 export function dayValue(job, worked, date) {
-  if (job.leaveMode !== 'avg') return (+job.leaveHours || 8) * (+job.rate || 0);   // the usual way: a day of hours at the rate
+  if (job.leaveMode !== 'avg') return (+job.leaveHours || 8) * (+job.rate || 0);
   const t = +fromKey(date), from = t - 90 * DAY, days = new Map();
   for (const { start, base } of worked) {
     const s = +new Date(start); if (s < from || s >= t) continue;
@@ -61,10 +43,6 @@ export function dayValue(job, worked, date) {
   return sum / days.size;
 }
 
-/**
- * Sick and vacation balances on `today`.
- * worked: [{ start }] shifts of this job; absences: this job's [{ id, kind, date }].
- */
 export function balances(job, worked, absences, today = new Date()) {
   const end = new Date(today); end.setHours(23, 59, 59, 999);
   const workDays = new Set(worked.map(w => dateKey(w.start)));
@@ -84,7 +62,7 @@ export function balances(job, worked, absences, today = new Date()) {
     const next = new Date(m.getFullYear(), m.getMonth() + 1, 1);
     const used = sickByMonth.get(dateKey(m).slice(0, 7)) || 0;
     sickLeft -= used; sickUsed += used;
-    if (next <= end) {   // a month counts once it's over
+    if (next <= end) {
       const got = SICK_PER_MONTH * Math.min(1, daysIn(m, next) / fullMonthDays(job));
       sickAcc += got; sickLeft = Math.min(SICK_MAX, sickLeft + got);
     }
@@ -105,12 +83,6 @@ export function balances(job, worked, absences, today = new Date()) {
   };
 }
 
-/**
- * Recuperation pay (דמי הבראה): after a full year at a job, a number of days a year by seniority,
- * at the yearly day rate, in proportion to the job's share of full time over the last 12 months
- * (full time: 182 hours a month).
- * worked: [{ start, hours }]; R: { havraa: { [year]: rate }, havraaDays: [...] }.
- */
 export const FULL_MONTH_HOURS = 182;
 export function havraa(job, worked, R, today = new Date()) {
   const first = job.startDate || [...worked].map(w => dateKey(w.start)).sort()[0];

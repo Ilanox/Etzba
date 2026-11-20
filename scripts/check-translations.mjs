@@ -1,7 +1,3 @@
-// Finds every Hebrew text in the app and checks each language pack for it.
-//   npm run check:translations          → all languages
-//   npm run check:translations -- en    → one language
-// Writes languages/missing-<code>.txt, ready to paste into the pack.
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,33 +7,30 @@ const HEB = /[֐-׿]/;
 const { usePack, how, tr } = await import(join(root, 'js/translate.js'));
 const { LANGS, loadPack } = await import(join(root, 'languages/index.js'));
 
-/* 1. collect Hebrew texts from the code */
-const IGNORE = new Set(['אצבע', 'עברית']);   // never translated
-const found = new Map();                       // text → first place it appears
+const IGNORE = new Set(['אצבע', 'עברית']);
+const found = new Map();
 for (const f of readdirSync(join(root, 'js'))) {
   let src = readFileSync(join(root, 'js', f), 'utf8');
-  src = src.replace(/\/\* translations: skip-start[\s\S]*?translations: skip-end \*\//g, '');   // Hebrew-only parts
-  src = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/\s.*$/gm, '');                // comments
+  src = src.replace(/\/\* translations: skip-start[\s\S]*?translations: skip-end \*\//g, '');
+  src = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/\s.*$/gm, '');
   src.split('\n').forEach((line, i) => {
-    const flat = line.replace(/\$\{[^{}]*(\{[^{}]*\}[^{}]*)*\}/g, '{}');                     // ${…} → {}
+    const flat = line.replace(/\$\{[^{}]*(\{[^{}]*\}[^{}]*)*\}/g, '{}');
     for (let seg of flat.split(/[`'"<>]|\\n/)) {
-      // a ${…} at the very edge is usually an icon or tag beside the text, not part of it
       seg = seg.replace(/\s+/g, ' ').trim().replace(/^(\{\})+|(\{\})+$/g, '').trim();
       if (!HEB.test(seg) || seg.length > 400) continue;
-      if (/\.(csv|json|xls)$/.test(seg) || /[=;]|\/\[|\)\./.test(seg) || IGNORE.has(seg)) continue;   // file names, code, brand
-      if (/^[{}\s·:,.()\-–—/|+%₪0-9]*$/.test(seg.replace(/[֐-׿]/g, ''))) { /* fine */ }
+      if (/\.(csv|json|xls)$/.test(seg) || /[=;]|\/\[|\)\./.test(seg) || IGNORE.has(seg)) continue;
+      if (/^[{}\s·:,.()\-–—/|+%₪0-9]*$/.test(seg.replace(/[֐-׿]/g, ''))) {  }
       if (!found.has(seg)) found.set(seg, `${f}:${i + 1}`);
     }
   });
 }
 
-/* 2. check each pack */
 const only = process.argv[2];
 for (const L of LANGS.filter(l => l.code !== 'he' && (!only || l.code === only))) {
   const pack = await loadPack(L.code); usePack(pack);
   const missing = [], rough = [];
   for (const [text, where] of found) {
-    const sample = text.replace(/\{\}/g, '7');            // fill placeholders to test templates
+    const sample = text.replace(/\{\}/g, '7');
     const kind = how(sample);
     if (kind === 'exact' || kind === 'template') continue;
     (HEB.test(tr(sample)) ? missing : rough).push([text, where, tr(sample)]);

@@ -1,8 +1,3 @@
-// Installs the app on a phone connected by USB (USB debugging on).
-//   npm run install-apk        the test build (etzba.apk)
-//   npm run install-release    the Play build (etzba-<version>.apk), which installs over a Play/release install
-// A test build and a release build are signed with different keys: one can't be installed over the other
-// without uninstalling first (which deletes the app's data), so use the one that matches what's on the phone.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';

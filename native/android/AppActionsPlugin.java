@@ -9,10 +9,6 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
-/**
- * Things outside the app that open it with something to do (the home-screen widget, the arrival and
- * leaving notifications), and keeping the widget up to date with the running shift.
- */
 @CapacitorPlugin(name = "AppActions")
 public class AppActionsPlugin extends Plugin {
     static final String PREFS = "etzba_widget";
@@ -29,8 +25,6 @@ public class AppActionsPlugin extends Plugin {
         if (read(intent)) notifyListeners("action", pending, true);
     }
 
-    /** A random secret made once per install. Only the app's own widget and notifications know it, so another
-        app can't start or end a shift by opening the app with an action. (Developer unlock carries its own signature.) */
     static String token(android.content.Context ctx) {
         android.content.SharedPreferences p = ctx.getSharedPreferences("etzba_actions", android.content.Context.MODE_PRIVATE);
         String t = p.getString("token", null);
@@ -42,19 +36,18 @@ public class AppActionsPlugin extends Plugin {
         if (intent == null || intent.getStringExtra("etzba_action") == null) return false;
         String act = intent.getStringExtra("etzba_action");
         if (!"dev_unlock".equals(act) && !token(getContext()).equals(intent.getStringExtra("etzba_token"))) {
-            intent.removeExtra("etzba_action"); return false;   // not from this app: ignored
+            intent.removeExtra("etzba_action"); return false;
         }
         JSObject a = new JSObject();
         a.put("action", intent.getStringExtra("etzba_action"));
         a.put("jobId", intent.getStringExtra("etzba_job") != null ? intent.getStringExtra("etzba_job") : "");
-        a.put("sig", intent.getStringExtra("etzba_sig") != null ? intent.getStringExtra("etzba_sig") : "");   // developer mode, from npm run dev-unlock
+        a.put("sig", intent.getStringExtra("etzba_sig") != null ? intent.getStringExtra("etzba_sig") : "");
         pending = a;
         intent.removeExtra("etzba_action"); intent.removeExtra("etzba_sig"); intent.removeExtra("etzba_token");
         try { androidx.core.app.NotificationManagerCompat nm = androidx.core.app.NotificationManagerCompat.from(getContext()); nm.cancel(1); nm.cancel(2); } catch (Exception ignored) { }
         return true;
     }
 
-    /** The phone's Android ID, which developer-mode signatures are made for. */
     @PluginMethod
     public void deviceId(PluginCall call) {
         JSObject r = new JSObject();
@@ -69,7 +62,6 @@ public class AppActionsPlugin extends Plugin {
         call.resolve(r);
     }
 
-    /** The app's notification settings, to turn notifications back on. */
     @PluginMethod
     public void openNotificationSettings(PluginCall call) {
         Intent i = new Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
@@ -79,7 +71,6 @@ public class AppActionsPlugin extends Plugin {
         call.resolve();
     }
 
-    /** { active, start (ms), job, rate, rtl, segs: [[fromMs, perHour], …], labels: {…} } */
     @PluginMethod
     public void updateWidget(PluginCall call) {
         try {
@@ -100,7 +91,7 @@ public class AppActionsPlugin extends Plugin {
             EtzbaWidget.refresh(getContext());
             call.resolve();
         } catch (Exception ex) {
-            call.reject("widget: " + ex.getMessage());   // reported to the app's log, never a crash
+            call.reject("widget: " + ex.getMessage());
         }
     }
 }

@@ -30,13 +30,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Supporting the app: one-time payments through Google Play (in-app products, set up in Play Console).
- * Each amount is a permanent (non-consumable) product: it's acknowledged, never used up, so Google Play
- * keeps it on the account and the perks come back after a reinstall or on a new phone, with no server and no
- * account of ours. Each amount can be given once; the others are still there to give more.
- * Only looks are unlocked by paying.
- */
 @CapacitorPlugin(name = "Billing")
 public class BillingPlugin extends Plugin implements PurchasesUpdatedListener {
     private BillingClient client;
@@ -65,8 +58,6 @@ public class BillingPlugin extends Plugin implements PurchasesUpdatedListener {
         });
     }
 
-    /** A payment that went through while the app was closed (a pending one, paid later): acknowledge it and tell
-        the app. Play refunds a purchase that isn't acknowledged within three days. */
     private void consumeLeftovers() {
         client.queryPurchasesAsync(QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build(),
             (r, list) -> {
@@ -76,7 +67,6 @@ public class BillingPlugin extends Plugin implements PurchasesUpdatedListener {
             });
     }
 
-    /** The support amounts this Google account owns: { supported, owned: [ids] }. Restores the perks after a reinstall. */
     @PluginMethod
     public void owned(PluginCall call) {
         ready(() -> client.queryPurchasesAsync(QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build(),
@@ -89,13 +79,11 @@ public class BillingPlugin extends Plugin implements PurchasesUpdatedListener {
             }), why -> { JSObject o = new JSObject(); o.put("supported", false); o.put("owned", new JSArray()); o.put("error", why); call.resolve(o); });
     }
 
-    /** Checks for payments that finished while the app was closed (called when the app starts). */
     @PluginMethod
     public void restore(PluginCall call) {
         ready(() -> call.resolve(), why -> call.resolve());
     }
 
-    /** Prices as Google Play shows them in the person's country: { products: [{ id, price, micros }] }. */
     @PluginMethod
     public void products(PluginCall call) {
         JSArray ids = call.getArray("ids");
@@ -120,7 +108,6 @@ public class BillingPlugin extends Plugin implements PurchasesUpdatedListener {
         }, call::reject);
     }
 
-    /** Opens Google Play's payment sheet. Resolves { ok } once paid, { ok: false, cancelled } if the person backs out. */
     @PluginMethod
     public void buy(PluginCall call) {
         String id = call.getString("id", "");
@@ -136,10 +123,6 @@ public class BillingPlugin extends Plugin implements PurchasesUpdatedListener {
         }, call::reject);
     }
 
-    /**
-     * A supporter's app icon: 'default', 'gold', 'night', 'paper' or 'forest'. Each is an activity-alias in the
-     * manifest (scripts/native-setup.mjs); the chosen one is switched on first, so there's always one.
-     */
     @PluginMethod
     public void setIcon(PluginCall call) {
         String want = call.getString("name", "default");
@@ -163,8 +146,7 @@ public class BillingPlugin extends Plugin implements PurchasesUpdatedListener {
             for (Purchase p : list) {
                 if (p.getPurchaseState() == Purchase.PurchaseState.PURCHASED) { paid = true; acknowledge(p); }
             }
-            if (paid) notifyListeners("paid", new JSObject(), true);   // also when a pending payment completes later
-            // a pending payment (cash at a store, for example) finishes later; it's acknowledged then
+            if (paid) notifyListeners("paid", new JSObject(), true);
             finish(paid, false, paid ? null : "pending");
         } else if (code == BillingClient.BillingResponseCode.USER_CANCELED) finish(false, true, null);
         else finish(false, false, "purchase " + code + " " + r.getDebugMessage());

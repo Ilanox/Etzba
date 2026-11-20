@@ -1,5 +1,3 @@
-// אצבע — turn spreadsheet rows into shifts. Works with exports from other shift apps,
-// with אצבע's own CSV, and with hand-made sheets, by recognising column headers.
 
 /* translations: skip-start (column names to recognise in files, not shown) */
 const H = {
@@ -19,7 +17,6 @@ const H = {
 /* translations: skip-end */
 const norm = s => String(s ?? '').trim().toLowerCase().replace(/[״"]/g, '"').replace(/\s+/g, ' ');
 
-/** Find the header row (the first row with both an entry and an exit column) and map columns. */
 export function findColumns(rows) {
   for (let r = 0; r < Math.min(rows.length, 30); r++) {
     const cells = rows[r].map(norm), map = {};
@@ -42,20 +39,17 @@ const num = v => {
   if (!s || s === '-' || s === '—') return null;
   const n = parseFloat(s); return isNaN(n) ? null : n;
 };
-/** "16:20" | "8:5" | 0.68 (Excel day fraction) | "24:00" → minutes after midnight */
 export function parseTime(v) {
   if (typeof v === 'number') { const f = v % 1; return Math.round(f * 1440); }
   const m = /^\s*(\d{1,2})[:.](\d{2})(?::\d{2})?\s*$/.exec(String(v ?? ''));
   return m ? +m[1] * 60 + +m[2] : null;
 }
-/** "08:13" | "8.25" | 0.34 (day fraction) → hours */
 function parseHours(v) {
   if (typeof v === 'number') return v < 1 ? v * 24 : v;
   const s = String(v ?? '').trim(); if (!s || s === '-') return null;
   const m = /^(\d+):(\d{2})$/.exec(s); if (m) return +m[1] + +m[2] / 60;
   const n = parseFloat(s.replace(',', '.')); return isNaN(n) ? null : n;
 }
-/** Returns {d, m, y|null} or null. Accepts d/m, d/m/yy, d/m/yyyy, d.m.yyyy, yyyy-mm-dd, Excel serials. */
 export function parseDate(v) {
   if (typeof v === 'number' && v > 59 && v < 80000) { const t = new Date(Date.UTC(1899, 11, 30) + Math.floor(v) * 864e5); return { d: t.getUTCDate(), m: t.getUTCMonth() + 1, y: t.getUTCFullYear() }; }
   const s = String(v ?? '').trim();
@@ -73,7 +67,6 @@ export function guessYear(...hints) {
 const pad = n => String(n).padStart(2, '0');
 const localISO = (y, mo, d, min) => { const t = new Date(y, mo - 1, d, Math.floor(min / 60), min % 60); return t.toISOString(); };
 
-/** Read the summary block some apps put under the table ("שעות עבודה: 904:04", "שכר חודשי: 42,152.69"). */
 function readSummary(rows, from) {
   const out = {};
   for (let r = from; r < rows.length; r++) {
@@ -90,10 +83,6 @@ function readSummary(rows, from) {
   return out;
 }
 
-/**
- * rows → { shifts:[{start,end,breakMin,rate?,travel?,bonus,tips?,note}], skippedEmpty, skippedBad:[{row,why}], years, needsYear, summary, map }
- * opts: { year } used when dates have no year; months running backwards roll the year forward.
- */
 export function rowsToShifts(rows, opts = {}) {
   const found = findColumns(rows);
   if (!found) return { error: 'לא מצאתי עמודות של תאריך, כניסה ויציאה בקובץ.' };
@@ -104,23 +93,23 @@ export function rowsToShifts(rows, opts = {}) {
     const row = rows[r], cell = k => map[k] != null ? row[map[k]] : '';
     if (!row.some(c => c !== '' && c != null)) continue;
     const date = parseDate(cell('date'));
-    if (!date) { if (shifts.length || skippedEmpty) break; else continue; } // the table ended (summary rows below)
+    if (!date) { if (shifts.length || skippedEmpty) break; else continue; }
     lastRow = r;
     if (date.y == null) { needsYear = true; if (prevMonth != null && date.m < prevMonth - 6) year++; prevMonth = date.m; }
     const y = date.y ?? year;
     const a = parseTime(cell('in')), b = parseTime(cell('out')), hrs = parseHours(cell('hours'));
     if (a == null || b == null) { skippedBad.push({ row: r + 1, why: 'שעה לא מובנת' }); continue; }
-    if (a === b && (!hrs || hrs === 0)) { skippedEmpty++; continue; } // 00:00–00:00: a day with no work (sick, holiday)
+    if (a === b && (!hrs || hrs === 0)) { skippedEmpty++; continue; }
     let endDay = { ...date, y };
     const od = map.outDate != null ? parseDate(cell('outDate')) : null;
     const start = localISO(y, date.m, date.d, a);
     let end;
     if (od) end = localISO(od.y ?? y, od.m, od.d, b);
-    else { end = localISO(y, date.m, date.d, b); if (b <= a) end = new Date(+new Date(end) + 864e5).toISOString(); } // exit before entry → next day
+    else { end = localISO(y, date.m, date.d, b); if (b <= a) end = new Date(+new Date(end) + 864e5).toISOString(); }
     const span = (new Date(end) - new Date(start)) / 6e4;
     if (span <= 0 || span > 24 * 60) { skippedBad.push({ row: r + 1, why: 'משך לא הגיוני' }); continue; }
     let breakMin = num(cell('breakMin')) ?? 0;
-    if (!breakMin && hrs != null && span - hrs * 60 >= 1) breakMin = Math.round(span - hrs * 60); // the file already took a break off
+    if (!breakMin && hrs != null && span - hrs * 60 >= 1) breakMin = Math.round(span - hrs * 60);
     const sh = { start, end, breakMin, bonus: (num(cell('bonus')) ?? 0) - (num(cell('deduct')) ?? 0), note: (() => { const n = String(cell('note') ?? '').trim(); return n === '-' ? '' : n; })() };
     const rate = num(cell('rate')); if (rate != null) sh.rate = rate;
     if (map.travel != null) sh.travel = num(cell('travel')) ?? 0;

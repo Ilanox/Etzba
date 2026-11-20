@@ -1,13 +1,3 @@
-// Early access: when a feature opens to supporters and when to everyone. The app reads
-// etzba.ilanox.dev/data/early.json whenever it's opened (no app update, no rules update),
-// and tells anyone who was waiting once it opens for them.
-//
-//   npm run early                                 what's in early access and when it opens
-//   npm run early recap 2026-12-07                everyone on that date (supporters: right away)
-//   npm run early recap supporters 2026-12-01     supporters from that date
-//   npm run early recap all 2026-12-07            everyone from that date
-//   ... now | off instead of a date                open today / no date yet
-//   add --no-push to only edit the file
 import { readFileSync, writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 
@@ -43,7 +33,7 @@ if (push) {
   const sh = c => execSync(c, { stdio: 'inherit' });
   try {
     sh(`git add ${FILE}`);
-    let same = false; try { execSync(`git diff --cached --quiet -- ${FILE}`); same = true; } catch { /* there's a change */ }
+    let same = false; try { execSync(`git diff --cached --quiet -- ${FILE}`); same = true; } catch {  }
     if (same) console.log('Already set that way here; making sure the site has it.');
     else sh(`git commit -qm "Early access: ${name} ${who} ${when === 'off' ? 'off' : date}" -- ${FILE}`);
     sh('git pull --rebase --autostash -q origin main');

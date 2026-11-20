@@ -1,7 +1,3 @@
-// אצבע — yearly figures (minimum wage, election days, tax tables).
-// Built in so the app works fully offline from the first launch. When there's internet, at most once a
-// day, the newest data/rules.json is fetched from the project's GitHub Pages and kept on the phone;
-// it only replaces the built-in figures if its version is newer and it passes a sanity check.
 import { setElectionDays, setMinWage } from './pay-engine.js';
 import { setTaxTables } from './net-pay.js';
 import * as dbg from './diagnostics.js';
@@ -15,16 +11,15 @@ export const BUILT_IN = {
   minWage: [{ from: '2025-04-01', hourly: 34.32 }, { from: '2026-04-01', hourly: 35.40 }],
   elections: [{ date: '2026-10-27', name: 'בחירות לכנסת' }],
   travelMaxDaily: 22.6,
-  early: { recap: '2099-12-31' },   // early access: supporters get these now, everyone else from the date
-  havraa: { 2025: 418, 2026: 451.5 },      // a recuperation day, private sector (extension order)
-  havraaDays: [5, 6, 6, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 9, 9, 9, 9, 10],   // days a year after 1, 2, … 20+ years
+  early: { recap: '2099-12-31' },
+  havraa: { 2025: 418, 2026: 451.5 },
+  havraaDays: [5, 6, 6, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 9, 9, 9, 9, 10],
   tax: {
     2026: {
       brackets: [[7010, .10], [10060, .14], [19000, .20], [25100, .31], [46690, .35], [null, .47]],
       surtaxFrom: 60130, surtaxRate: .03, pointValue: 242, blLow: 7703, blMax: 51910,
       niLow: .0104, niHigh: .07, hLow: .0323, hHigh: .0517, erLow: .0451, erHigh: .076, pensionCreditCap: 9700,
     },
-    // 2027: brackets, credit points and surtax stay frozen (2025–2027 freeze); National Insurance bands update in January
     2027: {
       brackets: [[7010, .10], [10060, .14], [19000, .20], [25100, .31], [46690, .35], [null, .47]],
       surtaxFrom: 60130, surtaxRate: .03, pointValue: 242, blLow: 7703, blMax: 51910,
@@ -36,7 +31,6 @@ export const BUILT_IN = {
 let current = BUILT_IN;
 export const rules = () => current;
 
-/** Throws if a rules file looks wrong, so a bad upload can never break pay calculations. */
 export function validate(r) {
   const num = (x, lo, hi) => typeof x === 'number' && isFinite(x) && x >= lo && x <= hi;
   if (!r || typeof r !== 'object' || !Number.isInteger(r.version)) throw new Error('version');
@@ -52,7 +46,6 @@ export function validate(r) {
   return r;
 }
 
-/** Puts a rules object into effect everywhere it's used. */
 export function apply(r) {
   current = r;
   const today = new Date().toISOString().slice(0, 10);
@@ -62,15 +55,13 @@ export function apply(r) {
   setTaxTables(Object.fromEntries(Object.entries(r.tax).map(([y, t]) => [y, { ...t, brackets: t.brackets.map(([c, rate]) => [c === null ? Infinity : c, rate]) }])));
 }
 
-/** At startup: built-in figures, or a newer copy saved from an earlier check. */
 export function loadRules() {
   let r = BUILT_IN;
-  try { const saved = JSON.parse(localStorage.getItem(KEY) || 'null'); if (saved && saved.version > r.version) r = validate(saved); } catch { /* keep built-in */ }
+  try { const saved = JSON.parse(localStorage.getItem(KEY) || 'null'); if (saved && saved.version > r.version) r = validate(saved); } catch {  }
   apply(r);
   return r;
 }
 
-/** When online, at most once a day: fetch the newest rules. Calls onChange(rules) if they changed. */
 export async function checkForUpdates(onChange, { force = false } = {}) {
   try {
     if (!navigator.onLine) return false;

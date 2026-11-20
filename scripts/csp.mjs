@@ -1,5 +1,3 @@
-// The website's content security policy lists each inline <script> by its hash. After changing one,
-// run `npm run csp` to refresh the hashes in index.html and site/index.html (the tests check them).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';

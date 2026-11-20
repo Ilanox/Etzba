@@ -1,10 +1,3 @@
-// Turns on developer mode on the connected phone, without any code inside the app.
-//   npm run dev-unlock
-//
-// The first run makes a key pair: the private key stays on this computer (~/.etzba/dev-key.pem, never in
-// the project), and the public key is written to js/dev-key.js. Rebuild and install the app once after that.
-// Every run then signs the connected phone's Android ID and opens the app with the signature; the app checks
-// it with the public key. A signature only works on the phone it was made for.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from 'node:fs';
 import { createPrivateKey, createPublicKey, generateKeyPairSync, sign } from 'node:crypto';
@@ -23,7 +16,7 @@ else {
   mkdirSync(dir, { recursive: true });
   ({ privateKey: priv } = generateKeyPairSync('ec', { namedCurve: 'P-256' }));
   writeFileSync(keyFile, priv.export({ type: 'pkcs8', format: 'pem' }));
-  try { chmodSync(keyFile, 0o600); } catch { /* Windows */ }
+  try { chmodSync(keyFile, 0o600); } catch {  }
   console.log(`Made a new developer key: ${keyFile}\nKeep it private, and back it up: without it, developer mode can't be turned on again.`);
 }
 const jwk = createPublicKey(priv).export({ format: 'jwk' });

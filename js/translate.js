@@ -1,13 +1,9 @@
-// אצבע — translation engine. The app is written in Hebrew; in another language every Hebrew text
-// that reaches the screen is swapped through that language's pack (lang/<code>.js).
-// The engine knows nothing about any one language: all wording lives in the packs.
 const HEB = /[֐-׿]/;
 const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const squash = s => s.replace(/\s+/g, ' ').trim();
 
 let EXACT = new Map(), TPL = [], RULES = [], POLISH = [], PACK = null;
 
-/** Make a pack the active one (null = Hebrew, nothing to translate). */
 export function usePack(pack) {
   PACK = pack; CACHE.clear();
   EXACT = new Map(); TPL = []; RULES = []; POLISH = [];
@@ -16,17 +12,13 @@ export function usePack(pack) {
   // 1. whole text: phrases first, then single words/terms
   for (const [he, t] of Object.entries(words)) EXACT.set(squash(he), t);
   for (const [he, t] of Object.entries(phrases)) EXACT.set(squash(he), t);
-  // 2. sentences with numbers or names: "{}" matches anything; {1}, {2}… put them back
   TPL = (pack.templates || []).map(([he, t]) => [new RegExp('^' + squash(he).split('{}').map(esc).join('(.+?)') + '$'), t]);
-  // 3. last resort: known words inside a longer text (capture group, not lookbehind: older phones reject it)
   RULES = Object.entries(words).sort((a, b) => b[0].length - a[0].length)
     .map(([he, t]) => [new RegExp('(^|[^\\u0590-\\u05FF])' + esc(he) + '(?=[^\\u0590-\\u05FF]|$)', 'g'), t]);
   // 4. language-specific clean-up after the swap
   POLISH = pack.polish || [];
 }
-export const activePack = () => PACK;
 
-/** A separate translator for one pack, independent of the active one (used for the screen reader's language). */
 export function translator(pack) {
   if (!pack) return s => s;
   const words = pack.words || {}, phrases = pack.phrases || {}, ex = new Map(), cache = new Map();
@@ -64,7 +56,6 @@ function trInner(s) {
   for (const [re, t] of RULES) { out = out.replace(re, (_, pre) => pre + t); if (!HEB.test(out)) break; }
   return out;
 }
-/** For tests: which path translated a string ('exact' | 'template' | 'words' | 'none'). */
 export function how(s) {
   if (!s || !HEB.test(s)) return 'none';
   const k = squash(s); if (EXACT.has(k)) return 'exact';
@@ -75,7 +66,7 @@ export function tr(s) {
   if (!PACK || !s || !HEB.test(s)) return s;
   let v = CACHE.get(s);
   if (v === undefined) {
-    try { v = polish(trInner(s)); } catch { v = s; }   // a translation problem must never break the app
+    try { v = polish(trInner(s)); } catch { v = s; }
     const lead = /^\s*/.exec(s)[0], trail = /\s*$/.exec(s)[0];
     v = lead + v + trail;
     if (CACHE.size > 4000) CACHE.clear();
@@ -84,15 +75,12 @@ export function tr(s) {
   return v;
 }
 
-/* Originals are remembered so switching back to Hebrew restores the exact text. */
 const ORIG = new WeakMap(), ORIG_ATTR = new WeakMap();
-/* What we wrote last, per node: our own change also reaches the observer, and must not be translated again
-   (a text that keeps some Hebrew, like a name, would otherwise be rewritten forever and freeze the app). */
 const MINE = new WeakMap(), MINE_ATTR = new WeakMap();
 function setAttr(el, a, v) {
   const mine = MINE_ATTR.get(el) || {};
-  if (mine[a] === v) return;                       // our own write coming back
-  const t = tr(v); if (t === v) return;            // nothing to change: don't touch it (touching fires the observer)
+  if (mine[a] === v) return;
+  const t = tr(v); if (t === v) return;
   const o = ORIG_ATTR.get(el) || {}; o[a] = v; ORIG_ATTR.set(el, o);
   mine[a] = t; MINE_ATTR.set(el, mine);
   el.setAttribute(a, t);
@@ -134,4 +122,3 @@ export function stopTranslating() {
 }
 
 // older names
-export const startEnglish = startTranslating, stopEnglish = stopTranslating;

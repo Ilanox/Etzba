@@ -33,14 +33,6 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
-/**
- * Home-screen widget, in the app's own look: the home screen's fingerprint dial (it's the button: tap to clock
- * in or out), a thin running timer, the pay so far, one status line and a thin bar that fills up to overtime.
- * Sizes: 2×1, 4×1 (default) and 4×2. Colours come from the app's current theme.
- *
- * The timer is ticked by Android itself. The dial, pay and bar are redrawn when the app changes something,
- * and about every 15 minutes while on shift, with an alarm that never wakes the phone.
- */
 public class EtzbaWidget extends AppWidgetProvider {
     static final String TICK = "com.edvinstudios.etzba.WIDGET_TICK";
 
@@ -63,7 +55,6 @@ public class EtzbaWidget extends AppWidgetProvider {
     @Override
     public void onDisabled(Context ctx) { schedule(ctx, false); }
 
-    /** Redraws every widget. Never throws: a widget problem must not close the app. */
     static void refresh(Context ctx) {
         try {
             AppWidgetManager mgr = AppWidgetManager.getInstance(ctx);
@@ -99,7 +90,6 @@ public class EtzbaWidget extends AppWidgetProvider {
 
     private enum Size { SMALL, TALL, TALLER, WIDE, LARGE }
 
-    /** Everything the app last sent, plus what follows from the clock right now. */
     private static final class State {
         final boolean active, rtl, otOn, running;
         final long start, now;
@@ -115,7 +105,7 @@ public class EtzbaWidget extends AppWidgetProvider {
             start = p.getLong("start", 0L);
             now = System.currentTimeMillis();
             String jn = p.getString("job", "");
-            job = jn.isEmpty() ? "" : "\u2068" + jn + "\u2069";   // isolated: a Hebrew name inside English (or the reverse) stays in order
+            job = jn.isEmpty() ? "" : "\u2068" + jn + "\u2069";
             rate = Double.longBitsToDouble(p.getLong("rate", 0L));
             l = obj(p.getString("labels", "{}"));
             JSONObject x = obj(p.getString("extra", "{}"));
@@ -124,14 +114,13 @@ public class EtzbaWidget extends AppWidgetProvider {
             thr = x.optDouble("thr", 8.6);
             ot1h = x.optDouble("ot1", 2);
             otOn = x.optBoolean("otOn", true);
-            style = x.optString("wstyle", "classic");   // supporters: classic | glass | bold | accent
+            style = x.optString("wstyle", "classic");
             JSONArray sg;
             try { sg = new JSONArray(p.getString("segs", "[]")); } catch (Exception e) { sg = new JSONArray(); }
             segs = sg;
             running = active && start <= now;
             hours = running ? (now - start) / 3.6e6 : 0;
             earned = running ? earned(p, now) : 0;
-            // the same three phases as the app's dial: regular, first overtime, beyond
             if (!running) { phase = "idle"; frac = 0; }
             else if (!otOn || hours < thr) { phase = "reg"; frac = hours / thr; }
             else if (hours < thr + ot1h) { phase = "ot1"; frac = (hours - thr) / Math.max(ot1h, 0.01); }
@@ -151,7 +140,6 @@ public class EtzbaWidget extends AppWidgetProvider {
                 default: return muted();
             }
         }
-        /** The lighter end of the phase colour, for text and the bar (easier to read on the dark card). */
         int phaseText() {
             switch (phase) {
                 case "ot1": return c("ot1b", 0xFFF06A50);
@@ -160,7 +148,6 @@ public class EtzbaWidget extends AppWidgetProvider {
                 default: return muted();
             }
         }
-        /** The label of the rate in force right now, from the app's timeline. */
         String nowLabel() {
             String out = "";
             try {
@@ -173,7 +160,6 @@ public class EtzbaWidget extends AppWidgetProvider {
     private static RemoteViews build(Context ctx, State s, Size size) {
         String pkg = ctx.getPackageName();
         String layout = size == Size.SMALL ? "etzba_widget_small" : size == Size.TALL || size == Size.TALLER ? "etzba_widget_tall" : size == Size.LARGE ? "etzba_widget_large" : "etzba_widget";
-        // small and tall have no amount, bar or top lines: touching a view a layout doesn't have breaks the whole widget
         final boolean compact = size == Size.SMALL || size == Size.TALL || size == Size.TALLER;
         final boolean tall = size == Size.TALL || size == Size.TALLER;
         RemoteViews v = new RemoteViews(pkg, res(ctx, layout, "layout"));
@@ -185,7 +171,6 @@ public class EtzbaWidget extends AppWidgetProvider {
 
         // direction and colours follow the app
         v.setInt(root, "setLayoutDirection", s.rtl ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
-        // supporters' styles: see-through, big numbers, or the theme's color as the background
         int bg = s.c("surface", 0xFF1D1F23);
         if (s.style.equals("glass")) bg = (bg & 0x00FFFFFF) | 0x8C000000;
         if (s.style.equals("accent")) bg = s.c("accent", bg);
@@ -193,7 +178,6 @@ public class EtzbaWidget extends AppWidgetProvider {
         int ink = s.ink(), muted = s.muted(), pc = s.phaseText();
         if (s.style.equals("accent")) { ink = s.c("bg", 0xFF141518); muted = (ink & 0x00FFFFFF) | 0xB3000000; pc = ink; }
         if (s.style.equals("bold")) {
-            // a little bigger than each layout's own sizes (small 21, standard 32/19, large 46/24), so nothing is cut off
             v.setTextViewTextSize(timer, android.util.TypedValue.COMPLEX_UNIT_SP, size == Size.SMALL ? 24 : tall ? 30 : size == Size.LARGE ? 54 : 36);
             if (!compact) v.setTextViewTextSize(amt, android.util.TypedValue.COMPLEX_UNIT_SP, size == Size.LARGE ? 28 : 21);
         }
@@ -239,7 +223,7 @@ public class EtzbaWidget extends AppWidgetProvider {
             }
         } else {
             v.setChronometer(timer, SystemClock.elapsedRealtime(), null, false);
-            boolean later = s.active;   // clocked in for a time that hasn't come yet
+            boolean later = s.active;
             String head = later ? l.optString("starts", "מתחילה ב־") + hhmm : l.optString("idle", "לא במשמרת");
             switch (size) {
                 case SMALL: case TALL: case TALLER:
@@ -248,7 +232,6 @@ public class EtzbaWidget extends AppWidgetProvider {
                     v.setTextViewText(line, l.optString("tapShort", "נגיעה להתחלה"));
                     break;
                 case WIDE:
-                    // one line of title only: the rate moves to the line below, so the two never run into each other
                     v.setViewVisibility(timer, View.GONE); v.setViewVisibility(title, View.VISIBLE);
                     v.setTextViewText(title, head);
                     v.setViewVisibility(amt, View.GONE);
@@ -281,7 +264,6 @@ public class EtzbaWidget extends AppWidgetProvider {
             } else v.setViewVisibility(month, View.GONE);
         }
 
-        // the thin bar: how far to overtime (full and in the overtime colour once it's started)
         if (!compact) {
             if (s.running && s.otOn) {
                 double f = s.phase.equals("reg") ? Math.min(1, s.frac) : 1;
@@ -299,12 +281,10 @@ public class EtzbaWidget extends AppWidgetProvider {
         return v;
     }
 
-    /* ---------- the dial: the same drawing as the app's home screen (js/app.js punchSVG + js/svg-icons.js ridges) ---------- */
-
     private static Bitmap dialBitmap(State s, int px) {
         Bitmap b = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(b);
-        float k = px / 200f;            // the app draws in a 200×200 box
+        float k = px / 200f;
         c.scale(k, k);
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
 
@@ -312,7 +292,7 @@ public class EtzbaWidget extends AppWidgetProvider {
         p.setStyle(Paint.Style.FILL); p.setColor(s.c("bg", 0xFF141518)); c.drawCircle(100, 100, 99, p);
         p.setStyle(Paint.Style.STROKE);
         boolean on = s.running;
-        boolean gold = s.theme.has("ring");   // supporters: a ring in the theme's color when not on shift (gold in the gold theme)
+        boolean gold = s.theme.has("ring");
         p.setStrokeWidth(on ? 4f : gold ? 3f : 1.5f); p.setColor(on ? s.phaseColor() : gold ? s.c("ring", 0xFFD9A93F) : s.c("line", 0xFF2E3036));
         c.drawCircle(100, 100, on ? 97.5f : gold ? 98f : 98.5f, p);
         p.setStyle(Paint.Style.FILL); p.setColor(s.c("surface", 0xFF1D1F23)); c.drawCircle(100, 100, 90, p);
@@ -357,10 +337,9 @@ public class EtzbaWidget extends AppWidgetProvider {
     private static Shader grad(State s, String phase) {
         String a = phase.equals("ot1") ? "ot1" : phase.equals("ot2") ? "ot2" : "reg";
         int ca = s.c(a + "a", 0xFF6E98E0), cb = s.c(a + "b", ca);
-        return new LinearGradient(0, 100, 100, 0, ca, cb, Shader.TileMode.CLAMP);   // bottom-left to top-right, like the app
+        return new LinearGradient(0, 100, 100, 0, ca, cb, Shader.TileMode.CLAMP);
     }
 
-    /** Ridge arcs as {cx, cy, rx, ry, a0, a1} (degrees), in the order the app fills them. */
     private static float[][] ridgeArcs() {
         java.util.List<float[]> out = new java.util.ArrayList<>();
         float cx = 50, cy = 52, step = 6.2f, start = 6.5f;
@@ -399,7 +378,6 @@ public class EtzbaWidget extends AppWidgetProvider {
         return sum;
     }
 
-    /** The thin bottom bar, filling from the reading start (right in Hebrew). */
     private static Bitmap barBitmap(double f, int color, int track, boolean rtl) {
         int w = 400, h = 4;
         Bitmap b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
@@ -412,7 +390,6 @@ public class EtzbaWidget extends AppWidgetProvider {
         return b;
     }
 
-    /** Gross pay so far: each stretch of the shift at its own rate (segs: [[fromMs, perHour, label], …]). */
     static double earned(SharedPreferences p, long now) {
         try {
             JSONArray segs = new JSONArray(p.getString("segs", "[]"));
@@ -429,7 +406,6 @@ public class EtzbaWidget extends AppWidgetProvider {
         }
     }
 
-    /** About every 15 minutes while on shift, only when the phone is awake anyway. */
     private static void schedule(Context ctx, boolean on) {
         AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
         if (am == null) return;
@@ -439,7 +415,6 @@ public class EtzbaWidget extends AppWidgetProvider {
         if (on) am.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + AlarmManager.INTERVAL_FIFTEEN_MINUTES,
             AlarmManager.INTERVAL_FIFTEEN_MINUTES, pi);
         else am.cancel(pi);
-        // and right when the rate changes (overtime, Shabbat starts), so the widget switches to 150% on time
         PendingIntent at = PendingIntent.getBroadcast(ctx, 79, new Intent(ctx, EtzbaWidget.class).setAction(TICK), flags);
         am.cancel(at);
         if (!on) return;

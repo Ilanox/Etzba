@@ -1,5 +1,3 @@
-// Runs the app locally: node scripts/serve.mjs  (or npm start)
-// No packages needed. Open the printed address in a browser; the "phone" address works on the same Wi-Fi.
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { join, extname, normalize, dirname } from 'node:path';

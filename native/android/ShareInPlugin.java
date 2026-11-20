@@ -15,10 +15,6 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 
-/**
- * Receives .xls / .xlsx / .csv files shared to אצבע (Share menu) or opened with it ("Open with").
- * The web app calls take() at launch, and listens for "shared" while it is running.
- */
 @CapacitorPlugin(name = "ShareIn")
 public class ShareInPlugin extends Plugin {
     private static final int MAX_BYTES = 20 * 1024 * 1024;
@@ -62,7 +58,6 @@ public class ShareInPlugin extends Plugin {
             r.put("name", nameOf(uri));
             r.put("data", Base64.encodeToString(buf.toByteArray(), Base64.NO_WRAP));
             pending = r;
-            // handled: don't import the same file again if the activity is recreated
             intent.setAction(Intent.ACTION_MAIN);
             intent.setData(null);
             intent.removeExtra(Intent.EXTRA_STREAM);

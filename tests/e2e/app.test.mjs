@@ -250,7 +250,7 @@ test('English with a Hebrew job name never freezes (translating its own output i
 test('Android: switching to English updates every widget text', async () => {
   const { page, ctx, errors } = await open({ native: true });
   await page.click('#punchBtn'); await wait(page, 500);
-  await page.click('[data-v=set]'); await wait(page); await page.click('#s-lang [data-l=en]'); await wait(page, 800);
+  await page.click('[data-v=set]'); await wait(page); await page.evaluate(() => document.querySelector('#s-lang').closest('details').open = true); await page.click('#s-lang [data-l=en]'); await wait(page, 800);
   const w = await page.evaluate(() => __calls.filter(c => c.n === 'AppActions' && c.m === 'updateWidget').at(-1).a);
   assert.equal(w.rtl, false);
   const texts = [w.extra.month.name, ...w.segs.map(s => s[2]), ...Object.values(w.labels)].join(' ');
@@ -441,5 +441,20 @@ test('future shift: a past one asks if it was worked: yes asks for the end, no m
   assert.ok(await page.locator('#sheet.on').count(), 'asks when it ended');
   st = await state();
   assert.equal(st.shifts.length, 2); assert.ok(new Date(st.shifts[1].end) > new Date(st.shifts[1].start), 'a usual-length guess until corrected');
+  assert.deepEqual(errors, []); await ctx.close();
+});
+
+test('net pay can be turned off: gross everywhere instead', async () => {
+  const { page, ctx, errors, state } = await open();
+  await startedAgo(page, 4); await page.click('#punchBtn'); await wait(page, 500); await page.click('#pd-ok'); await wait(page, 400);
+  await page.click('[data-v=set]'); await wait(page);
+  await page.click('label:has(#s-net)'); await wait(page, 500);
+  assert.equal((await state()).settings.net, false);
+  assert.equal(await page.locator('#s-sex').count(), 0, 'tax details hidden');
+  assert.match(await page.locator('#chipNet').innerText(), /ברוטו החודש/);
+  await page.click('[data-v=sum]'); await wait(page, 600);
+  assert.match(await page.locator('.hero small').first().innerText(), /^ברוטו ל/);
+  assert.equal(await page.locator('.hero .stack').count(), 0, 'no deductions bar');
+  assert.doesNotMatch(await page.locator('#steps').innerText(), /מס הכנסה|נכנס לחשבון/);
   assert.deepEqual(errors, []); await ctx.close();
 });

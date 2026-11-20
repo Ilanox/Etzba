@@ -1,8 +1,7 @@
 // אצבע — shift pay engine. Each job (workplace) carries its own rules.
 import { restWindows, holidaysOfGregorianYear } from './hebrew-calendar.js';
 
-/** Updated from js/rules.js (built-in figures, or newer ones fetched when online). */
-export let MIN_WAGE_HOURLY = 35.40; // from 1.4.2026
+export let MIN_WAGE_HOURLY = 35.40;
 export function setMinWage(v) { MIN_WAGE_HOURLY = v; }
 
 export function defaultJob(name = 'עבודה') {
@@ -10,36 +9,36 @@ export function defaultJob(name = 'עבודה') {
     id: (globalThis.crypto?.randomUUID?.() ?? String(Date.now() + Math.random())),
     name, color: '#E4572E',
     rate: 40,
-    otOn: true,               // weekday overtime tiers on/off
-    shabbatOn: true,          // Shabbat premium on/off
-    weekDays: 5,              // 5 or 6 day work week
-    regHours: 8.6,            // regular day before overtime
-    shortDay: 4,              // the "short day" of the week (Thu for 5-day, Fri for 6-day)
+    otOn: true,
+    shabbatOn: true,
+    weekDays: 5,
+    regHours: 8.6,
+    shortDay: 4,
     shortHours: 7.6,
-    weeklyRule: true,         // overtime also above X regular hours per week
+    weeklyRule: true,
     weeklyLimit: 42,
-    nightRule: true,          // ≥2h between 22:00–06:00 → shorter day
+    nightRule: true,
     nightRegHours: 7,
-    ot1Hours: 2,              // hours at first overtime tier
+    ot1Hours: 2,
     r: { reg: 100, ot1: 125, ot2: 150, rest: 150, restOt1: 175, restOt2: 200, chag: 150, chagOt1: 175, chagOt2: 200, elect: 200, electOt1: 250, electOt2: 300 },
-    election: true,           // Knesset election day: 200% by accepted practice (250% / 300% overtime)
-    restMode: 'city',         // 'city' (candle lighting → havdalah) | 'fixed'
+    election: true,
+    restMode: 'city',
     fixedStart: { day: 5, time: '16:00' },
     fixedEnd: { day: 0, time: '04:00' },
     chag: true,
     holidayPay: false,
     holidayPayHours: 8,
     travel: 0,
-    travelMode: 'day',        // 'day': once per work day (by law) | 'shift': every shift
-    travelMonthCap: 0,        // monthly pass price; travel for the month never goes above it (0 = none)
+    travelMode: 'day',
+    travelMonthCap: 0,
     breakMin: 0,
-    tipsOn: false,            // show a tips field on shifts
-    tipsMode: 'own',          // 'own': tips are yours, on top of pay | 'wage': through the employer, topped up to the hourly rate
-    startDate: '',            // first day at this job (YYYY-MM-DD), for sick and vacation days; empty = first shift
-    vacDays: 0,               // vacation days for a full year; 0 = by law for the work week
-    leaveMode: 'hours',       // a vacation or sick day's pay: 'hours' = rate × leaveHours | 'avg' = average day of the 3 months before
+    tipsOn: false,
+    tipsMode: 'own',
+    startDate: '',
+    vacDays: 0,
+    leaveMode: 'hours',
     leaveHours: 8,
-    havraaMode: 'year',       // recuperation pay: 'year' = once a year (shown, not added to pay) | 'month' = a twelfth every month
+    havraaMode: 'year',
   };
 }
 
@@ -53,8 +52,6 @@ export const TIER_NAME = {
   reg: 'שעות רגילות', ot1: 'שעות נוספות', ot2: 'שעות נוספות', rest: 'שבת', restOt1: 'נוספות בשבת', restOt2: 'נוספות בשבת', chag: 'חג', chagOt1: 'נוספות בחג', chagOt2: 'נוספות בחג', elect: 'יום בחירות', electOt1: 'נוספות ביום בחירות', electOt2: 'נוספות ביום בחירות', special: 'תעריף מיוחד',
 };
 
-/* Knesset election days are a paid day off (שבתון). Working one is paid 200% by accepted practice
-   (not written in law), with overtime at 250% / 300%. The whole calendar day counts. */
 export let ELECTION_DAYS = ['2026-10-27'];
 export function setElectionDays(list) { ELECTION_DAYS = list.slice(); PAY_CACHE.clear(); }
 const ELECTION_NAME = 'יום הבחירות';
@@ -69,15 +66,9 @@ function electionWindows(start, end) {
 
 export function weekStart(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - x.getDay()); return x; }
 
-/**
- * Minute-level split of a shift into pay tiers.
- * weekRegBefore = regular hours already worked this week (same job), for the 42h rule.
- */
 export function shiftPay(sh, job, place, weekRegBefore = 0) {
   const start = new Date(sh.start), end = new Date(sh.end);
   const total = Math.max(0, Math.round((end - start) / 6e4));
-  // An unpaid break is a block of whole minutes in the middle of the shift: it isn't work time, so it
-  // doesn't count towards overtime, and every paid minute is a whole minute at one rate.
   const brk = Math.min(total, Math.max(0, Math.round(+sh.breakMin || 0)));
   const paid = total - brk, bs = Math.floor((total - brk) / 2), be = bs + brk, f = 1;
   const off = sh.forceRest === false;
@@ -87,7 +78,6 @@ export function shiftPay(sh, job, place, weekRegBefore = 0) {
   const elWins = off || job.election === false ? [] : electionWindows(start, end);
   const otOn = job.otOn !== false;
 
-  // night minutes: minutes whose start falls between 22:00 and 06:00, counted per night instead of per minute
   let night = 0;
   if (job.nightRule && total) {
     const s0 = +start, cnt = x => Math.min(total, Math.max(0, Math.ceil((x - s0) / 6e4)));
@@ -105,12 +95,11 @@ export function shiftPay(sh, job, place, weekRegBefore = 0) {
   const weekCap = otOn && job.weeklyRule ? job.weeklyLimit * 60 : Infinity;
 
   const b = { reg: 0, ot1: 0, ot2: 0, rest: 0, restOt1: 0, restOt2: 0, chag: 0, chagOt1: 0, chagOt2: 0, elect: 0, electOt1: 0, electOt2: 0, special: 0 };
-  // a special shift: every paid hour at one agreed rate (say 3 hours, all at 200%), outside the usual rules
   const specialPct = Math.max(0, +sh.specialPct || 0);
   const forced = sh.forceRest === true, chagFirst = job.r.chag >= job.r.rest, s0 = +start;
   let ei = 0, si = 0, ci = 0, cum = 0, wk = weekRegBefore * 60, weeklyOT = 0, restStart = null, lastKey = null, lastSw = null, lastCw = null;
   for (let i = 0; i < total; i++) {
-    if (i >= bs && i < be) continue;   // the break
+    if (i >= bs && i < be) continue;
     if (specialPct) { b.special += f / 60; lastKey = 'special'; cum += f; continue; }
     const t = s0 + i * 6e4 + 3e4;
     while (si < shabWins.length && shabWins[si].end <= t) si++;
@@ -141,8 +130,6 @@ export function shiftPay(sh, job, place, weekRegBefore = 0) {
   const money = {}; let base = 0;
   for (const k of TIERS) { money[k] = b[k] * rate * (k === 'special' ? specialPct : job.r[k]) / 100; base += money[k]; }
   const travel = +(sh.travel ?? job.travel) || 0, bonus = +sh.bonus || 0, tips = Math.max(0, +sh.tips || 0);
-  // tips through the employer count towards the hourly pay, which tops them up when they fall short;
-  // tips of your own come on top and aren't part of the pay
   const tipsInPay = tips > 0 && job.tipsMode === 'wage';
   const topUp = tipsInPay ? Math.max(0, base - tips) : 0;
   const wage = tipsInPay ? Math.max(base, tips) : base;
@@ -156,10 +143,6 @@ export function shiftPay(sh, job, place, weekRegBefore = 0) {
   };
 }
 
-/* ---------- pay rules over time ----------
-   A job's fields are its rules from now on. job.versions holds older rules:
-   [{ until: ISO, rules: {...} }] — a shift that starts before `until` uses those rules
-   (the earliest version whose `until` is still after the shift). */
 export const RULE_KEYS = ['election', 'rate', 'weekDays', 'regHours', 'shortDay', 'shortHours', 'weeklyRule', 'weeklyLimit', 'nightRule', 'nightRegHours',
   'ot1Hours', 'r', 'restMode', 'fixedStart', 'fixedEnd', 'chag', 'shabbatOn', 'otOn', 'holidayPay', 'holidayPayHours', 'travel', 'travelMode', 'travelMonthCap', 'tipsMode', 'leaveMode', 'leaveHours'];
 export const rulesOf = job => JSON.parse(JSON.stringify(Object.fromEntries(RULE_KEYS.map(k => [k, job[k]]))));
@@ -170,12 +153,10 @@ export function jobAt(job, when) {
   for (const v of vs) if (t < +new Date(v.until) && (!best || +new Date(v.until) < +new Date(best.until))) best = v;
   return best ? { ...job, ...best.rules, r: { ...job.r, ...best.rules.r } } : job;
 }
-/** New rules take effect from `from` (ISO) — or for every shift when from is null. Older periods keep theirs. */
 export function applyRulesFrom(oldJob, newJob, from) {
   const out = { ...newJob };
   if (from == null) { out.versions = []; return out; }
   const f = +new Date(from);
-  // segments of the old timeline that end on or before `from` stay; the one running at `from` is cut there
   const kept = (oldJob.versions || []).filter(v => +new Date(v.until) <= f);
   const runningAtFrom = jobAt(oldJob, new Date(f - 1));
   kept.push({ until: new Date(f).toISOString(), rules: rulesOf(runningAtFrom) });
@@ -184,12 +165,6 @@ export function applyRulesFrom(oldJob, newJob, from) {
 }
 export function rulesChanged(a, b) { return JSON.stringify(rulesOf(a)) !== JSON.stringify(rulesOf(b)); }
 
-/**
- * Pay for every shift, worked out lazily one week at a time: a shift's pay depends only on
- * earlier shifts in the same week (the weekly 42h rule), so opening the app computes just the
- * weeks on screen, not years of history. Results are also cached between runs, so editing
- * one shift recalculates only that week. Returns { get(id) → pay }.
- */
 const PAY_CACHE = new Map();
 export function computeAll(shifts, jobById, place) {
   const pk = place.city + '|' + place.candleMin + '|' + place.havdalahMin;
@@ -200,7 +175,6 @@ export function computeAll(shifts, jobById, place) {
     let g = weeks.get(w); if (!g) weeks.set(w, g = []); g.push([t, s]);
   }
   const keys = new Map(), periods = new Map();
-  // a job's key is worked out fresh on every run (jobs are edited in place), once per job object
   const jobKey = j => { let k = keys.get(j); if (k === undefined) { k = JSON.stringify(j); keys.set(j, k); } return k; };
   // the rules in force for a shift, resolved once per rule period rather than once per shift
   const at = (j, when) => {
@@ -236,13 +210,11 @@ export function computeAll(shifts, jobById, place) {
       week(weekOf.get(id)); return done.get(id);
     },
     has(id) { return byId.has(id); },
-    /** Every result (computes all weeks; for exports and checks, not for drawing screens). */
     values() { for (const w of weeks.keys()) week(w); return done.values(); },
     get size() { return byId.size; },
   };
 }
 
-/** Shift type for icons: chag > shabbat > night > time of day. */
 export function shiftKind(sh, p) {
   if (p.names.some(n => n !== 'שבת' && n !== 'סומן ידנית')) return 'chag';
   if (p.names.length) return 'shabbat';
@@ -254,17 +226,11 @@ export function shiftKind(sh, p) {
 }
 export const KIND_NAME = { morning: 'בוקר', noon: 'צהריים', evening: 'ערב', night: 'לילה', shabbat: 'שבת', chag: 'חג' };
 
-/** Holiday-pay days (holidays not on Shabbat) in a month for a job. */
 export function holidayPayDays(year, month, job) {
   if (!job.holidayPay) return [];
   return holidaysOfGregorianYear(year).filter(h => h.date.getMonth() === month && h.dow !== 6);
 }
 
-/**
- * When does the pay rate change during a running shift? Returns [{ at: Date, key, from, weekly, names }]
- * for each change in the next `hours` hours (the tier of the minute being worked: reg, ot1, rest, chagOt1…).
- * Used to schedule "you're now on 125%" style notifications.
- */
 export function rateChanges(start, job, place, weekRegBefore = 0, hours = 16) {
   const s0 = +new Date(start), out = [];
   let prev = null, prevNames = [];

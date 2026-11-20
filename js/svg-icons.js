@@ -1,4 +1,3 @@
-// אצבע — icon set (stroke icons, 24×24) + the fingerprint-clock mark.
 const s = (d, extra = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${d}</svg>`;
 
 export const I = {
@@ -51,14 +50,13 @@ function arc(cx, cy, rx, ry, a0, a1) {
   const large = (a1 - a0) % 360 > 180 ? 1 : 0;
   return `M${x0.toFixed(2)} ${y0.toFixed(2)}A${rx} ${ry} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
 }
-/** Ridge paths: nested ovals open at the bottom with a few natural breaks. */
 export function ridges(cx = 50, cy = 52, n = 7, step = 6.2, start = 6.5) {
   const out = [];
   for (let i = 0; i < n; i++) {
     const rx = start + i * step, ry = rx * 1.17;
-    const g = 28 + i * 2.5;                       // bottom gap half-angle
+    const g = 28 + i * 2.5;
     const a0 = 90 + g, a1 = 450 - g;
-    if (i % 2 === 1) {                             // one small break on odd ridges
+    if (i % 2 === 1) {
       const b = 200 + ((i * 47) % 130), bw = 9;
       out.push(arc(cx, cy, rx, ry, a0, b), arc(cx, cy, rx, ry, b + bw, a1));
     } else out.push(arc(cx, cy, rx, ry, a0, a1));
@@ -69,12 +67,6 @@ export function handAngles(t = new Date()) {
   const m = t.getMinutes() + t.getSeconds() / 60, h = (t.getHours() % 12) + m / 60;
   return { h: h * 30, m: m * 6 };
 }
-/** Static mark (header / icon). */
-/**
- * The אצבע mark: a fingertip print (whorl around a core, lower ridges running across), slightly tilted,
- * with clock hands at the core. Used for the app icon, splash and the top bar.
- * t sets the hands (default 3:00 for icons, which reads as a clock even when tiny).
- */
 let markId = 0;
 export function mark({ ink = 'currentColor', accent = 'var(--accent)', t = null, sw = 4.8 } = {}) {
   const id = 'fp' + (markId++), cx = 60, cy = 52, step = 7.4, n = 6, r0 = 11;
@@ -85,7 +77,6 @@ export function mark({ ink = 'currentColor', accent = 'var(--accent)', t = null,
     if (br) whorl.push(arc(cx, c, rx, ry, a0, br[0]), arc(cx, c, rx, ry, br[0] + br[1], a1));
     else whorl.push(arc(cx, c, rx, ry, a0, a1));
   }
-  // lower ridges run across the fingertip; the whorl stops just above the first one
   const lower = [0, 1, 2].map(j => { const y = cy + 40 + j * step * 0.95; return `M0 ${y + 10} Q${cx} ${y - 12 - j * 1.5} 120 ${y + 6}`; });
   const yTop = cy + 40 - step * 0.95;
   const { h, m } = t ? handAngles(t) : { h: 90, m: 0 };

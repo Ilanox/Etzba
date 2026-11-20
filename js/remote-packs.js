@@ -1,13 +1,9 @@
-// Language packs that update without a new app release. The packs are built in (offline from the first
-// launch); once a day, when online, the newest version of the active language is downloaded from GitHub
-// Pages (data/lang/<code>.json) and used from then on, if it's newer than the built-in one and looks right.
 import BUILT from '../languages/pack-versions.js';
 import * as dbg from './diagnostics.js';
 
 export const PACK_URL = code => `https://etzba.ilanox.dev/data/lang/${code}.json`;
 const KEY = code => 'etzba.pack.' + code, CHECKED = code => 'etzba.pack.checked.' + code, DAY = 864e5;
 
-/** Throws if a downloaded pack looks wrong, so a bad upload can never break the screens. */
 export function validate(d, code) {
   const isObj = x => x && typeof x === 'object' && !Array.isArray(x);
   if (!isObj(d) || d.format !== 1 || !Number.isInteger(d.version) || d.code !== code) throw new Error('header');
@@ -19,14 +15,12 @@ export function validate(d, code) {
   if (Object.keys(d.phrases).length < 50) throw new Error('too small');
   return d;
 }
-/** Back into the shape the translator uses (polish rules become regular expressions again). */
 export function revive(d) {
   const polish = [];
-  for (const [src, flags, to] of d.polish || []) { try { polish.push([new RegExp(src, flags), to]); } catch { /* skip a broken rule */ } }
+  for (const [src, flags, to] of d.polish || []) { try { polish.push([new RegExp(src, flags), to]); } catch {  } }
   return { ...d, polish };
 }
 
-/** The pack to use: the built-in one, or a newer downloaded copy. */
 export function preferPack(code, builtIn) {
   if (!builtIn) return builtIn;
   try {
@@ -36,7 +30,6 @@ export function preferPack(code, builtIn) {
   return builtIn;
 }
 
-/** When online, at most once a day: a newer pack for this language? Calls onChange() when there is one. */
 export async function checkPack(code, onChange, { force = false } = {}) {
   if (!code || code === 'he') return false;
   try {

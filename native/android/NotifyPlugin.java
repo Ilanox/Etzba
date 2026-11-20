@@ -16,16 +16,10 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-/**
- * The app's own scheduled notifications (overtime starting, Shabbat, "still on shift?", planned shifts).
- * Plain AlarmManager.setAndAllowWhileIdle: no exact-alarm permission, never opens any system settings.
- * They arrive on time or a minute or two late. Showing them is NotifyReceiver.
- */
 @CapacitorPlugin(name = "Notify")
 public class NotifyPlugin extends Plugin {
     static final String PREFS = "etzba_notify";
 
-    /** Replaces everything scheduled with items: [{ id, at (ms), title, body }]. */
     @PluginMethod
     public void schedule(PluginCall call) {
         Context ctx = getContext();
@@ -49,7 +43,6 @@ public class NotifyPlugin extends Plugin {
         } catch (Exception e) { call.reject("schedule: " + e.getMessage()); }
     }
 
-    /** What's waiting: { items: [...] } (for the developer tools). */
     @PluginMethod
     public void pending(PluginCall call) {
         try {
@@ -60,7 +53,6 @@ public class NotifyPlugin extends Plugin {
         } catch (Exception e) { call.reject("pending: " + e.getMessage()); }
     }
 
-    /** Features this person is waiting for: items [{ name, title, body }], checked on the website twice a day. */
     @PluginMethod
     public void watchEarly(PluginCall call) {
         try {

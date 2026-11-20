@@ -1,20 +1,7 @@
-// אצבע — the monthly report as a PDF. Pages are drawn on a canvas (so Hebrew, right-to-left and
-// the app's font come out exactly as on screen), saved as JPEG and wrapped in a minimal PDF.
-// No library and no server: everything happens on the phone.
 
-const W = 1240, H = 1754, M = 84;   // A4 at 150 dpi, margins
+const W = 1240, H = 1754, M = 84;
 const INK = '#1A1814', INK2 = '#5E574C', INK3 = '#948B7D', LINE = '#E6E0D5', BAND = '#F3EFE7';
 
-/**
- * data: {
- *   dir: 'rtl'|'ltr', font, title, subtitle, brand,
- *   tiles: [[label, value]],                       // the big numbers at the top
- *   lines: [{ label, sub?, value, strong?, neg? }],  // how the pay adds up
- *   cols: [{ title, w, align? }], rows: [[...cells]], total: [...cells],
- *   footer, pageLabel: (n, of) => string,
- * }
- * Returns canvases, one per page.
- */
 export function drawReport(data) {
   const rtl = data.dir === 'rtl', F = (w, s) => `${w} ${s}px ${data.font}`;
   const pages = [];
@@ -25,7 +12,6 @@ export function drawReport(data) {
     x.direction = rtl ? 'rtl' : 'ltr'; x.textBaseline = 'alphabetic';
     pages.push(c); y = M;
   };
-  // text at a logical position: `at` is measured from the start side (right in Hebrew)
   const text = (t, at, yy, { font = F(400, 26), color = INK, align = 'start' } = {}) => {
     x.font = font; x.fillStyle = color;
     const px = rtl ? W - at : at;
@@ -97,7 +83,6 @@ export function drawReport(data) {
   return pages;
 }
 
-/** JPEG pages → PDF bytes (A4 portrait). */
 export async function pagesToPDF(canvases) {
   const jpgs = [];
   for (const cv of canvases) {

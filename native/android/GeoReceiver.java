@@ -26,11 +26,6 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Woken by the OS (never polling): after staying at a workplace ~3 minutes it asks "at work? clock in",
- * and on leaving during a shift it asks "left work? end the shift". After a reboot or an app update it
- * puts the workplace circles back, since Android forgets them then.
- */
 public class GeoReceiver extends BroadcastReceiver {
     private static final String CHANNEL = "geo";
 
@@ -72,7 +67,6 @@ public class GeoReceiver extends BroadcastReceiver {
         return PendingIntent.getBroadcast(ctx, 0, new Intent(ctx, GeoReceiver.class), flags);
     }
 
-    /** (Re)registers every workplace circle. Returns false when location "all the time" isn't allowed. */
     @SuppressLint("MissingPermission")
     static boolean register(Context ctx) {
         try { LocationServices.getGeofencingClient(ctx).removeGeofences(fencePI(ctx)); } catch (Exception ignored) { }
@@ -89,8 +83,8 @@ public class GeoReceiver extends BroadcastReceiver {
                 .setCircularRegion(o.optDouble("lat"), o.optDouble("lng"), (float) o.optDouble("radius", 200))
                 .setExpirationDuration(Geofence.NEVER_EXPIRE)
                 .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_DWELL | Geofence.GEOFENCE_TRANSITION_EXIT)
-                .setLoiteringDelay(3 * 60 * 1000)              // ignore driving past
-                .setNotificationResponsiveness(3 * 60 * 1000)  // a few minutes late is fine, and saves battery
+                .setLoiteringDelay(3 * 60 * 1000)
+                .setNotificationResponsiveness(3 * 60 * 1000)
                 .build());
         }
         if (list.isEmpty()) return true;
@@ -107,7 +101,6 @@ public class GeoReceiver extends BroadcastReceiver {
             ctx.getSystemService(NotificationManager.class).createNotificationChannel(ch);
         }
         int imm = Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0;
-        // tapping the notification opens the app and asks; the button does it straight away
         Intent open = new Intent(ctx, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP)
             .putExtra("etzba_token", AppActionsPlugin.token(ctx)).putExtra("etzba_action", "ask_" + action).putExtra("etzba_job", jobId);
         PendingIntent tapOpen = PendingIntent.getActivity(ctx, id * 10, open, PendingIntent.FLAG_UPDATE_CURRENT | imm);

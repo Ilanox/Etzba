@@ -1,8 +1,6 @@
-// Offline Hebrew calendar + Shabbat/Chag windows for Israel.
-// Hebrew calendar arithmetic per Dershowitz & Reingold ("Calendrical Calculations").
 
-const EPOCH = -1373427;            // R.D. of 1 Tishrei, AM 1
-const RD_UNIX = 719163;            // R.D. of 1970-01-01
+const EPOCH = -1373427;
+const RD_UNIX = 719163;
 
 function elapsedDays(y) {
   const months = Math.floor((235 * y - 234) / 19);
@@ -15,11 +13,10 @@ function yearDelay(y) {
   const a = elapsedDays(y - 1), b = elapsedDays(y), c = elapsedDays(y + 1);
   return c - b === 356 ? 2 : b - a === 382 ? 1 : 0;
 }
-/** R.D. of Rosh Hashana of Hebrew year y */
 export function roshHashana(y) { return EPOCH + elapsedDays(y) + yearDelay(y); }
 
 const rdToYMD = rd => { const d = new Date((rd - RD_UNIX) * 864e5); return [d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()]; };
-const dow = rd => ((rd % 7) + 7) % 7; // 0 = Sunday
+const dow = rd => ((rd % 7) + 7) % 7;
 
 export const CITIES = {
   'ירושלים':     [31.778, 35.235, 40],
@@ -46,10 +43,9 @@ export const CITIES = {
   'אילת':        [29.558, 34.952, 20],
 };
 
-/** Israeli statutory holidays (the 9 paid days) for Hebrew year y, as [rd, name]. */
 export function holidaysOfHebrewYear(y) {
-  const rh = roshHashana(y), pesach = roshHashana(y + 1) - 163; // 15 Nisan of year y
-  let atz = pesach + 20;                                          // 5 Iyar
+  const rh = roshHashana(y), pesach = roshHashana(y + 1) - 163;
+  let atz = pesach + 20;
   const d = dow(atz);
   if (d === 5) atz -= 1; else if (d === 6) atz -= 2; else if (d === 1) atz += 1;
   return [
@@ -60,10 +56,8 @@ export function holidaysOfHebrewYear(y) {
   ];
 }
 
-/** Holidays whose Gregorian date falls in year g → [{rd, date, name, dow}] */
 const HOL_CACHE = new Map();
 export function holidaysOfGregorianYear(g) {
-  // pure for a given year, asked for thousands of times while computing pay: keep each year's list
   if (HOL_CACHE.has(g)) return HOL_CACHE.get(g);
   const out = [];
   for (const y of [g + 3760, g + 3761]) for (const [rd, name] of holidaysOfHebrewYear(y)) {
@@ -75,7 +69,6 @@ export function holidaysOfGregorianYear(g) {
   return out;
 }
 
-// ---- Sunset (NOAA / Almanac algorithm), returns a Date (absolute instant)
 const rad = Math.PI / 180;
 const SUN_CACHE = new Map();
 export function sunset(y, m, d, lat, lng) {
@@ -98,15 +91,8 @@ function sunsetCalc(y, m, d, lat, lng) {
   return new Date(Date.UTC(y, m, d) + UT * 3.6e6);
 }
 
-/**
- * Rest windows (Shabbat + Chag) overlapping [from, to].
- * place = { city, candleMin, havdalahMin }, job = { restMode, fixedStart:{day,time}, fixedEnd:{day,time}, chag }
- * Returns merged [{start, end, names:[...]}].
- */
 const WIN_CACHE = new Map();
 export function restWindows(from, to, place, job) {
-  // windows depend only on the calendar days involved, so cache by day range + settings
-  // whole weeks around the range, so neighbouring shifts share one calculation
   const da = new Date(from); da.setHours(0, 0, 0, 0); da.setDate(da.getDate() - da.getDay());
   const db = new Date(to); db.setHours(0, 0, 0, 0); db.setDate(db.getDate() - db.getDay() + 6);
   const key = +da + '|' + +db + '|' + place.city + '|' + place.candleMin + '|' + place.havdalahMin + '|' + (job.shabbatOn !== false) + '|' + (job.chag !== false) + '|' + job.restMode
@@ -139,7 +125,6 @@ function restWindowsCalc(from, to, place, job) {
 
     if (day.getDay() === 6 && job.shabbatOn !== false) {
       if (job.restMode === 'fixed') {
-        // fixed: start on the configured weekday on/before this Saturday, end on configured weekday on/after
         const st = new Date(day); st.setDate(st.getDate() - ((6 - job.fixedStart.day + 7) % 7));
         const [sh, sm] = job.fixedStart.time.split(':').map(Number); st.setHours(sh, sm, 0, 0);
         const en = new Date(day); en.setDate(en.getDate() + ((job.fixedEnd.day - 6 + 7) % 7));
@@ -160,7 +145,6 @@ function restWindowsCalc(from, to, place, job) {
   return merged.filter(w => w.end > from && w.start < to);
 }
 
-/** Next Shabbat / Chag window starting after `now` (city times). */
 export function nextRest(now, place) {
   const end = new Date(now); end.setDate(end.getDate() + 10);
   return restWindows(now, end, place, { restMode: 'city', chag: true }).find(w => w.end > now);

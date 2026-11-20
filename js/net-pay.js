@@ -1,14 +1,12 @@
-// Israeli payroll math, tax year 2026 (salaried employee, 18 to retirement age, single employer).
-// Sources: Israel Tax Authority 2026 tables (after bracket widening), Bituach Leumi 2026 employee rates.
 export const TAX_2026 = {
   brackets: [[7010, .10], [10060, .14], [19000, .20], [25100, .31], [46690, .35], [Infinity, .47]],
   surtaxFrom: 60130, surtaxRate: .03,
   pointValue: 242,
   blLow: 7703, blMax: 51910,
-  niLow: .0104, niHigh: .07,       // ביטוח לאומי עובד
-  hLow: .0323, hHigh: .0517,       // ביטוח בריאות
-  erLow: .0451, erHigh: .076,      // ביטוח לאומי מעסיק
-  pensionCreditCap: 9700,           // approx. insured-salary cap for 35% credit
+  niLow: .0104, niHigh: .07,
+  hLow: .0323, hHigh: .0517,
+  erLow: .0451, erHigh: .076,
+  pensionCreditCap: 9700,
 };
 
 function bracketTax(income, T) {
@@ -26,7 +24,6 @@ function split(g, lo, hi, T) {
   return Math.min(x, T.blLow) * lo + Math.max(0, x - T.blLow) * hi;
 }
 
-/* Tables by year, from js/rules.js. A year without its own table uses the latest earlier one. */
 let TABLES = { 2026: TAX_2026 };
 export function setTaxTables(t) { TABLES = { 2026: TAX_2026, ...t }; }
 export function taxFor(year = new Date().getFullYear()) {
@@ -35,7 +32,6 @@ export function taxFor(year = new Date().getFullYear()) {
   return TABLES[y];
 }
 
-/** s = settings: { points, pension, pEmp, pEr, sev, hish } */
 export function grossToNet(gross, s, T = taxFor()) {
   const pEmp = s.pension ? gross * s.pEmp / 100 : 0;
   const hEmp = s.hish ? gross * .025 : 0;

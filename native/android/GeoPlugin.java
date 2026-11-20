@@ -30,11 +30,6 @@ import org.json.JSONObject;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * Workplace arrival / departure, battery-friendly: the phone's own geofencing (Google Play services)
- * watches the workplace circles, so the app does no tracking and isn't running. The OS wakes
- * GeoReceiver only when you've stayed at work for a few minutes, or left it.
- */
 @CapacitorPlugin(
     name = "Geo",
     permissions = {
@@ -44,7 +39,6 @@ import java.util.Locale;
 )
 public class GeoPlugin extends Plugin {
     static final String PREFS = "etzba_geo";
-    /* ---- permissions: "while using" first, then "all the time" (needed for geofences) ---- */
     @PluginMethod
     public void status(PluginCall call) {
         JSObject r = new JSObject();
@@ -88,7 +82,6 @@ public class GeoPlugin extends Plugin {
             .addOnFailureListener(e -> call.reject("no-fix"));
     }
 
-    /* ---- address → coordinates, with the phone's own geocoder (needs internet once, no API key) ---- */
     @SuppressWarnings("deprecation")
     @PluginMethod
     public void geocode(PluginCall call) {
@@ -116,7 +109,6 @@ public class GeoPlugin extends Plugin {
         }).start();
     }
 
-    /* ---- the workplace circles and the texts to show (the app passes them in its language) ---- */
     @PluginMethod
     public void setFences(PluginCall call) {
         JSArray fences = call.getArray("fences", new JSArray());
@@ -128,12 +120,10 @@ public class GeoPlugin extends Plugin {
         call.resolve(r);
     }
 
-    /** Whether a shift is running (and for which job), so arrival and departure ask the right question. */
     @PluginMethod
     public void setActive(PluginCall call) {
         boolean active = Boolean.TRUE.equals(call.getBoolean("active", false));
         prefs(getContext()).edit().putBoolean("active", active).putString("activeJob", call.getString("jobId", "")).apply();
-        // started a shift: "at work?" is answered; ended one: "left work?" is answered
         try { NotificationManagerCompat.from(getContext()).cancel(active ? 1 : 2); } catch (Exception ignored) { }
         call.resolve();
     }
@@ -142,7 +132,6 @@ public class GeoPlugin extends Plugin {
         try { NotificationManagerCompat nm = NotificationManagerCompat.from(c); nm.cancel(1); nm.cancel(2); } catch (Exception ignored) { }
     }
 
-    /** Developer tools: show the arrival or departure notification for a job right now. */
     @PluginMethod
     public void test(PluginCall call) {
         String kind = call.getString("kind", "in"), jobId = call.getString("jobId", ""), name = call.getString("name", "");
