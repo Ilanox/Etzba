@@ -201,6 +201,7 @@ details.adv{margin-top:18px;border-top:1px solid var(--line)}
 details.adv summary{list-style:none;padding:14px 2px 4px;font-weight:700;color:var(--ink2);display:flex;align-items:center;gap:6px;cursor:pointer}
 details.adv summary::-webkit-details-marker{display:none}
 details.adv summary svg{width:18px}
+#f-more-s{margin-inline-start:auto;font-weight:500;color:var(--ink3);margin-top:0}
 details.adv[open] summary svg{transform:rotate(180deg)}
 
 .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:54px;border-radius:16px;font-weight:700;font-size:1.02rem}

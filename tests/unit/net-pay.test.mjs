@@ -25,3 +25,11 @@ test('tax table by year: a year without its own uses the latest earlier one', ()
   assert.equal(taxFor(2026), TAX_2026); assert.equal(taxFor(2027), t27); assert.equal(taxFor(2030), t27);
   setTaxTables({});
 });
+
+test('under 18: no National Insurance or health tax taken from pay', () => {
+  const s = { points: 3.25, pension: false, pEmp: 6, pEr: 6.5, sev: 6, hish: false };
+  const adult = grossToNet(4000, s), minor = grossToNet(4000, { ...s, minor: true });
+  assert.ok(adult.ni + adult.health > 0);
+  assert.equal(minor.ni, 0); assert.equal(minor.health, 0);
+  assert.equal(minor.net, 4000 - minor.tax);
+});

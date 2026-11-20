@@ -43,6 +43,7 @@ function normalizeState(d) {
   d.jobs.forEach((j, i) => { if (!okId(j.id)) { const n = 'j' + Date.now().toString(36) + i; idMap.set(j.id, n); j.id = n; } if (!okColor(j.color)) j.color = f.jobs[0].color; });
   const fix = x => { if (idMap.has(x.jobId)) x.jobId = idMap.get(x.jobId); if (!okId(x.id)) x.id = 'x' + Math.random().toString(36).slice(2, 12); return x; };
   d.settings = { ...f.settings, ...d.settings };
+  if (d.settings.birth && !/^(19|20)\d\d-\d\d-\d\d$/.test(d.settings.birth)) d.settings.birth = '';
   d.shifts = (d.shifts || []).filter(s => s && s.start && s.end && !isNaN(new Date(s.start)) && !isNaN(new Date(s.end))).map(fix);
   d.absences = (d.absences || []).filter(a => a && /^\d{4}-\d\d-\d\d$/.test(a.date) && (a.kind === 'sick' || a.kind === 'vac')).map(fix);
   d.plans = (d.plans || []).filter(x => x && x.start && x.jobId && !isNaN(new Date(x.start))).map(fix);
@@ -80,6 +81,36 @@ let PACK = null;
 document.documentElement.lang = LANG; document.documentElement.dir = langInfo(LANG).dir;
 const darkMQ = matchMedia('(prefers-color-scheme: dark)');
 const NET = () => S.settings.net !== false;
+
+const ageAt = (when, birth = S.settings.birth) => {
+  if (!birth) return null;
+  const b = new Date(birth + 'T00:00'), d = new Date(when);
+  return d.getFullYear() - b.getFullYear() - (d.getMonth() < b.getMonth() || (d.getMonth() === b.getMonth() && d.getDate() < b.getDate()) ? 1 : 0);
+};
+const YOUTH = [[16, .70], [17, .75], [18, .83]];
+function minWage(when = new Date()) {
+  const a = ageAt(when), y = a == null ? null : YOUTH.find(([u]) => a < u);
+  return y ? Math.round(MIN_WAGE_HOURLY * 182.03 * y[1] / 173 * 100) / 100 : MIN_WAGE_HOURLY;
+}
+const pensionAge = () => +S.settings.sex === 2.75 ? 20 : 21;
+function ageLine() {
+  const a = ageAt(new Date());
+  if (a == null) return 'לשכר מינימום לנוער, ביטוח לאומי ופנסיה לפי הגיל. נשמר רק בטלפון';
+  if (a < 18) return `גיל ${a}: שכר מינימום לנוער ₪${minWage()} לשעה, ובלי ביטוח לאומי ובריאות מהשכר`;
+  return `גיל ${a}`;
+}
+function pensionLine() {
+  const a = ageAt(new Date()), from = pensionAge();
+  if (a != null && a < from) return `חובה רק מגיל ${from}. עד אז לא יורד לך כסף לפנסיה`;
+  return `חלק מהשכר נחסך לגיל פרישה, והמעסיק מוסיף יותר. חובה מגיל ${from}, בדרך כלל אחרי 6 חודשים בעבודה`;
+}
+function netOpts(y, m) {
+  const s = S.settings, b = s.birth;
+  const minor = !!b && ageAt(new Date(y, m, 1)) < 18;
+  const youthPt = !!b && y - +b.slice(0, 4) <= 17 ? 1 : 0;
+  const pension = s.pension && !(b && ageAt(new Date(y, m + 1, 0)) < pensionAge());
+  return { points: +s.sex + +s.extraPts + youthPt, pension, pEmp: +s.pEmp, pEr: +s.pEr, sev: +s.sev, hish: s.hish, minor };
+}
 const viewAs = () => S.settings.owner ? (S.settings.viewAs || 'dev') : null;
 const isSup = () => { const v = viewAs(); return v ? v !== 'regular' : !!S.settings.supported; };
 const isOwner = () => viewAs() === 'dev';
@@ -179,7 +210,7 @@ function withLive(M) {
   const st = new Date(S.active.start); if (st.getFullYear() !== M.y || st.getMonth() !== M.m) return M;
   const gross = M.gross + L.p.base, s = S.settings;
   return { ...M, gross, hours: M.hours + L.p.hours, live: L,
-    net: grossToNet(gross, { points: +s.sex + +s.extraPts, pension: s.pension, pEmp: +s.pEmp, pEr: +s.pEr, sev: +s.sev, hish: s.hish }, taxFor(M.y)) };
+    net: grossToNet(gross, netOpts(M.y, M.m), taxFor(M.y)) };
 }
 function monthCalcRaw(y, m) {
   const shifts = [...inMonth(y, m)];
@@ -228,7 +259,7 @@ function monthCalcRaw(y, m) {
   let tipsOwn = 0;
   for (const J of per.values()) { J.total = Object.values(J.money).reduce((a, b) => a + b, 0) + J.travel + J.bonus + J.holiday + J.tipsOver + J.sick + J.vac + J.havraa; tipsOwn += J.tipsOwn; }
   const st = S.settings;
-  const net = grossToNet(gross, { points: +st.sex + +st.extraPts, pension: st.pension, pEmp: +st.pEmp, pEr: +st.pEr, sev: +st.sev, hish: st.hish }, taxFor(y));
+  const net = grossToNet(gross, netOpts(y, m), taxFor(y));
   return { y, m, shifts, absent, absPay, perJob: [...per.values()], gross, hours, net, tipsOwn };
 }
 function workedFor(jobId, date) {
@@ -355,7 +386,7 @@ function explain(sh, job, p) {
   if (p.weeklyOT > 0.01 && !p.specialPct) w('ot', `עברת ${job.weeklyLimit} שעות רגילות השבוע, אז ${hm(p.weeklyOT)} ש׳ מהמשמרת נספרו כשעות נוספות.`);
   if (+sh.breakMin > 0) w('coffee', `הפסקה של ${sh.breakMin} דק׳ לא נספרת בשעות.`);
   else if (p.hours >= 6) w('coffee', 'במשמרת ארוכה מגיעה הפסקה. הפסקה שבה מותר לצאת לא בתשלום, אז אם לקחת אחת כדאי לרשום אותה.');
-  if (p.rate < MIN_WAGE_HOURLY) w('warn', `התעריף נמוך משכר המינימום (₪${MIN_WAGE_HOURLY} לשעה).`, true);
+  if (p.rate < minWage(sh.start)) w('warn', `התעריף נמוך משכר המינימום (₪${minWage(sh.start)} לשעה).`, true);
   return `<div class="explain"><div class="ehead"><b class="num">${money2(p.pay)}</b><span class="num">${hm(p.hours)} שעות</span></div>${lines.join('')}${why.join('')}</div>`;
 }
 
@@ -641,7 +672,7 @@ function typicalRestShift(avg, now = new Date()) {
 }
 function goalState(M) {
   const g = S.settings.goal; if (!g || !(+g.amount > 0)) return null;
-  const st = S.settings, opts = { points: +st.sex + +st.extraPts, pension: st.pension, pEmp: +st.pEmp, pEr: +st.pEr, sev: +st.sev, hish: st.hish }, T = taxFor(M.y);
+  const opts = netOpts(M.y, M.m), T = taxFor(M.y);
   const isNet = g.kind !== 'gross' && NET(), value = gross => isNet ? grossToNet(gross, opts, T).net : gross;
   const have = isNet ? M.net.net : M.gross, goal = +g.amount, left = Math.max(0, goal - have);
   const avg = typicalShift(), now = new Date(), R = restDaysLeft(now), rest = typicalRestShift(avg, now);
@@ -817,19 +848,21 @@ function openShiftSheet(sh, mode) {
       <p class="hint">משמרת עתידית היא רק תכנון: תגיע תזכורת שעה לפני, וכשנכנסים אליה היא נרשמת כרגיל. שעת סיום לא חובה.</p>
     </div>
     <div id="f-paybits">
-    <h3>הפסקה לא בתשלום</h3>
-    <div class="qchips" id="f-bq">${[0, 15, 30, 45, 60].map(b => `<button type="button" data-b="${b}">${b ? b + ' דק׳' : 'בלי'}</button>`).join('')}
-      <input class="input num mini" type="number" inputmode="numeric" id="f-break" value="${+sh.breakMin || 0}" aria-label="דקות הפסקה"></div>
-    <div class="grid2">
-      <label class="field" id="f-tips-w"><span>טיפים (₪)</span><input class="input num" type="number" inputmode="decimal" id="f-tips" value="${+sh.tips || ''}" placeholder="0"></label>
-      <label class="field"><span>בונוס (₪)</span><input class="input num" type="number" inputmode="decimal" id="f-bonus" value="${+sh.bonus || ''}" placeholder="0"></label>
-      <label class="field"><span>נסיעות (₪)</span><input class="input num" type="number" step="0.5" inputmode="decimal" id="f-travel" value="${sh.travel ?? ''}" placeholder="${jobAt(job, sh.start).travel || 0}"><small class="fhint">ריק: לפי הגדרות העבודה</small></label>
-    </div>
     <label class="field"><span>הערה</span><input class="input" type="text" id="f-note" value="${esc(sh.note)}" placeholder="אופציונלי"></label>
-    <details class="adv"><summary>${I.chevDown}שבת / חג ידני</summary>
-      <div class="seg" id="f-rest" style="margin-top:10px">
-        <button type="button" data-r="auto">אוטומטי</button><button type="button" data-r="yes">הכל בתוספת שבת</button><button type="button" data-r="no">בלי תוספת</button></div>
-      <p class="hint">"אוטומטי" מחשב לפי זמני כניסת ויציאת שבת וחג בעיר שבחרת.</p></details>
+    <details class="adv" id="f-more"${+sh.tips || +sh.bonus || sh.travel != null || (sh.rest && sh.rest !== 'auto') ? ' open' : ''}><summary>${I.chevDown}הפסקה, טיפים, בונוס ונסיעות<span class="fhint" id="f-more-s"></span></summary>
+      <h3>הפסקה לא בתשלום</h3>
+      <div class="qchips" id="f-bq">${[0, 15, 30, 45, 60].map(b => `<button type="button" data-b="${b}">${b ? b + ' דק׳' : 'בלי'}</button>`).join('')}
+        <input class="input num mini" type="number" inputmode="numeric" id="f-break" value="${+sh.breakMin || 0}" aria-label="דקות הפסקה"></div>
+      <div class="grid2">
+        <label class="field" id="f-tips-w"><span>טיפים (₪)</span><input class="input num" type="number" inputmode="decimal" id="f-tips" value="${+sh.tips || ''}" placeholder="0"></label>
+        <label class="field"><span>בונוס (₪)</span><input class="input num" type="number" inputmode="decimal" id="f-bonus" value="${+sh.bonus || ''}" placeholder="0"></label>
+        <label class="field"><span>נסיעות (₪)</span><input class="input num" type="number" step="0.5" inputmode="decimal" id="f-travel" value="${sh.travel ?? ''}" placeholder="${jobAt(job, sh.start).travel || 0}"><small class="fhint">ריק: לפי הגדרות העבודה</small></label>
+      </div>
+      <details class="adv" id="f-restd"><summary>${I.chevDown}שבת / חג ידני</summary>
+        <div class="seg" id="f-rest" style="margin-top:10px">
+          <button type="button" data-r="auto">אוטומטי</button><button type="button" data-r="yes">הכל בתוספת שבת</button><button type="button" data-r="no">בלי תוספת</button></div>
+        <p class="hint">"אוטומטי" מחשב לפי זמני כניסת ויציאת שבת וחג בעיר שבחרת.</p></details>
+    </details>
     <div id="f-explain"></div>
     </div>
     </div>
@@ -863,10 +896,11 @@ function openShiftSheet(sh, mode) {
       $$('#f-jobs .chip', root).forEach(b => b.classList.toggle('on', b.dataset.j === jobId));
       $('#f-tips-w', root).classList.toggle('hidden', !jobById(jobId).tipsOn && !+$('#f-tips', root).value);
       $$('#f-bq button', root).forEach(b => b.classList.toggle('on', +b.dataset.b === s.breakMin));
+      $('#f-more-s', root).innerHTML = [s.breakMin ? `הפסקה ${s.breakMin} דק׳` : '', +$('#f-tips', root).value ? `טיפים ${money(+$('#f-tips', root).value)}` : '', +s.bonus ? `בונוס ${money(+s.bonus)}` : '', rest !== 'auto' ? 'שבת ידני' : ''].filter(Boolean).map(x => `<span>${x}</span>`).join(' · ');
       $$('#f-kind button', root).forEach(b => b.classList.toggle('on', b.dataset.k === kind));
       $('#f-special', root).classList.toggle('hidden', kind !== 'special');
       $$('#f-pq button', root).forEach(b => b.classList.toggle('on', +b.dataset.p === s.specialPct));
-      $('details.adv', root)?.classList.toggle('hidden', kind === 'special');
+      $('#f-restd', root)?.classList.toggle('hidden', kind === 'special');
       const leave = kind === 'vac' || kind === 'sick';
       $('#f-shiftonly', root).classList.toggle('hidden', leave);
       $('#f-leave', root).classList.toggle('hidden', !leave);
@@ -1115,7 +1149,7 @@ function sumMonth(el) {
       ${L('עבדת', hm(M.hours) + ' ש׳')}
       ${L('הרווחת ברוטו', money(M.gross), '', 'לפני ניכויים, כולל שעות נוספות, תוספות ונסיעות')}
       ${net ? `${L('מס הכנסה', n.tax ? '−' + money(n.tax) : '₪0', n.tax ? 'neg' : '', n.tax ? `אחרי ${(+S.settings.sex + +S.settings.extraPts)} נקודות זיכוי (${money(n.pointsCredit)})` : 'נקודות הזיכוי מכסות את כל המס')}
-      ${L('ביטוח לאומי ובריאות', '−' + money(n.ni + n.health), 'neg', 'יורד מכל שכר')}
+      ${n.ni + n.health > 0 ? L('ביטוח לאומי ובריאות', '−' + money(n.ni + n.health), 'neg', 'יורד מכל שכר') : L('ביטוח לאומי ובריאות', money(0), '', 'עד גיל 18 לא יורד מהשכר')}
       ${n.pEmp + n.hEmp ? L('חיסכון לפנסיה' + (n.hEmp ? ' והשתלמות' : ''), '−' + money(n.pEmp + n.hEmp), 'neg', 'הכסף נשאר שלך, בקרן') : ''}
       ${L('נכנס לחשבון', money(n.net), 'tot money')}` : ''}
       ${M.tipsOwn ? L('טיפים שלך', '+' + money(M.tipsOwn), '', 'במזומן או מהלקוחות, לא בתלוש') + L('סה״כ בכיס', money(heroAmt + M.tipsOwn), 'tot') : ''}
@@ -1288,7 +1322,7 @@ async function buildReport(y, m, jobId, withNet) {
   lines.push({ label: T('סה״כ ברוטו'), value: money2(gross), strong: true });
   const tiles = [[T('שעות'), hm(hours)], [T('משמרות'), String(shifts.length)], [T('ברוטו'), money(gross)]];
   if (withNet) {
-    const st = S.settings, n = grossToNet(gross, { points: +st.sex + +st.extraPts, pension: st.pension, pEmp: +st.pEmp, pEr: +st.pEr, sev: +st.sev, hish: st.hish }, taxFor(y));
+    const n = grossToNet(gross, netOpts(y, m), taxFor(y));
     lines.push({ label: T('מס הכנסה, ביטוח לאומי ובריאות'), value: '−' + money2(n.tax + n.ni + n.health), neg: true });
     if (n.pEmp + n.hEmp) lines.push({ label: T('חיסכון לפנסיה'), value: '−' + money2(n.pEmp + n.hEmp), neg: true });
     lines.push({ label: T('נטו משוער'), value: money2(n.net), strong: true });
@@ -1732,14 +1766,14 @@ function sumYear(el) {
 /* ================= RIGHTS ================= */
 function renderRights() {
   const el = $('#v-rights'), y = new Date().getFullYear();
-  const low = S.jobs.filter(j => j.rate < MIN_WAGE_HOURLY);
+  const low = S.jobs.filter(j => j.rate < minWage());
   const w = nextRest(new Date(), place());
   const job = jobById(S.settings.lastJob);
   if (EN) { el.innerHTML = rightsEN(y, low, w, qaEN); return; }
   /* translations: skip-start (Hebrew-only page; other languages get the English page above) */
   const qa = (ic, q, a, open) => `<details class="qa"${open ? ' open' : ''}><summary><span class="cell-ic">${I[ic]}</span>${q}<span class="cv">${I.chevDown}</span></summary><div class="ans">${a}</div></details>`;
   el.innerHTML = `<h1 class="title">מה מגיע לי</h1>
-    ${low.map(j => `<div class="note">${I.warn}<span>השכר ב"${esc(j.name)}" (₪${j.rate}) נמוך משכר המינימום, ₪${MIN_WAGE_HOURLY} לשעה מ־1.4.2026.</span></div>`).join('')}
+    ${low.map(j => `<div class="note">${I.warn}<span>השכר ב"${esc(j.name)}" (₪${j.rate}) נמוך משכר המינימום${(ageAt(new Date()) ?? 99) < 18 ? ' לגילך' : ''}, ₪${minWage()} לשעה מ־1.4.2026.</span></div>`).join('')}
     <div class="note info">${I.info}<span>אצבע מחשבת לפי החוק הכללי. אם במקום העבודה שלך יש הסכם קיבוצי או תנאים טובים יותר, אפשר לשנות את האחוזים בהגדרות העבודה.</span></div>
     ${qa('ot', 'מתי מתחילות שעות נוספות?', `
       <p>בשבוע של <b>5 ימים</b>: אחרי <b>8:36 שעות</b> ביום (ביום המקוצר אחרי 7:36).</p>
@@ -1787,7 +1821,7 @@ function renderRights() {
 const qaEN = (ic, q, a, open) => `<details class="qa"${open ? ' open' : ''}><summary><span class="cell-ic">${I[ic]}</span>${q}<span class="cv">${I.chevDown}</span></summary><div class="ans">${a}</div></details>`;
 function rightsEN(y, low, w, qa) {
   return `<h1 class="title">My rights</h1>
-    ${low.map(j => `<div class="note">${I.warn}<span>The wage at "${nm(j.name)}" (₪${j.rate}) is below minimum wage, ₪${MIN_WAGE_HOURLY} an hour since 1.4.2026.</span></div>`).join('')}
+    ${low.map(j => `<div class="note">${I.warn}<span>The wage at "${nm(j.name)}" (₪${j.rate}) is below the minimum wage${(ageAt(new Date()) ?? 99) < 18 ? ' for your age' : ''}, ₪${minWage()} an hour since 1.4.2026.</span></div>`).join('')}
     <div class="note info">${I.info}<span>Etzba follows the general law. If your workplace has a collective agreement or better terms, change the percentages in the job settings.</span></div>
     ${qa('ot', 'When does overtime start?', `
       <p>On a <b>5-day week</b>: after <b>8:36 hours</b> a day (7:36 on the short day).</p>
@@ -1871,15 +1905,17 @@ function renderSet() {
 
     <div class="sec"><span>${secIc('coins', 'green')}שכר ונטו</span></div>
     <div class="card">
-      <label class="cell"><span class="cell-ic t-green">${I.coins}</span><span class="grow">הצגת נטו משוער<div class="sub">${NET() ? 'אחרי מס, ביטוח לאומי ופנסיה' : 'כבוי: מוצג רק ברוטו. השכר עצמו לא משתנה'}</div></span>${sw('s-net', NET())}</label>
-      ${NET() ? `<details class="adv-cell"><summary class="cell"><span class="cell-ic">${I.receipt}</span><span class="grow">נקודות זיכוי ופנסיה<div class="sub"><span class="num">${+st.sex + +st.extraPts}</span> נק׳ זיכוי${st.pension ? ' · פנסיה' : ''}${st.hish ? ' · השתלמות' : ''}</div></span><span class="chev">${I.chevDown}</span></summary><div class="pad"><div class="seg" id="s-sex"><button data-v="2.25">גבר · 2.25 נק׳</button><button data-v="2.75">אישה · 2.75 נק׳</button></div>
+      <label class="cell"><span class="cell-ic t-blue">${I.cal}</span><span class="grow">תאריך לידה<div class="sub">${ageLine()}</div></span><input class="input num" type="date" id="s-birth" style="width:150px;height:44px" value="${esc(st.birth || '')}" max="${dateKey(new Date())}"></label>
+      <label class="cell"><span class="cell-ic t-green">${I.coins}</span><span class="grow">הצגת נטו משוער<div class="sub">${NET() ? 'נטו הוא מה שנכנס לחשבון, אחרי מס, ביטוח לאומי ופנסיה' : 'כבוי: מוצג רק ברוטו. השכר עצמו לא משתנה'}</div></span>${sw('s-net', NET())}</label>
+      ${NET() ? `<details class="adv-cell"><summary class="cell"><span class="cell-ic">${I.receipt}</span><span class="grow">נקודות זיכוי ופנסיה<div class="sub"><span class="num">${netOpts(new Date().getFullYear(), new Date().getMonth()).points}</span> נק׳ זיכוי${st.pension ? ' · פנסיה' : ''}${st.hish ? ' · השתלמות' : ''}</div></span><span class="chev">${I.chevDown}</span></summary><div class="pad"><p class="hint" style="margin-top:0">כל נקודת זיכוי מורידה ₪${taxFor().pointValue} ממס ההכנסה בכל חודש. עם ${+st.sex} נקודות לא משלמים מס הכנסה עד בערך ₪${Math.round(+st.sex * taxFor().pointValue / taxFor().brackets[0][1] / 50) * 50} בחודש.</p><div class="seg" id="s-sex"><button data-v="2.25">גבר · 2.25 נק׳</button><button data-v="2.75">אישה · 2.75 נק׳</button></div>
       <label class="field"><span>נקודות זיכוי נוספות</span><input class="input num" type="number" step="0.25" inputmode="decimal" id="s-extraPts" value="${st.extraPts}">
-        <p class="hint">למשל: ילדים, תואר אקדמי, חייל/ת משוחרר/ת, צעירים עד גיל 23. אפשר לבדוק בטופס 101.</p></label></div><label class="cell"><span class="cell-ic t-green">${I.coins}</span><span class="grow">פנסיה<div class="sub">לעובד שעתי בדרך כלל אחרי 6 חודשים</div></span>${sw('s-pension', st.pension)}</label>
+        <p class="hint">למשל: ילדים, תואר אקדמי, חייל/ת משוחרר/ת, צעירים עד גיל 23. אפשר לבדוק בטופס 101.</p></label></div><label class="cell"><span class="cell-ic t-green">${I.coins}</span><span class="grow">פנסיה<div class="sub">${pensionLine()}</div></span>${sw('s-pension', st.pension)}</label>
       <div class="cell ${st.pension ? '' : 'hidden'}" id="penRow"><span class="grow">עובד / מעסיק / פיצויים %</span>
         <input class="input num" style="width:64px;height:44px;text-align:center;padding:0 4px" type="number" step="0.5" id="s-pEmp" value="${st.pEmp}">
         <input class="input num" style="width:64px;height:44px;text-align:center;padding:0 4px" type="number" step="0.5" id="s-pEr" value="${st.pEr}">
         <select class="input num" style="width:76px;height:44px" id="s-sev"><option${+st.sev === 8.33 ? ' selected' : ''}>8.33</option><option${+st.sev === 6 ? ' selected' : ''}>6</option></select></div>
-      <label class="cell"><span class="cell-ic t-teal">${I.book}</span><span class="grow">קרן השתלמות<div class="sub">2.5% עובד · 7.5% מעסיק</div></span>${sw('s-hish', st.hish)}</label></details>` : ''}
+      <p class="hint pad ${st.pension ? '' : 'hidden'}" id="penHint" style="margin:0">עובד: יורד מהשכר שלך. מעסיק: מה שהמעסיק מוסיף לחיסכון שלך, מעבר לשכר. פיצויים: עוד כסף מהמעסיק שנשמר לך, למשל אם יפטרו אותך.</p>
+      <label class="cell"><span class="cell-ic t-teal">${I.book}</span><span class="grow">קרן השתלמות<div class="sub">חיסכון שאפשר למשוך אחרי 6 שנים בלי מס. רק אם זה כתוב בחוזה</div></span>${sw('s-hish', st.hish)}</label></details>` : ''}
     </div>
 
     <div class="sec"><span>${secIc('shabbat', 'gold')}כללי</span></div>
@@ -1920,6 +1956,7 @@ function renderSet() {
   for (const k of ['candleMin', 'havdalahMin', 'extraPts', 'pEmp', 'pEr', 'sev']) $('#s-' + k, el) && ($('#s-' + k, el).onchange = e => set(k, +e.target.value || 0));
   for (const k of ['pension', 'hish']) $('#s-' + k, el) && ($('#s-' + k, el).onchange = e => set(k, e.target.checked));
   $('#s-net', el).onchange = e => { set('net', e.target.checked); renderSet(); };
+  $('#s-birth', el).onchange = e => { const v = e.target.value; set('birth', /^\d{4}-\d{2}-\d{2}$/.test(v) && v <= dateKey(new Date()) ? v : ''); renderSet(); };
   $$('#s-sex button', el).forEach(b => { b.classList.toggle('on', +b.dataset.v === +st.sex); b.onclick = () => set('sex', +b.dataset.v); });
   $$('#s-theme button, #s-theme2 button, #s-theme3 button, #s-theme4 button', el).forEach(b => b.onclick = () => {
     if ([...THEMES_SUPPORT, ...THEMES_GRAD].some(t => t[0] === b.dataset.t) && !isSup()) return openSupport();
@@ -2223,7 +2260,7 @@ function openJobSheet(job, isNew) {
       $('#hp-body', root).classList.toggle('hidden', !v('holidayPay').checked);
       $$('.otx', root).forEach(e => e.classList.toggle('dim', !ot));
       const r = +v('rate').value, mw = $('#j-minw', root);
-      mw.textContent = r < MIN_WAGE_HOURLY ? `נמוך משכר המינימום (₪${MIN_WAGE_HOURLY})` : ''; mw.className = 'hint' + (r < MIN_WAGE_HOURLY ? ' bad' : '');
+      mw.textContent = r < minWage() ? `נמוך משכר המינימום (₪${minWage()})` : ''; mw.className = 'hint' + (r < minWage() ? ' bad' : '');
       const g = k => +$(`[data-r=${k}]`, root).value;
       $('#j-othint', root).textContent = `כלומר: עד ${hm(+v('regHours').value)} ש׳ ביום ${g('reg')}%, אחר כך ${v('ot1Hours').value} שעות ב־${g('ot1')}%, ומשם ${g('ot2')}%.`;
     };
@@ -2794,7 +2831,7 @@ function openOnboarding() {
     }));
     if ($o('#ob-import')) $o('#ob-import').onclick = () => finish(true);
     const rate = $o('#ob-rate');
-    if (rate) { const mw = () => { const r = +rate.value; $o('#ob-minw').textContent = r && r < MIN_WAGE_HOURLY ? `נמוך משכר המינימום (₪${MIN_WAGE_HOURLY} לשעה)` : ''; $o('#ob-minw').className = 'hint' + (r && r < MIN_WAGE_HOURLY ? ' bad' : ''); }; rate.oninput = mw; mw(); }
+    if (rate) { const mw = () => { const r = +rate.value; $o('#ob-minw').textContent = r && r < minWage() ? `נמוך משכר המינימום (₪${minWage()} לשעה)` : ''; $o('#ob-minw').className = 'hint' + (r && r < minWage() ? ' bad' : ''); }; rate.oninput = mw; mw(); }
     const first = $o('#ob-name'); if (first && !d.name) setTimeout(() => first.focus(), 250);
   };
   draw();

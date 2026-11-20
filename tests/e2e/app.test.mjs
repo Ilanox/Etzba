@@ -421,7 +421,7 @@ test('future shift: clocking in turns it into a real shift, keeps the planned ti
 
 test('future shift: a past one asks if it was worked: yes asks for the end, no marks it missed; across midnight keeps its end', async () => {
   const { page, ctx, errors, state } = await open();
-  const y = new Date(); y.setDate(y.getDate() - 1); y.setHours(20, 0, 0, 0);
+  const y = new Date(); y.setDate(y.getDate() - 2); y.setHours(20, 0, 0, 0);
   const night = new Date(y); night.setDate(night.getDate() - 1);
   const nEnd = new Date(night); nEnd.setDate(nEnd.getDate() + 1); nEnd.setHours(2, 0, 0, 0);
   await setPlans(page, [{ id: 'p1', start: y.toISOString(), end: null }, { id: 'p2', start: night.toISOString(), end: nEnd.toISOString() }]);
@@ -456,5 +456,31 @@ test('net pay can be turned off: gross everywhere instead', async () => {
   assert.match(await page.locator('.hero small').first().innerText(), /^ברוטו ל/);
   assert.equal(await page.locator('.hero .stack').count(), 0, 'no deductions bar');
   assert.doesNotMatch(await page.locator('#steps').innerText(), /מס הכנסה|נכנס לחשבון/);
+  assert.deepEqual(errors, []); await ctx.close();
+});
+
+test('age: a 17-year-old gets youth minimum wage, no NI from pay, no pension yet', async () => {
+  const { page, ctx, errors, state } = await open();
+  const b = new Date(); b.setFullYear(b.getFullYear() - 17); b.setDate(b.getDate() - 10);
+  const birth = `${b.getFullYear()}-${String(b.getMonth() + 1).padStart(2, '0')}-${String(b.getDate()).padStart(2, '0')}`;
+  await page.click('[data-v=set]'); await wait(page);
+  await page.fill('#s-birth', birth); await page.dispatchEvent('#s-birth', 'change'); await wait(page, 500);
+  assert.equal((await state()).settings.birth, birth);
+  const txt = await page.locator('#v-set').textContent();
+  assert.match(txt, /גיל 17: שכר מינימום לנוער ₪30\.92/);
+  assert.match(txt, /חובה רק מגיל 21/);
+  await startedAgo(page, 4); await page.click('[data-v=home]'); await wait(page); await page.click('#punchBtn'); await wait(page, 500); await page.click('#pd-ok'); await wait(page, 400);
+  await page.click('[data-v=sum]'); await wait(page, 600);
+  assert.match(await page.locator('#steps').innerText(), /עד גיל 18 לא יורד מהשכר/);
+  assert.deepEqual(errors, []); await ctx.close();
+});
+
+test('shift form: break, tips, bonus and travel start folded, with a summary', async () => {
+  const { page, ctx, errors } = await open();
+  await page.click('[data-v=shifts]'); await wait(page); await page.click('#fab'); await wait(page, 700);
+  assert.equal(await page.locator('#f-more').getAttribute('open'), null, 'folded');
+  await page.click('#f-more summary'); await wait(page);
+  await page.click('#f-bq [data-b="30"]'); await wait(page);
+  assert.match(await page.locator('#f-more-s').innerText(), /הפסקה 30/);
   assert.deepEqual(errors, []); await ctx.close();
 });
