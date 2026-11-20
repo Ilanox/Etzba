@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://etzba.co.il">Website</a> ·
   <a href="https://etzba.co.il/app/">Open the web app</a> ·
-  <a href="https://etzba.co.il/privacy.html">Privacy</a>
+  <a href="https://etzba.co.il/privacy">Privacy</a>
 </p>
 
 <p align="center">
@@ -53,7 +53,7 @@ Free, with no account and no ads. If it helps you, you can support it from insid
 
 ## Good to know
 
-Pay figures are an estimate based on Israeli labour law and the settings you enter. They are not an official payslip, and not legal, tax or financial advice. A collective agreement or personal contract may set different terms. Read the [privacy policy](https://etzba.co.il/privacy.html).
+Pay figures are an estimate based on Israeli labour law and the settings you enter. They are not an official payslip, and not legal, tax or financial advice. A collective agreement or personal contract may set different terms. Read the [privacy policy](https://etzba.co.il/privacy).
 
 ---
 

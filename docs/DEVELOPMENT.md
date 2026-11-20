@@ -75,7 +75,7 @@ Phones check once a day when online. Anything else (screens, pay logic, the widg
 - `/`: the home page (`site/`)
 - `/app/`: the web app
 - `/data/`: the downloadable data
-- `/privacy.html`: the privacy policy
+- `/privacy`: the privacy policy
 
 One-time setup: Settings → Pages → Source **GitHub Actions**, custom domain `etzba.co.il`.
 

@@ -2445,7 +2445,7 @@ function buildNotifications(a, N = { rates: true, rest: true, long: true, ...(S.
 }
 var planTimer = null;
 let NOTIF = { state: 'unknown', next: null, exact: null };
-const PRIVACY_URL = 'https://etzba.co.il/privacy.html', CONTACT = 'ilan@edvin.co.il';
+const PRIVACY_URL = 'https://etzba.co.il/privacy', CONTACT = 'ilan@edvin.co.il';
 function openLegal() {
   openSheet(`<h2>פרטיות ומשפטי</h2>
     <div class="card legal">

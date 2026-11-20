@@ -2,7 +2,7 @@
 #   /          the home page (site/)
 #   /app/      the web app
 #   /data/     yearly figures and language packs the apps download
-#   /privacy.html
+#   /privacy
 # One-time setup: repo Settings → Pages → Source: "GitHub Actions"; Custom domain: etzba.co.il.
 name: Pages
 on:

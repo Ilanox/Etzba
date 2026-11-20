@@ -121,7 +121,7 @@ An Edvin Studios Project
 | Tags | Time tracking, Productivity, Calculator |
 | Email | ilan@edvin.co.il |
 | Website | https://etzba.co.il/ |
-| Privacy policy | https://etzba.co.il/privacy.html |
+| Privacy policy | https://etzba.co.il/privacy |
 | Ads | No |
 | Target audience | 18 and over (simplest: avoids the Families policy) |
 | Countries | Israel (add more later if you like) |
