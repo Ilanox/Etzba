@@ -15,7 +15,7 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0}
 html{background:var(--bg);-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-input,textarea,select,[contenteditable]{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
+input,textarea,select,[contenteditable],#v-rights,#steps,.ln .v,.legal{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
 body{font-family:Heebo,"Noto Sans Hebrew",system-ui,-apple-system,Arial,sans-serif;color:var(--ink);background:var(--bg);
   font-size:16px;line-height:1.4;-webkit-font-smoothing:antialiased;overscroll-behavior-y:none;min-height:100dvh}
 button,input,select,textarea{font:inherit;color:inherit}

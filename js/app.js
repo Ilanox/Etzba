@@ -1871,7 +1871,7 @@ function renderSet() {
 
     <div class="sec"><span>${secIc('coins', 'green')}שכר ונטו</span></div>
     <div class="card">
-      <label class="cell"><span class="cell-ic t-green">${I.coins}</span><span class="grow">חישוב נטו<div class="sub">${NET() ? 'מס, ביטוח לאומי ופנסיה' : 'כבוי: מוצג רק ברוטו, למשל בשירות צבאי'}</div></span>${sw('s-net', NET())}</label>
+      <label class="cell"><span class="cell-ic t-green">${I.coins}</span><span class="grow">הצגת נטו משוער<div class="sub">${NET() ? 'אחרי מס, ביטוח לאומי ופנסיה' : 'כבוי: מוצג רק ברוטו. השכר עצמו לא משתנה'}</div></span>${sw('s-net', NET())}</label>
       ${NET() ? `<details class="adv-cell"><summary class="cell"><span class="cell-ic">${I.receipt}</span><span class="grow">נקודות זיכוי ופנסיה<div class="sub"><span class="num">${+st.sex + +st.extraPts}</span> נק׳ זיכוי${st.pension ? ' · פנסיה' : ''}${st.hish ? ' · השתלמות' : ''}</div></span><span class="chev">${I.chevDown}</span></summary><div class="pad"><div class="seg" id="s-sex"><button data-v="2.25">גבר · 2.25 נק׳</button><button data-v="2.75">אישה · 2.75 נק׳</button></div>
       <label class="field"><span>נקודות זיכוי נוספות</span><input class="input num" type="number" step="0.25" inputmode="decimal" id="s-extraPts" value="${st.extraPts}">
         <p class="hint">למשל: ילדים, תואר אקדמי, חייל/ת משוחרר/ת, צעירים עד גיל 23. אפשר לבדוק בטופס 101.</p></label></div><label class="cell"><span class="cell-ic t-green">${I.coins}</span><span class="grow">פנסיה<div class="sub">לעובד שעתי בדרך כלל אחרי 6 חודשים</div></span>${sw('s-pension', st.pension)}</label>
