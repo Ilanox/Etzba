@@ -33,3 +33,9 @@ test('under 18: no National Insurance or health tax taken from pay', () => {
   assert.equal(minor.ni, 0); assert.equal(minor.health, 0);
   assert.equal(minor.net, 4000 - minor.tax);
 });
+
+test('under 18: the employer pays the youth National Insurance rate (0.61% / 2.12%)', () => {
+  const s = { points: 3.25, pension: false, pEmp: 6, pEr: 6.5, sev: 6, hish: false, minor: true };
+  assert.ok(Math.abs(grossToNet(4000, s).employer.bl - 24.4) < 0.01);
+  assert.ok(Math.abs(grossToNet(10000, s).employer.bl - (7703 * .0061 + 2297 * .0212)) < 0.01);
+});

@@ -4,7 +4,9 @@ export const SICK_PER_MONTH = 1.5, SICK_MAX = 90;
 export const dateKey = d => { d = new Date(d); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const fromKey = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
 
-export const lawVacDays = job => (+job.weekDays === 6 ? 14 : 12);
+let YOUNG = () => false;
+export function setYoungInYear(fn) { YOUNG = fn; }
+export const lawVacDays = (job, y = new Date().getFullYear()) => YOUNG(y) ? (+job.weekDays === 6 ? 16 : 14) : (+job.weekDays === 6 ? 14 : 12);
 const fullMonthDays = job => (+job.weekDays === 6 ? 25 : 21.66);
 
 export function sickShares(absences) {
@@ -69,11 +71,11 @@ export function balances(job, worked, absences, today = new Date()) {
   }
 
   // vacation: year by year, in proportion to days worked so far
-  const full = +job.vacDays || lawVacDays(job);
+  const full = +job.vacDays || lawVacDays(job, end.getFullYear());
   let vacAcc = 0;
   for (let y = start.getFullYear(); y <= end.getFullYear(); y++) {
     const wholeYear = start <= new Date(y, 0, 1);
-    vacAcc += full * Math.min(1, daysIn(new Date(y, 0, 1), new Date(y + 1, 0, 1)) / (wholeYear ? 200 : 240));
+    vacAcc += (+job.vacDays || lawVacDays(job, y)) * Math.min(1, daysIn(new Date(y, 0, 1), new Date(y + 1, 0, 1)) / (wholeYear ? 200 : 240));
   }
   const vacUsed = absences.filter(a => a.kind === 'vac' && fromKey(a.date) <= end).length;
   return {

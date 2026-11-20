@@ -46,7 +46,7 @@ export function grossToNet(gross, s, T = taxFor()) {
     pension: s.pension ? gross * s.pEr / 100 : 0,
     severance: s.pension ? gross * s.sev / 100 : 0,
     hish: s.hish ? gross * .075 : 0,
-    bl: split(gross, T.erLow, T.erHigh, T),
+    bl: s.minor ? split(gross, T.erMinorLow ?? .0061, T.erMinorHigh ?? .0212, T) : split(gross, T.erLow, T.erHigh, T),
   };
   const cost = gross + employer.pension + employer.severance + employer.hish + employer.bl;
   return { gross, rawTax, pointsCredit, pensionCredit, tax, ni, health, pEmp, hEmp, net, marginal, employer, cost };

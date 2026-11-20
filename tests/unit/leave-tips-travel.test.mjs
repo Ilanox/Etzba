@@ -98,3 +98,13 @@ test('recuperation pay: nothing in the first year, then days by seniority × day
   assert.ok(h.scope > 0.45 && h.scope < 0.6, 'about half time: ' + h.scope);
   near(h.amount, 6 * 451.5 * h.scope, 'amount');
 });
+
+test('vacation: 18 calendar days for minors (14 work days in a 5-day job, 16 in a 6-day job)', async () => {
+  const L = await import('../../js/leave.js');
+  try {
+    L.setYoungInYear(y => y <= 2026);
+    assert.equal(L.lawVacDays({ weekDays: 5 }, 2026), 14);
+    assert.equal(L.lawVacDays({ weekDays: 6 }, 2026), 16);
+    assert.equal(L.lawVacDays({ weekDays: 5 }, 2027), 12);
+  } finally { L.setYoungInYear(() => false); }
+});

@@ -11,7 +11,7 @@ import { usePack, startTranslating, stopTranslating, tr } from './translate.js';
 import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
-import { balances, dayValue, sickShares, runStarts, dateKey, havraa } from './leave.js';
+import { balances, dayValue, sickShares, runStarts, dateKey, havraa, lawVacDays, setYoungInYear } from './leave.js';
 import { drawReport, pagesToPDF } from './report.js';
 import DEV_KEY from './dev-key.js';
 import { setSpeech, startA11y, say, speechLang } from './a11y.js';
@@ -93,6 +93,7 @@ function minWage(when = new Date()) {
   return y ? Math.round(MIN_WAGE_HOURLY * 182.03 * y[1] / 173 * 100) / 100 : MIN_WAGE_HOURLY;
 }
 setAgeOf(d => ageAt(d));
+setYoungInYear(y => (ageAt(new Date(y, 0, 1)) ?? 99) < 18);
 const pensionAge = () => +S.settings.sex === 2.75 ? 20 : 21;
 function ageLine() {
   const a = ageAt(new Date());
@@ -2209,9 +2210,9 @@ function openJobSheet(job, isNew) {
     <details class="adv-sec"><summary><span class="ih">${secIc('vac', 'teal')}ימי מחלה, חופשה והבראה</span><small>ותק, ימי חופשה ואיך משלמים עליהם</small>${I.chevDown}</summary>
     <div class="grid2">
       <label class="field"><span>התחלתי לעבוד ב־</span><input class="input num" type="date" data-k="startDate" value="${esc(j.startDate || '')}"></label>
-      <label class="field"><span>ימי חופשה בשנה</span><input class="input num" type="number" step="1" inputmode="numeric" data-k="vacDays" value="${+j.vacDays || ''}" placeholder="${+j.weekDays === 6 ? 14 : 12}"></label>
+      <label class="field"><span>ימי חופשה בשנה</span><input class="input num" type="number" step="1" inputmode="numeric" data-k="vacDays" value="${+j.vacDays || ''}" placeholder="${lawVacDays(j)}"></label>
     </div>
-    <p class="hint">ריק: מהמשמרת הראשונה, וימי החופשה לפי החוק לשנים הראשונות. ימי מחלה נצברים לבד: 1.5 לחודש מלא, ופחות בחודש חלקי.</p>
+    <p class="hint">ריק: מהמשמרת הראשונה, וימי החופשה לפי החוק לשנים הראשונות. ימי מחלה נצברים לבד: 1.5 לחודש מלא, ופחות בחודש חלקי.</p>${(ageAt(new Date()) ?? 99) < 18 ? `<p class="hint">עד גיל 18 מגיעים יותר ימי חופשה: 18 ימים בשנה כולל סופי שבוע, כלומר ${lawVacDays(j)} ימי עבודה.</p>` : ''}
     <div class="field"><span>תשלום על יום חופשה או מחלה</span>
       <div class="seg" id="j-leave"><button type="button" data-m="hours">שעות × תעריף</button><button type="button" data-m="avg">ממוצע 3 חודשים</button></div></div>
     <div id="j-lhours">${K('leaveHours', 'שעות ליום', 0.5)}</div>

@@ -557,6 +557,7 @@ export default {
     'גדול': 'Big',
   },
   templates: [
+    ["עד גיל 18 מגיעים יותר ימי חופשה: 18 ימים בשנה כולל סופי שבוע, כלומר {} ימי עבודה.", "Under 18 you get more vacation: 18 days a year including weekends, which is {} work days."],
     ["גיל {}: שכר מינימום לנוער ₪{} לשעה, ובלי ביטוח לאומי ובריאות מהשכר", "Age {}: youth minimum wage ₪{} an hour, and no National Insurance or health tax off your pay"],
     ["גיל {}", "Age {}"],
     ["חובה רק מגיל {}. עד אז לא יורד לך כסף לפנסיה", "Required only from age {}. Until then nothing comes off your pay for pension"],
