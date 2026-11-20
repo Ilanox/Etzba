@@ -1318,7 +1318,7 @@ async function buildReport(y, m, jobId, withNet) {
     tiles, lines,
     cols: [{ title: T('תאריך'), w: .14 }, { title: T('יום'), w: .09 }, { title: T('כניסה'), w: .09 }, { title: T('יציאה'), w: .09 }, { title: T('הפסקה'), w: .10 }, { title: T('שעות'), w: .09 }, { title: T('שכר'), w: .13 }, { title: T('הערות'), w: .27 }],
     rows, total: [T('סה״כ'), '', '', '', '', hm(sumH), money2(sumPay), ''],
-    footer: T('הופק באצבע · etzba.ilanox.dev · חישוב לפי החוק וההגדרות שהוזנו, לא תלוש שכר רשמי'),
+    footer: T('הופק באצבע · etzba.co.il · חישוב לפי החוק וההגדרות שהוזנו, לא תלוש שכר רשמי'),
     pageLabel: (i, n) => `${i} / ${n}`,
   });
   return pagesToPDF(pages);
@@ -1382,7 +1382,7 @@ async function openSupport() {
   });
 }
 
-const EARLY_URL = 'https://etzba.ilanox.dev/data/early.json';
+const EARLY_URL = 'https://etzba.co.il/data/early.json';
 let EARLY = (() => { try { return JSON.parse(localStorage.getItem('etzba.early') || 'null'); } catch { return null; } })();
 const earlyDates = () => EARLY || rules().early || {};
 const earlyEntry = name => { const v = earlyDates()[name]; return v && typeof v === 'object' ? v : { all: v }; };
@@ -1635,7 +1635,7 @@ async function shareRecap(R) {
     x.fillStyle = '#FFF4EC'; x.font = F(800, 84); x.fillText(v, X0, y0);
     x.fillStyle = 'rgba(255,244,236,.7)'; x.font = F(500, 36); x.textAlign = EN ? 'right' : 'left'; x.fillText(l, EN ? W - 90 : 90, y0 - 8); x.textAlign = EN ? 'left' : 'right';
   });
-  x.fillStyle = 'rgba(255,244,236,.6)'; x.font = F(500, 34); x.textAlign = 'center'; x.fillText('Etzba · etzba.ilanox.dev', W / 2, H - 110);
+  x.fillStyle = 'rgba(255,244,236,.6)'; x.font = F(500, 34); x.textAlign = 'center'; x.fillText('Etzba · etzba.co.il', W / 2, H - 110);
   const blob = await new Promise(r => c.toBlob(r, 'image/png'));
   await deliver(`etzba-${R.y}.png`, new Uint8Array(await blob.arrayBuffer()), 'image/png');
 }
@@ -2445,7 +2445,7 @@ function buildNotifications(a, N = { rates: true, rest: true, long: true, ...(S.
 }
 var planTimer = null;
 let NOTIF = { state: 'unknown', next: null, exact: null };
-const PRIVACY_URL = 'https://etzba.ilanox.dev/privacy.html', CONTACT = 'ilan@edvin.co.il';
+const PRIVACY_URL = 'https://etzba.co.il/privacy.html', CONTACT = 'ilan@edvin.co.il';
 function openLegal() {
   openSheet(`<h2>פרטיות ומשפטי</h2>
     <div class="card legal">

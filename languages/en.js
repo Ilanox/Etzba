@@ -262,7 +262,7 @@ export default {
     'שכר': 'Pay',
     'הערות': 'Notes',
     'דוח שעות ושכר': 'Hours and pay report',
-    'הופק באצבע · etzba.ilanox.dev · חישוב לפי החוק וההגדרות שהוזנו, לא תלוש שכר רשמי': 'Made with Etzba · etzba.ilanox.dev · worked out by law and the settings entered, not an official payslip',
+    'הופק באצבע · etzba.co.il · חישוב לפי החוק וההגדרות שהוזנו, לא תלוש שכר רשמי': 'Made with Etzba · etzba.co.il · worked out by law and the settings entered, not an official payslip',
     'החזר נסיעות (₪)': 'Travel refund (₪)',
     'תקרה לחודש (₪)': 'Monthly cap (₪)',
     'פעם ביום עבודה': 'Once per work day',

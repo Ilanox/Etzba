@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="https://etzba.ilanox.dev">Website</a> ·
-  <a href="https://etzba.ilanox.dev/app/">Open the web app</a> ·
-  <a href="https://etzba.ilanox.dev/privacy.html">Privacy</a>
+  <a href="https://etzba.co.il">Website</a> ·
+  <a href="https://etzba.co.il/app/">Open the web app</a> ·
+  <a href="https://etzba.co.il/privacy.html">Privacy</a>
 </p>
 
 <p align="center">
@@ -46,14 +46,14 @@ No account, no ads, no analytics. Everything stays on your phone and works offli
 
 ## Get it
 
-- **On the web:** [etzba.ilanox.dev/app](https://etzba.ilanox.dev/app/). It installs to the home screen and works offline.
+- **On the web:** [etzba.co.il/app](https://etzba.co.il/app/). It installs to the home screen and works offline.
 - **Android:** coming soon to Google Play.
 
 Free, with no account and no ads. If it helps you, you can support it from inside the app and get extra themes, icons and early access to new features.
 
 ## Good to know
 
-Pay figures are an estimate based on Israeli labour law and the settings you enter. They are not an official payslip, and not legal, tax or financial advice. A collective agreement or personal contract may set different terms. Read the [privacy policy](https://etzba.ilanox.dev/privacy.html).
+Pay figures are an estimate based on Israeli labour law and the settings you enter. They are not an official payslip, and not legal, tax or financial advice. A collective agreement or personal contract may set different terms. Read the [privacy policy](https://etzba.co.il/privacy.html).
 
 ---
 

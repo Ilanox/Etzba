@@ -1,9 +1,9 @@
-# Publishes etzba.ilanox.dev on every push to main:
+# Publishes etzba.co.il on every push to main:
 #   /          the home page (site/)
 #   /app/      the web app
 #   /data/     yearly figures and language packs the apps download
 #   /privacy.html
-# One-time setup: repo Settings → Pages → Source: "GitHub Actions"; Custom domain: etzba.ilanox.dev.
+# One-time setup: repo Settings → Pages → Source: "GitHub Actions"; Custom domain: etzba.co.il.
 name: Pages
 on:
   push:

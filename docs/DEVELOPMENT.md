@@ -16,7 +16,7 @@ Vanilla JavaScript ES modules, no framework and no bundler. Android through [Cap
 | `js/native-bridge.js` | everything that talks to Android |
 | `js/file-reader.js`, `js/shift-import.js` | reading .xls/.xlsx/.csv and turning rows into shifts |
 | `native/android/` | Java plugins, widget, Android resources |
-| `site/` | the home page at etzba.ilanox.dev |
+| `site/` | the home page at etzba.co.il |
 | `store/` | Google Play listing, screenshots and the generator for them |
 | `tests/` | `unit/` and `e2e/` |
 | `scripts/` | build, Android setup, release, install, logs, data |
@@ -70,14 +70,14 @@ Phones check once a day when online. Anything else (screens, pay logic, the widg
 
 ## Website
 
-`.github/workflows/pages.yml` publishes **etzba.ilanox.dev** on every push to `main`:
+`.github/workflows/pages.yml` publishes **etzba.co.il** on every push to `main`:
 
 - `/`: the home page (`site/`)
 - `/app/`: the web app
 - `/data/`: the downloadable data
 - `/privacy.html`: the privacy policy
 
-One-time setup: Settings → Pages → Source **GitHub Actions**, custom domain `etzba.ilanox.dev`.
+One-time setup: Settings → Pages → Source **GitHub Actions**, custom domain `etzba.co.il`.
 
 ## Translations
 

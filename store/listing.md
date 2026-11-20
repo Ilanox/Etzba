@@ -120,8 +120,8 @@ An Edvin Studios Project
 | Category | Productivity (Finance also fits, but asks for more declarations) |
 | Tags | Time tracking, Productivity, Calculator |
 | Email | ilan@edvin.co.il |
-| Website | https://etzba.ilanox.dev/ |
-| Privacy policy | https://etzba.ilanox.dev/privacy.html |
+| Website | https://etzba.co.il/ |
+| Privacy policy | https://etzba.co.il/privacy.html |
 | Ads | No |
 | Target audience | 18 and over (simplest: avoids the Families policy) |
 | Countries | Israel (add more later if you like) |

@@ -2,7 +2,7 @@ import { setElectionDays, setMinWage } from './pay-engine.js';
 import { setTaxTables } from './net-pay.js';
 import * as dbg from './diagnostics.js';
 
-export const RULES_URL = 'https://etzba.ilanox.dev/data/rules.json';
+export const RULES_URL = 'https://etzba.co.il/data/rules.json';
 const KEY = 'etzba.rules', CHECKED = 'etzba.rules.checked', DAY = 864e5;
 
 // keep in step with data/rules.json

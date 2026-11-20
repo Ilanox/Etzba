@@ -1,3 +1,3 @@
 User-agent: *
 Allow: /
-Sitemap: https://etzba.ilanox.dev/sitemap.xml
+Sitemap: https://etzba.co.il/sitemap.xml
