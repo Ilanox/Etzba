@@ -1,9 +1,9 @@
 // אצבע — app
 import { grossToNet, taxFor } from './net-pay.js';
-import { setAgeOf, rateChanges, computeAll, shiftPay, defaultJob, normalizeJob, holidayPayDays, shiftKind, KIND_NAME, TIERS, TIER_NAME, MIN_WAGE_HOURLY, weekStart, jobAt, applyRulesFrom, rulesChanged } from './pay-engine.js';
+import { rateChanges, computeAll, shiftPay, defaultJob, normalizeJob, shiftKind, KIND_NAME, TIERS, TIER_NAME, weekStart, jobAt, applyRulesFrom, rulesChanged } from './pay-engine.js';
 import { readSheets } from './file-reader.js';
 import { rowsToShifts, guessYear } from './shift-import.js';
-import { CITIES, nextRest, restWindows, holidaysOfGregorianYear } from './hebrew-calendar.js';
+import { CITIES, nextRest, holidaysOfGregorianYear } from './hebrew-calendar.js';
 import { I, mark, ridges, handAngles } from './svg-icons.js';
 import { loadRules, checkForUpdates, rules } from './rules.js';
 import { preferPack, checkPack } from './remote-packs.js';
@@ -11,8 +11,9 @@ import { usePack, startTranslating, stopTranslating, tr } from './translate.js';
 import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
-import { S, setState, save, hadLocal, jobById, place, MEMO, invalidate, index, inMonth, inWeek } from './state.js';
-import { balances, dayValue, sickShares, runStarts, havraa, lawVacDays, setYoungInYear } from './leave.js';
+import { NET, refreshAge, ageAt, minWage, pensionAge, netOpts, electionDate, PAY, recompute, weekRegBefore, livePay, monthVsLast, yearVsLast, havraaOf, leaveOf, monthCalc, withLive } from './pay.js';
+import { S, setState, save, hadLocal, jobById, place, invalidate, index, inWeek } from './state.js';
+import { lawVacDays } from './leave.js';
 import { $, $$, esc, nm, uid, pad, money, money2, hm, pctChange, niceMax, tm, dShort, dFull, dateKey, sameDay } from './util.js';
 import { drawReport, pagesToPDF } from './report.js';
 import DEV_KEY from './dev-key.js';
@@ -23,32 +24,12 @@ const VERSION = '1.0.0';
 dbg.log('boot', 'v' + VERSION);
 
 loadRules();
-function electionDate() {
-  const list = rules().elections.map(e => e.date).sort(), today = new Date().toISOString().slice(0, 10);
-  const d = list.find(x => x >= today);
-  if (!d) return '';
-  const [y, m, dd] = d.split('-').map(Number); return `${dd}.${m}.${y}`;
-}
 let LANG = langInfo(S.settings.lang || 'he').code;
 let EN = LANG !== 'he';
 let PACK = null;
 document.documentElement.lang = LANG; document.documentElement.dir = langInfo(LANG).dir;
 const darkMQ = matchMedia('(prefers-color-scheme: dark)');
-const NET = () => S.settings.net !== false;
 
-const ageAt = (when, birth = S.settings.birth) => {
-  if (!birth) return null;
-  const b = new Date(birth + 'T00:00'), d = new Date(when);
-  return d.getFullYear() - b.getFullYear() - (d.getMonth() < b.getMonth() || (d.getMonth() === b.getMonth() && d.getDate() < b.getDate()) ? 1 : 0);
-};
-const YOUTH = [[16, .70], [17, .75], [18, .83]];
-function minWage(when = new Date()) {
-  const a = ageAt(when), y = a == null ? null : YOUTH.find(([u]) => a < u);
-  return y ? Math.round(MIN_WAGE_HOURLY * 182.03 * y[1] / 173 * 100) / 100 : MIN_WAGE_HOURLY;
-}
-setAgeOf(d => ageAt(d));
-setYoungInYear(y => (ageAt(new Date(y, 0, 1)) ?? 99) < 18);
-const pensionAge = () => +S.settings.sex === 2.75 ? 20 : 21;
 function ageLine() {
   const a = ageAt(new Date());
   if (a == null) return 'לשכר מינימום לנוער, ביטוח לאומי ופנסיה לפי הגיל. נשמר רק בטלפון';
@@ -59,13 +40,6 @@ function pensionLine() {
   const a = ageAt(new Date()), from = pensionAge();
   if (a != null && a < from) return `חובה רק מגיל ${from}. עד אז לא יורד לך כסף לפנסיה`;
   return `חלק מהשכר נחסך לגיל פרישה, והמעסיק מוסיף יותר. חובה מגיל ${from}, בדרך כלל אחרי 6 חודשים בעבודה`;
-}
-function netOpts(y, m) {
-  const s = S.settings, b = s.birth;
-  const minor = !!b && ageAt(new Date(y, m, 1)) < 18;
-  const youthPt = !!b && [16, 17].includes(y - +b.slice(0, 4)) ? 1 : 0;
-  const pension = s.pension && !(b && ageAt(new Date(y, m + 1, 0)) < pensionAge());
-  return { points: +s.sex + +s.extraPts + youthPt, pension, pEmp: +s.pEmp, pEr: +s.pEr, sev: +s.sev, hish: s.hish, minor };
 }
 const viewAs = () => S.settings.owner ? (S.settings.viewAs || 'dev') : null;
 const isSup = () => { const v = viewAs(); return v ? v !== 'regular' : !!S.settings.supported; };
@@ -85,14 +59,12 @@ function applyTheme() {
   try { syncWidget(); } catch {}
 }
 applyTheme(); darkMQ.addEventListener?.('change', applyTheme);
-let PAY = new Map();
 let warnedSave = false;
 function persist() {
   invalidate(); planNotifications(); syncGeo(); syncWidget();
   if (!save() && !warnedSave) { warnedSave = true; toast('לא הצלחתי לשמור בטלפון. כדאי לגבות', 'err', { label: 'גיבוי עכשיו', fn: () => backupNow() }); }
   return true;
 }
-const recompute = () => { invalidate(); PAY = computeAll(S.shifts, jobById, place()); };
 function commit() { persist(); recompute(); render(); }
 
 /* ================= helpers ================= */
@@ -122,96 +94,6 @@ function toast(msg, kind = '', action = null) {
 const spokenDate = d => new Date(d).toLocaleDateString(speechLang() === 'en' ? 'en-GB' : 'he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
 function announce(msg) { const el = $('#sr'); el.textContent = ''; setTimeout(() => { el.textContent = say(tr(msg)); el.lang = /[\u0590-\u05FF]/.test(el.textContent) ? 'he' : 'en'; }, 60); }
 
-/* ================= month math ================= */
-function monthCalc(y, m) {
-  const mk = y * 12 + m; if (MEMO.has(mk)) return MEMO.get(mk);
-  const r = monthCalcRaw(y, m); MEMO.set(mk, r); return r;
-}
-function withLive(M) {
-  const L = livePay(); if (!L) return M;
-  const st = new Date(S.active.start); if (st.getFullYear() !== M.y || st.getMonth() !== M.m) return M;
-  const gross = M.gross + L.p.base, s = S.settings;
-  return { ...M, gross, hours: M.hours + L.p.hours, live: L,
-    net: grossToNet(gross, netOpts(M.y, M.m), taxFor(M.y)) };
-}
-function monthCalcRaw(y, m) {
-  const shifts = [...inMonth(y, m)];
-  const per = new Map();
-  let gross = 0, hours = 0;
-  const J0 = job => ({ job, hours: 0, b: {}, money: {}, travel: 0, travelDays: 0, bonus: 0, tips: 0, tipsOwn: 0, tipsOver: 0, count: 0, holiday: 0, holDays: [], sick: 0, sickDays: 0, vac: 0, vacDays: 0 });
-  const monthEnd = new Date(y, m + 1, 0, 23, 59);
-  for (const s of shifts) {
-    const job = jobAt(jobById(s.jobId), monthEnd), p = PAY.get(s.id); if (!p) continue;
-    const J = per.get(job.id) || J0(job);
-    J.hours += p.hours; J.travel += p.travel; J.bonus += p.bonus; J.count++;
-    if (p.travel) J.travelDays++;
-    J.tips += p.tips;
-    if (p.tipsInPay) J.tipsOver += p.pay - p.base - p.travel - p.bonus; else J.tipsOwn += p.tips;
-    for (const k of TIERS) { J.b[k] = (J.b[k] || 0) + p.b[k]; J.money[k] = (J.money[k] || 0) + p.money[k]; }
-    per.set(job.id, J); gross += p.pay; hours += p.hours;
-  }
-  for (const job0 of S.jobs) {
-    const days = holidayPayDays(y, m, { ...job0, holidayPay: true }).filter(h => jobAt(job0, h.date).holidayPay); if (!days.length) continue;
-    const job = jobAt(job0, monthEnd), J = per.get(job.id) || J0(job);
-    J.holDays = days; J.holiday = days.reduce((sum, h) => { const r = jobAt(job0, h.date); return sum + r.holidayPayHours * r.rate; }, 0);
-    per.set(job.id, J); gross += J.holiday;
-  }
-  // travel: never more than the monthly pass, when one is set
-  for (const J of per.values()) {
-    const cap = +J.job.travelMonthCap || 0;
-    if (cap > 0 && J.travel > cap) { gross -= J.travel - cap; J.travelFull = J.travel; J.travel = cap; }
-  }
-  // sick and vacation days: paid from an ordinary day's pay
-  const mk = `${y}-${pad(m + 1)}`, absent = S.absences.filter(a => a.date.startsWith(mk)), absPay = new Map();
-  for (const a of absent) {
-    const job0 = S.jobs.find(j => j.id === a.jobId); if (!job0) continue;
-    const job = jobAt(job0, a.date), J = per.get(job0.id) || J0(jobAt(job0, monthEnd));
-    const share = a.kind === 'sick' ? sickShares(S.absences.filter(x => x.jobId === a.jobId))[a.id] ?? 0 : 1;
-    const from = runStarts(S.absences.filter(x => x.jobId === a.jobId))[a.id] || a.date;
-    const v = dayValue(jobAt(job0, from), workedFor(a.jobId, from), from) * share;
-    if (a.kind === 'sick') { J.sick += v; J.sickDays++; } else { J.vac += v; J.vacDays++; }
-    absPay.set(a.id, { pay: v, share });
-    per.set(job0.id, J); gross += v;
-  }
-  for (const J of per.values()) {
-    if (J.job.havraaMode !== 'month') { J.havraa = 0; continue; }
-    const H = havraaOf(J.job, monthEnd);
-    J.havraa = H?.eligible ? H.amount / 12 : 0; gross += J.havraa;
-  }
-  let tipsOwn = 0;
-  for (const J of per.values()) { J.total = Object.values(J.money).reduce((a, b) => a + b, 0) + J.travel + J.bonus + J.holiday + J.tipsOver + J.sick + J.vac + J.havraa; tipsOwn += J.tipsOwn; }
-  const st = S.settings;
-  const net = grossToNet(gross, netOpts(y, m), taxFor(y));
-  return { y, m, shifts, absent, absPay, perJob: [...per.values()], gross, hours, net, tipsOwn };
-}
-function workedFor(jobId, date) {
-  const t = +new Date(date + 'T00:00:00'), from = t - 91 * 864e5, out = [];
-  for (const s of S.shifts) {
-    if (s.jobId !== jobId) continue;
-    const st = +new Date(s.start); if (st < from || st >= t) continue;
-    const p = PAY.get(s.id); if (p) out.push({ start: s.start, base: p.base });
-  }
-  return out;
-}
-function havraaOf(job, today = new Date()) {
-  const worked = [];
-  for (const s of S.shifts) if (s.jobId === job.id) { const p = PAY.get(s.id); if (p) worked.push({ start: s.start, hours: p.hours }); }
-  return havraa(job, worked, rules(), today);
-}
-function leaveOf(job, today = new Date()) {
-  return balances(job, S.shifts.filter(s => s.jobId === job.id), S.absences.filter(a => a.jobId === job.id), today);
-}
-function weekRegBefore(job, start) {
-  const ws = +weekStart(start); let sum = 0;
-  const st = +new Date(start);
-  for (const s of inWeek(ws)) if (s.jobId === job.id && index().t.get(s) < st) sum += PAY.get(s.id)?.regUsed || 0;
-  return sum;
-}
-function livePay() {
-  const a = S.active; if (!a) return null;
-  const job = jobAt(jobById(a.jobId), a.start);
-  return { job, p: shiftPay({ start: a.start, end: new Date(Math.max(Date.now(), +new Date(a.start))), breakMin: 0 }, job, place(), weekRegBefore(job, a.start)) };
-}
 
 /* ================= sheets ================= */
 const sheet = $('#sheet'), scrim = $('#scrim');
@@ -264,27 +146,11 @@ function shiftRow(s) {
       <span class="t2 num tline"><bdi dir="ltr" class="trange">${tm(s.start)}–${tm(s.end)}</bdi><span class="tmore">${second.map(x => `<span class="sep">·</span>${x}`).join('')}</span></span></span>
     <span class="end"><span class="amt num">${money(p.pay)}</span><br><span class="t2 num">${hm(p.hours)} ש׳</span></span></button>`;
 }
-function sumPeriod(from, to) {
-  let g = 0, h = 0, c = 0;
-  for (const s of S.shifts) { const d = new Date(s.start); if (d >= from && d < to) { const p = PAY.get(s.id); if (p) { g += p.pay; h += p.hours; c++; } } }
-  return { g, h, c };
-}
 function dlt(cur, prev, what = '') {
   const p = pctChange(cur, prev); if (p === null) return '';
   const cls = p > 0 ? 'up' : p < 0 ? 'down' : 'flat';
   const he = p > 0 ? `עלייה של ${p}%` : p < 0 ? `ירידה של ${-p}%` : 'ללא שינוי';
   return `<span class="dlt ${cls}" dir="ltr" role="img" aria-label="${he}${what ? ' ' + what : ''}">${p > 0 ? '+' : p < 0 ? '-' : ''}${Math.abs(p)}%</span>`;
-}
-function monthVsLast(y, m) {
-  const now = new Date(), from = new Date(y, m, 1), cur = y === now.getFullYear() && m === now.getMonth();
-  const to = cur ? now : new Date(y, m + 1, 1), pFrom = new Date(y, m - 1, 1);
-  const pTo = cur ? new Date(Math.min(+new Date(y, m, 1), +pFrom + (now - from))) : new Date(y, m, 1);
-  return { a: sumPeriod(from, to), b: sumPeriod(pFrom, pTo), pm: (m + 11) % 12, partial: cur ? now.getDate() : 0 };
-}
-function yearVsLast(y) {
-  const now = new Date(), cur = y === now.getFullYear(), from = new Date(y, 0, 1), to = cur ? now : new Date(y + 1, 0, 1);
-  const pFrom = new Date(y - 1, 0, 1), pTo = cur ? new Date(+pFrom + (now - from)) : new Date(y, 0, 1);
-  return { a: sumPeriod(from, to), b: sumPeriod(pFrom, pTo), partial: cur };
 }
 
 function showWhy(sh) { openShiftSheet(sh, 'edit'); setTimeout(() => $('#f-explain')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 350); }
@@ -1877,7 +1743,7 @@ function renderSet() {
   for (const k of ['candleMin', 'havdalahMin', 'extraPts', 'pEmp', 'pEr', 'sev']) $('#s-' + k, el) && ($('#s-' + k, el).onchange = e => set(k, +e.target.value || 0));
   for (const k of ['pension', 'hish']) $('#s-' + k, el) && ($('#s-' + k, el).onchange = e => set(k, e.target.checked));
   $('#s-net', el).onchange = e => { set('net', e.target.checked); renderSet(); };
-  $('#s-birth', el).onchange = e => { const v = e.target.value; S.settings.birth = /^\d{4}-\d{2}-\d{2}$/.test(v) && v <= dateKey(new Date()) ? v : ''; setAgeOf(d => ageAt(d)); commit(); };
+  $('#s-birth', el).onchange = e => { const v = e.target.value; S.settings.birth = /^\d{4}-\d{2}-\d{2}$/.test(v) && v <= dateKey(new Date()) ? v : ''; refreshAge(); commit(); };
   $$('#s-sex button', el).forEach(b => { b.classList.toggle('on', +b.dataset.v === +st.sex); b.onclick = () => set('sex', +b.dataset.v); });
   $$('#s-theme button, #s-theme2 button, #s-theme3 button, #s-theme4 button', el).forEach(b => b.onclick = () => {
     if ([...THEMES_SUPPORT, ...THEMES_GRAD].some(t => t[0] === b.dataset.t) && !isSup()) return openSupport();
@@ -2754,7 +2620,7 @@ function openOnboarding() {
     if ($o('#ob-import')) $o('#ob-import').onclick = () => finish(true);
     const rate = $o('#ob-rate');
     if (rate) { const mw = () => { const r = +rate.value; $o('#ob-minw').innerHTML = r && r < minWage() ? `<span>נמוך משכר המינימום (₪${minWage()} לשעה)</span> ${!S.settings.birth ? '<span>מתחת לגיל 18? הוסיפו תאריך לידה למטה, ואז השכר והניכויים יחושבו לפי הגיל.</span>' : ''}` : ''; $o('#ob-minw').className = 'hint' + (r && r < minWage() ? ' bad' : ''); }; rate.oninput = mw; mw();
-      $o('#ob-birth').onchange = e => { const v = e.target.value; S.settings.birth = /^(19|20)\d\d-\d\d-\d\d$/.test(v) && v <= dateKey(new Date()) ? v : ''; setAgeOf(x => ageAt(x)); mw(); }; }
+      $o('#ob-birth').onchange = e => { const v = e.target.value; S.settings.birth = /^(19|20)\d\d-\d\d-\d\d$/.test(v) && v <= dateKey(new Date()) ? v : ''; refreshAge(); mw(); }; }
     const first = $o('#ob-name'); if (first && !d.name) setTimeout(() => first.focus(), 250);
   };
   draw();
