@@ -30,3 +30,15 @@ test('state: bad data is repaired, not trusted', async () => {
   assert.equal(d.settings.birth, ''); assert.deepEqual(d.settings.notif, fresh().settings.notif);
   assert.equal(normalizeState(null).jobs.length, 1);
 });
+
+test('every imported name is exported by the file it comes from', () => {
+  const { dirname, join, normalize } = require_path();
+  const root = new URL('../../', import.meta.url).pathname;
+  const files = readdirSync(join(root, 'js'), { recursive: true }).filter(f => f.endsWith('.js')).map(f => join('js', f));
+  const exported = f => new Set([...readFileSync(join(root, f), 'utf8').matchAll(/^export (?:async function|function|const|let) ([\w$]+)/gm)].map(m => m[1]).concat([...readFileSync(join(root, f), 'utf8').matchAll(/^export \{([^}]*)\}/gm)].flatMap(m => m[1].split(',').map(x => x.trim().split(' as ').pop()))));
+  for (const f of files) for (const m of readFileSync(join(root, f), 'utf8').matchAll(/^import \{([^}]*)\} from '(\.[^']*)';/gm)) {
+    const target = normalize(join(dirname(f), m[2])), have = exported(target);
+    for (const n of m[1].split(',').map(x => x.trim().split(' as ')[0]).filter(Boolean)) assert.ok(have.has(n), `${f}: '${n}' is not exported by ${target}`);
+  }
+});
+function require_path() { return { dirname: p => p.split('/').slice(0, -1).join('/'), join: (...a) => a.join('/').replace(/\/+/g, '/'), normalize: p => { const out = []; for (const s of p.split('/')) s === '..' ? out.pop() : s !== '.' && out.push(s); return out.join('/'); } }; }

@@ -5,7 +5,8 @@ import { recompute } from './pay.js';
 import * as dbg from './diagnostics.js';
 
 export let view = 'home';
-export let viewY = new Date().getFullYear(), viewM = new Date().getMonth();
+export let viewY = new Date().getFullYear();
+export let viewM = new Date().getMonth();
 /** Sets the month the summary and lists show. */
 export function showMonth(y, m) { const d = new Date(y, m, 1); viewY = d.getFullYear(); viewM = d.getMonth(); }
 export const stepMonth = n => showMonth(viewY, viewM + n);

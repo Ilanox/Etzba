@@ -8,7 +8,8 @@ import { MONTHS, DAY_SHORT, EN } from '../lang.js';
 import { commit, showMonth } from '../nav.js';
 import { toast, announce, buzz, openSheet, closeSheet, spokenDate } from '../ui.js';
 import { explain, dayWord } from './common.js';
-import { planNotifications, addLeave, leaveHint } from '../app.js';
+import { planNotifications } from '../app.js';
+import { addLeave, leaveHint } from './leave-days.js';
 
 const ROW = 44;   // height of one number in the time wheels
 const DAY = 864e5;

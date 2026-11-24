@@ -11,7 +11,9 @@ export let LANG = langInfo(S.settings.lang || 'he').code;
 export let EN = LANG !== 'he';
 /** The loaded language pack, or null for Hebrew. */
 export let PACK = null;
-export let DAYS = HE_DAYS, MONTHS = HE_MONTHS, DAY_SHORT = HE_DAY_SHORT;
+export let DAYS = HE_DAYS;
+export let MONTHS = HE_MONTHS;
+export let DAY_SHORT = HE_DAY_SHORT;
 
 /** Switches the names and page direction to a language and its pack. */
 export function useLanguage(info, pack) {

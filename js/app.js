@@ -1,5 +1,5 @@
 // אצבע — app
-import { grossToNet, taxFor } from './net-pay.js';
+import { taxFor } from './net-pay.js';
 import { rateChanges, computeAll, shiftPay, defaultJob, normalizeJob, shiftKind, KIND_NAME, TIERS, weekStart, jobAt, applyRulesFrom, rulesChanged } from './pay-engine.js';
 import { readSheets } from './file-reader.js';
 import { rowsToShifts, guessYear } from './shift-import.js';
@@ -15,19 +15,19 @@ import { buzz, toast, announce, openSheet, closeSheet, sheetOpen, openPop, popOp
 import { LANG, EN, DAYS, MONTHS, useLanguage } from './lang.js';
 import { view, viewY, viewM, showMonth, setView, VIEWS, setRenderHooks, go, render, onSave, setSaveFailed, persist, commit } from './nav.js';
 import { viewAs, isSup, isOwner, applyTheme, startTheme } from './theme.js';
-import { NET, refreshAge, ageAt, minWage, pensionAge, netOpts, electionDate, PAY, recompute, weekRegBefore, monthVsLast, yearVsLast, havraaOf, leaveOf, monthCalc, withLive } from './pay.js';
-import { S, setState, save, hadLocal, jobById, place, index, inWeek } from './state.js';
+import { NET, refreshAge, ageAt, minWage, pensionAge, netOpts, electionDate, PAY, recompute, weekRegBefore, yearVsLast, monthCalc, withLive } from './pay.js';
+import { S, setState, save, hadLocal, jobById, place, index } from './state.js';
 import { lawVacDays } from './leave.js';
-import { $, $$, esc, nm, uid, pad, money, money2, hm, niceMax, tm, dShort, dFull, dateKey, sameDay } from './util.js';
-import { drawReport, pagesToPDF } from './report.js';
+import { $, $$, esc, nm, uid, pad, money, money2, hm, tm, dShort, dFull, dateKey, sameDay } from './util.js';
 import DEV_KEY from './dev-key.js';
 import { setSpeech, startA11y, speechLang } from './a11y.js';
 import FEATURES from './features.js';
 import { openShiftSheet } from './views/shift-form.js';
-import { tierLabel, monthBar, bindMonthBar, dlt, reduced, countUp } from './views/common.js';
+import { tierLabel, dlt, reduced, countUp } from './views/common.js';
 import { celebrate } from './views/celebrate.js';
 import { renderHome, renderRestCard, tickHome, planReminders, onPunch } from './views/home.js';
 import { renderShifts } from './views/shifts.js';
+import { renderSum } from './views/summary.js';
 
 const VERSION = '1.0.0';
 dbg.log('boot', 'v' + VERSION);
@@ -55,7 +55,6 @@ const COLORS = ['#E4572E', '#1E7A4A', '#4B5BD0', '#C98E00', '#1F8F84', '#A1458F'
 
 
 /* ================= HOME ================= */
-let heroV = 0;
 
 
 /* ================= SHIFT SHEET ================= */
@@ -63,240 +62,14 @@ let heroV = 0;
 /* ================= SHIFTS ================= */
 
 /* ================= SUMMARY (תלוש) ================= */
-function sumMonth(el) {
-  const M = withLive(monthCalc(viewY, viewM)), n = M.net, net = NET(), heroAmt = net ? n.net : M.gross;
-  const ded = n.tax + n.ni + n.health + n.pEmp + n.hEmp;
-  const parts = [[n.net, 'var(--hero-net)', 'נטו'], [n.tax, 'var(--accent)', 'מס הכנסה'], [n.ni + n.health, 'var(--gold)', 'ביטוח לאומי ובריאות'], [n.pEmp + n.hEmp, 'var(--ink3)', 'חיסכון (פנסיה)']].filter(x => x[0] > 0);
-  const L = (l, v, cls = '', sub = '') => `<div class="ln ${cls}"><span class="l">${l}${sub ? `<small>${sub}</small>` : ''}</span><span class="v num">${v}</span></div>`;
-  const hol = holidaysOfGregorianYear(viewY).filter(h => h.date.getMonth() === viewM);
-  el.innerHTML = `${monthBar()}
-    <div class="card hero" style="margin-top:12px"><small>${net ? `נטו משוער ל${MONTHS[viewM]}` : `ברוטו ל${MONTHS[viewM]}`}<button type="button" class="estimate" data-legal aria-label="הערכה: מה החישוב כן ולא">הערכה ⓘ</button></small><button type="button" class="big num hero-amt" id="netWhy" aria-label="${net ? 'איך מחושב הנטו' : 'איך מחושב הברוטו'}">${money(n.net)}</button>
-      <div class="meta num">${net ? `<b>ברוטו ${money(M.gross)}</b>` : ''}${M.tipsOwn ? ` · <span>טיפים ${money(M.tipsOwn)}</span>` : ''}<br>${M.shifts.length} משמרות${M.live ? ' + המשמרת הנוכחית' : ''} · ${hm(M.hours)} שעות</div>
-
-      ${M.gross && net ? `<div class="stack">${parts.map(([v, c]) => `<span style="flex:${v};background:${c}"></span>`).join('')}</div>
-      <div class="legend">${parts.map(([, c, l]) => `<span><i style="background:${c}"></i>${l}</span>`).join('')}</div>` : ''}</div>
-      ${(() => { const c = monthVsLast(viewY, viewM); if (!c.b.g) return ''; const vs = `לעומת ${MONTHS[c.pm]}${c.partial ? ` עד ה־${c.partial}` : ''}`;
-        return `<div class="card dlts">${dlt(c.a.g, c.b.g, 'בברוטו')}<span>ברוטו</span>${dlt(c.a.h, c.b.h, 'בשעות')}<span>שעות</span>${dlt(c.a.h ? c.a.g / c.a.h : 0, c.b.h ? c.b.g / c.b.h : 0, 'בשכר לשעה')}<span>לשעה</span><small>${vs}</small></div>`; })()}
-    ${M.gross ? `
-    <div class="sec"><span>${secIc('cal', 'blue')}לפי ימים</span></div>
-    <div class="card pad">${metricSeg()}<div id="dayChart"></div></div>
-    <div class="sec"><span>${secIc('receipt', 'green')}איך זה מחושב</span></div>
-    <div class="card steps" id="steps">
-      ${L('עבדת', hm(M.hours) + ' ש׳')}
-      ${L('הרווחת ברוטו', money(M.gross), '', 'לפני ניכויים, כולל שעות נוספות, תוספות ונסיעות')}
-      ${net ? `${L('מס הכנסה', n.tax ? '−' + money(n.tax) : '₪0', n.tax ? 'neg' : '', n.tax ? `אחרי ${(+S.settings.sex + +S.settings.extraPts)} נקודות זיכוי (${money(n.pointsCredit)})` : 'נקודות הזיכוי מכסות את כל המס')}
-      ${n.ni + n.health > 0 ? L('ביטוח לאומי ובריאות', '−' + money(n.ni + n.health), 'neg', 'יורד מכל שכר') : L('ביטוח לאומי ובריאות', money(0), '', 'עד גיל 18 לא יורד מהשכר')}
-      ${n.pEmp + n.hEmp ? L('חיסכון לפנסיה' + (n.hEmp ? ' והשתלמות' : ''), '−' + money(n.pEmp + n.hEmp), 'neg', 'הכסף נשאר שלך, בקרן') : ''}
-      ${L('נכנס לחשבון', money(n.net), 'tot money')}` : ''}
-      ${M.tipsOwn ? L('טיפים שלך', '+' + money(M.tipsOwn), '', 'במזומן או מהלקוחות, לא בתלוש') + L('סה״כ בכיס', money(heroAmt + M.tipsOwn), 'tot') : ''}
-    </div>
-    <div class="sec"><span>${secIc('ot', 'orange')}פירוט שעות ותוספות</span></div>
-    ${M.perJob.map(J => `<div class="card">
-      ${S.jobs.length > 1 ? `<div class="ln"><span class="l" style="color:${J.job.color};font-weight:700">${nm(J.job.name)}</span><span class="v num mutedv">₪${J.job.rate} לשעה</span></div>` : ''}
-      ${TIERS.filter(k => J.b[k] > 0.004).map(k => L(tierLabel(k, J.job), money2(J.money[k]), '', `${hm(J.b[k])} ש׳`)).join('')}
-      ${J.travel ? L('נסיעות', money2(J.travel), '', J.travelFull ? `עד התקרה החודשית (במקום ${money2(J.travelFull)})` : `${J.travelDays} ימי עבודה`) : ''}
-      ${J.bonus ? L('בונוסים', money2(J.bonus)) : ''}
-      ${J.tipsOver ? L('טיפים מעל השכר', money2(J.tipsOver), '', `מתוך ${money2(J.tips)} טיפים דרך המעסיק`) : ''}
-      ${J.sickDays ? L('דמי מחלה', money2(J.sick), '', `${J.sickDays} ימים · יום ראשון בלי תשלום, שני ושלישי 50%`) : ''}
-      ${J.vacDays ? L('דמי חופשה', money2(J.vac), '', `${J.vacDays} ימים`) : ''}
-      ${J.havraa ? L('דמי הבראה', money2(J.havraa), '', 'חלק חודשי') : ''}
-      ${J.holiday ? L('דמי חגים', money2(J.holiday), '', J.holDays.map(h => h.name).join(', ')) : ''}
-      ${L('סה״כ ברוטו', money2(J.total), 'tot')}</div>`).join('')}
-    <div class="sec"><span>${secIc('coins', 'green')}מה המעסיק מפריש בנוסף</span></div>
-    <div class="card">
-      ${n.employer.pension ? L('פנסיה (מעסיק)', money(n.employer.pension)) + L('פיצויים', money(n.employer.severance)) : ''}
-      ${n.employer.hish ? L('קרן השתלמות (מעסיק)', money(n.employer.hish)) : ''}
-      ${L('ביטוח לאומי (מעסיק)', money(n.employer.bl))}
-      ${L('עלות המעסיק בסה״כ', money(n.cost), 'tot')}</div>` : `<div class="card" style="margin-top:12px"><div class="empty"><div class="eic">${I.receipt}</div>אין משמרות בחודש הזה</div></div>`}
-    <div class="sec"><span>${secIc('vac', 'teal')}מחלה, חופשה והבראה</span></div>
-    <div class="card" id="leave">${leaveCard(M)}</div>
-    ${hol.length ? `<div class="sec"><span>${secIc('chag', 'gold')}חגים החודש</span></div><div class="card">${hol.map(h => L(h.name, `${DAYS[h.dow]} ${dShort(h.date)}`, '', h.dow === 6 ? 'חל בשבת' : '')).join('')}</div>` : ''}
-    <div class="sec"><span>${secIc('share', 'blue')}ייצוא</span></div>
-    <div class="card">
-      <button class="cell" id="xReport"><span class="cell-ic t-green">${I.receipt}</span><span class="grow">דוח חודשי (PDF)<div class="sub">שעות ושכר של ${MONTHS[viewM]}, לשליחה למעסיק</div></span><span class="chev">${I.chevL}</span></button>
-      <button class="cell" id="xMonth"><span class="cell-ic t-blue">${I.file}</span><span class="grow">משמרות ${MONTHS[viewM]} (CSV)<div class="sub">נפתח באקסל ובגוגל שיטס</div></span><span class="chev">${I.chevL}</span></button>
-      <button class="cell" id="xMore"><span class="cell-ic t-blue">${I.download}</span><span class="grow">עוד אפשרויות ייצוא</span><span class="chev">${I.chevL}</span></button>
-    </div>
-    ${net ? `<p class="fine">הערכה לפי מדרגות מס וביטוח לאומי 2026. התלוש בפועל יכול להיות שונה (הטבות, זקיפות, הסכמים).</p>` : ''}`;
-  bindMonthBar(el);
-  { const big = $('.hero .big', el); big._v = heroV; countUp(big, heroAmt); heroV = heroAmt; }
-  if ($('#dayChart', el)) {
-    const nd = new Date(viewY, viewM + 1, 0).getDate(), items = [];
-    for (let d = 1; d <= nd; d++) { const A = agg(M.shifts.filter(s => new Date(s.start).getDate() === d)); items.push({ ...A, title: `${DAYS[new Date(viewY, viewM, d).getDay()]} ${d}.${viewM + 1}`, label: d === 1 || d % 5 === 0 ? d : '' }); }
-    mountChart($('#dayChart', el), items); bindMetric(el);
-  }
-  $('#xMonth', el).onclick = () => exportShifts('month');
-  $('#xReport', el).onclick = () => openReport();
-  $('#netWhy', el) && ($('#netWhy', el).onclick = () => $('#steps', el)?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
-  bindLeave(el);
-  $('#xMore', el).onclick = openExport;
-}
 
 /* ================= sick days and vacation ================= */
-function leaveCard(M) {
-  const L = (l, v, cls = '', sub = '') => `<div class="ln ${cls}"><span class="l">${l}${sub ? `<small>${sub}</small>` : ''}</span><span class="v num">${v}</span></div>`;
-  const one = n => (Math.floor(n * 10) / 10).toLocaleString('he-IL');
-  const jobs = S.jobs.filter(j => S.shifts.some(s => s.jobId === j.id) || S.absences.some(a => a.jobId === j.id) || j.startDate);
-  const rows = jobs.map(j => {
-    const b = leaveOf(j);
-    return `${S.jobs.length > 1 ? `<div class="ln"><span class="l" style="color:${j.color};font-weight:700">${nm(j.name)}</span><span class="v"></span></div>` : ''}
-      ${L('חופשה', `נותרו ${one(b.vac.left)}`, '', `נצברו ${one(b.vac.accrued)}, נוצלו ${b.vac.used} · ${b.vac.full} ימים לשנה מלאה`)}
-      ${L('מחלה', `נותרו ${one(b.sick.left)}`, '', `נצברו ${one(b.sick.accrued)}, נוצלו ${b.sick.used} · עד 90 ימים`)}
-      ${havraaLine(j, L)}`;
-  }).join('');
-  const list = [...M.absent].sort((a, b) => a.date < b.date ? -1 : 1).map(a => {
-    const d = new Date(a.date + 'T12:00:00'), j = jobById(a.jobId);
-    return `<div class="ln"><span class="l">${a.kind === 'sick' ? 'יום מחלה' : 'יום חופשה'}<small class="num">${DAYS[d.getDay()]} ${dShort(d)}${S.jobs.length > 1 ? ' · ' + nm(j.name) : ''}</small></span><button type="button" class="iconbtn" data-ab="${a.id}" aria-label="מחיקה">${I.trash}</button></div>`;
-  }).join('');
-  return `${rows || `<p class="hint" style="margin:10px 14px">היתרה מופיעה אחרי המשמרת הראשונה.</p>`}
-    ${list ? `<div class="ln"><span class="l" style="font-weight:700;color:var(--ink)">${MONTHS[viewM]}</span><span class="v"></span></div>${list}` : ''}
-    <button class="cell" id="addLeave"><span class="cell-ic">${I.plus}</span><span class="grow">הוספת יום מחלה או חופשה</span></button>`;
-}
-function havraaLine(j, L) {
-  const H = havraaOf(j); if (!H) return '';
-  if (!H.eligible) return L('דמי הבראה', 'אחרי שנה', '', `מגיעים מ־${dFull(H.from)}, אחרי שנת עבודה מלאה`);
-  return L('דמי הבראה', `${money(H.amount)} לשנה`, '', `${H.days} ימים (שנה ${H.years + 1} בעבודה) × ₪${H.rate} × היקף משרה ${Math.round(H.scope * 100)}%${j.havraaMode === 'month' ? ' · נכנס כל חודש' : ''}`);
-}
-function bindLeave(root) {
-  $('#addLeave', root) && ($('#addLeave', root).onclick = () => openLeaveSheet());
-  $$('[data-ab]', root).forEach(b => b.onclick = () => {
-    const i = S.absences.findIndex(a => a.id === b.dataset.ab); if (i < 0) return;
-    const was = S.absences[i]; S.absences.splice(i, 1); commit(); buzz(15);
-    toast('נמחק', '', { label: 'ביטול', fn: () => { S.absences.push(was); commit(); } });
-  });
-}
-export const leaveHint = kind => kind === 'sick'
-  ? 'דמי מחלה: היום הראשון בלי תשלום, השני והשלישי 50%, ומהרביעי 100%. צריך אישור מחלה. ימים ברצף נספרים יחד.'
-  : 'ימי עבודה בלבד: בלי שבתות וחגים שלא עובדים בהם.';
-export function addLeave(jobId, kind, from, n) {
-  n = Math.min(60, Math.max(1, Math.round(+n || 1)));
-  const job = jobById(jobId), [y, m, dd] = from.split('-').map(Number);
-  let added = 0;
-  for (let d = new Date(y, m - 1, dd); added < n; d.setDate(d.getDate() + 1)) {
-    if (kind === 'vac' && (d.getDay() === 6 || (+job.weekDays !== 6 && d.getDay() === 5))) continue;
-    const k = dateKey(d);
-    if (!S.absences.some(a => a.jobId === jobId && a.date === k)) S.absences.push({ id: uid(), jobId, kind, date: k });
-    added++;
-  }
-  return n;
-}
-function openLeaveSheet(pre = {}) {
-  let kind = pre.kind || 'sick', jobId = pre.jobId || (S.settings.lastJob && S.jobs.some(j => j.id === S.settings.lastJob) ? S.settings.lastJob : S.jobs[0].id);
-  const today = new Date(), inView = viewY === today.getFullYear() && viewM === today.getMonth();
-  const d0 = pre.date || dateKey(inView ? today : new Date(viewY, viewM, 1));
-  openSheet(`<h2>יום מחלה או חופשה</h2><p class="shsub">ימים שלא עבדת ושמשלמים עליהם. כל יום משולם לפי הגדרות העבודה, בדרך כלל שעות של יום × התעריף.</p>
-    ${S.jobs.length > 1 ? `<div class="chips" id="lv-jobs" style="margin-top:14px">${S.jobs.map(j => `<button type="button" class="chip" data-j="${j.id}"><span class="dot" style="background:${j.color}"></span>${nm(j.name)}</button>`).join('')}</div>` : ''}
-    <div class="seg" id="lv-kind" style="margin-top:14px"><button type="button" data-k="sick">מחלה</button><button type="button" data-k="vac">חופשה</button></div>
-    <div class="grid2">
-      <label class="field"><span>מתאריך</span><input class="input num" type="date" id="lv-date" value="${d0}"></label>
-      <label class="field"><span>כמה ימים</span><input class="input num" type="number" min="1" max="60" inputmode="numeric" id="lv-n" value="1"></label>
-    </div>
-    <p class="hint" id="lv-hint"></p>
-    <div class="btnrow"><button class="btn primary" id="lv-save">${I.check}שמירה</button></div>`, root => {
-    const ui = () => {
-      $$('#lv-kind button', root).forEach(b => b.classList.toggle('on', b.dataset.k === kind));
-      $$('#lv-jobs .chip', root).forEach(b => b.classList.toggle('on', b.dataset.j === jobId));
-      $('#lv-hint', root).textContent = leaveHint(kind);
-    };
-    $$('#lv-kind button', root).forEach(b => b.onclick = () => { kind = b.dataset.k; ui(); });
-    $$('#lv-jobs .chip', root).forEach(b => b.onclick = () => { jobId = b.dataset.j; ui(); });
-    ui();
-    $('#lv-save', root).onclick = () => {
-      const v = $('#lv-date', root).value;
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return toast('צריך לבחור תאריך', 'err');
-      const n = addLeave(jobId, kind, v, +$('#lv-n', root).value), [y, m, dd] = v.split('-').map(Number);
-      const d = new Date(y, m - 1, dd); showMonth(d.getFullYear(), d.getMonth());
-      closeSheet(); commit(); buzz(20); toast(n === 1 ? 'נשמר יום אחד' : `נשמרו ${n} ימים`, 'ok');
-    };
-  });
-}
 
 /* ================= monthly report (PDF) ================= */
-function openReport() {
-  const M0 = monthCalc(viewY, viewM);
-  if (!M0.shifts.length && !M0.absent.length) return toast('אין משמרות בחודש הזה');
-  const used = S.jobs.filter(j => M0.shifts.some(s => s.jobId === j.id) || M0.absent.some(a => a.jobId === j.id));
-  let jobId = used.length === 1 ? used[0].id : 'all';
-  openSheet(`<h2>דוח חודשי</h2><p class="shsub">${MONTHS[viewM]} ${viewY}: כל המשמרות, השעות לפי סוג והשכר, בקובץ PDF שאפשר לשלוח למעסיק או לשמור.</p>
-    ${used.length > 1 ? `<div class="chips" id="rp-jobs" style="margin-top:14px"><button type="button" class="chip" data-j="all">כל העבודות</button>${used.map(j => `<button type="button" class="chip" data-j="${j.id}"><span class="dot" style="background:${j.color}"></span>${nm(j.name)}</button>`).join('')}</div>` : ''}
-    <label class="cell flat" style="margin-top:10px"><span class="grow">עם נטו משוער<div class="sub">בלי זה הדוח מראה רק שעות וברוטו</div></span><span class="switch"><input type="checkbox" id="rp-net"${NET() ? '' : ' disabled'}><i></i></span></label>
-    <div class="btnrow"><button class="btn primary" id="rp-go">${I.share}שיתוף הדוח</button></div>`, root => {
-    const ui = () => $$('#rp-jobs .chip', root).forEach(b => b.classList.toggle('on', b.dataset.j === jobId));
-    $$('#rp-jobs .chip', root).forEach(b => b.onclick = () => { jobId = b.dataset.j; ui(); }); ui();
-    $('#rp-go', root).onclick = async () => {
-      const btn = $('#rp-go', root); btn.disabled = true;
-      try {
-        const bytes = await buildReport(viewY, viewM, jobId, $('#rp-net', root).checked);
-        const job = jobId === 'all' ? null : jobById(jobId);
-        const name = `${EN ? 'Etzba-report' : 'אצבע-דוח'}-${viewY}-${pad(viewM + 1)}${job ? '-' + job.name.replace(/[\\/:*?"<>|]/g, '') : ''}.pdf`;
-        if (await deliver(name, bytes, 'application/pdf')) closeSheet();
-      } catch (e) { report(e); toast('לא הצלחתי ליצור את הדוח', 'err'); }
-      finally { btn.disabled = false; }
-    };
-  });
-}
-async function buildReport(y, m, jobId, withNet) {
-  const M = monthCalc(y, m), T = t => tr(t);
-  const pick = x => jobId === 'all' || x.jobId === jobId;
-  const shifts = M.shifts.filter(pick).sort((a, b) => new Date(a.start) - new Date(b.start));
-  const absent = M.absent.filter(pick).sort((a, b) => a.date < b.date ? -1 : 1);
-  const Js = M.perJob.filter(J => jobId === 'all' || J.job.id === jobId);
-  const one = jobId !== 'all' ? jobById(jobId) : S.jobs.length === 1 ? S.jobs[0] : null;
-  const gross = Js.reduce((a, J) => a + J.total, 0), hours = Js.reduce((a, J) => a + J.hours, 0), tips = Js.reduce((a, J) => a + J.tipsOwn, 0);
-  const lines = [];
-  for (const J of Js) {
-    if (Js.length > 1) lines.push({ label: J.job.name, value: '', sub: `${T('₪')}${J.job.rate} ${T('לשעה')}` });
-    for (const k of TIERS) if (J.b[k] > 0.004) lines.push({ label: T(tierLabel(k, J.job)), sub: `${hm(J.b[k])} ${T('ש׳')}`, value: money2(J.money[k]) });
-    if (J.travel) lines.push({ label: T('נסיעות'), sub: `${J.travelDays} ${T('ימי עבודה')}`, value: money2(J.travel) });
-    if (J.bonus) lines.push({ label: T('בונוסים'), value: money2(J.bonus) });
-    if (J.tipsOver) lines.push({ label: T('טיפים מעל השכר'), value: money2(J.tipsOver) });
-    if (J.holiday) lines.push({ label: T('דמי חגים'), sub: J.holDays.map(h => T(h.name)).join(', '), value: money2(J.holiday) });
-    if (J.sickDays) lines.push({ label: T('דמי מחלה'), sub: `${J.sickDays} ${T('ימים')}`, value: money2(J.sick) });
-    if (J.vacDays) lines.push({ label: T('דמי חופשה'), sub: `${J.vacDays} ${T('ימים')}`, value: money2(J.vac) });
-    if (J.havraa) lines.push({ label: T('דמי הבראה'), sub: T('חלק חודשי'), value: money2(J.havraa) });
-  }
-  lines.push({ label: T('סה״כ ברוטו'), value: money2(gross), strong: true });
-  const tiles = [[T('שעות'), hm(hours)], [T('משמרות'), String(shifts.length)], [T('ברוטו'), money(gross)]];
-  if (withNet) {
-    const n = grossToNet(gross, netOpts(y, m), taxFor(y));
-    lines.push({ label: T('מס הכנסה, ביטוח לאומי ובריאות'), value: '−' + money2(n.tax + n.ni + n.health), neg: true });
-    if (n.pEmp + n.hEmp) lines.push({ label: T('חיסכון לפנסיה'), value: '−' + money2(n.pEmp + n.hEmp), neg: true });
-    lines.push({ label: T('נטו משוער'), value: money2(n.net), strong: true });
-    tiles.push([T('נטו משוער'), money(n.net)]);
-  }
-  if (tips) lines.push({ label: T('טיפים שלך'), sub: T('במזומן או מהלקוחות, לא בתלוש'), value: money2(tips) });
-  const rows = [];
-  for (const s of shifts) {
-    const p = PAY.get(s.id), d = new Date(s.start);
-    const what = [p.names.length ? p.names.map(T).join(' / ') : '', p.otHours > 0.01 ? `${T('נוספות')} ${hm(p.otHours)}` : '', s.note || ''].filter(Boolean).join(' · ');
-    const row = [dFull(s.start), DAYS[d.getDay()], tm(s.start), tm(s.end), +s.breakMin ? String(+s.breakMin) : '', hm(p.hours), money2(p.pay), what];
-    if (jobId === 'all' && S.jobs.length > 1) row[7] = [jobById(s.jobId).name, what].filter(Boolean).join(' · ');
-    rows.push(row);
-  }
-  for (const a of absent) {
-    const d = new Date(a.date + 'T12:00:00');
-    rows.push([dFull(d), DAYS[d.getDay()], '', '', '', '', '', T(a.kind === 'sick' ? 'יום מחלה' : 'יום חופשה')]);
-  }
-  rows.sort((a, b) => { const k = r => r[0].split('/').reverse().join(''); return k(a) < k(b) ? -1 : k(a) > k(b) ? 1 : 0; });
-  const sumPay = shifts.reduce((a, s) => a + PAY.get(s.id).pay, 0), sumH = shifts.reduce((a, s) => a + PAY.get(s.id).hours, 0);
-  try { await document.fonts.load('700 24px Heebo'); await document.fonts.load('800 24px Heebo'); await document.fonts.load('400 24px Heebo'); } catch {}
-  const pages = drawReport({
-    dir: EN ? 'ltr' : 'rtl', font: 'Heebo, "Noto Sans Hebrew", Arial, sans-serif',
-    brand: EN ? 'Etzba · אצבע' : 'אצבע',
-    title: `${T('דוח שעות ושכר')} · ${MONTHS[m]} ${y}`,
-    subtitle: one ? `${one.name} · ${T('₪')}${jobAt(one, new Date(y, m + 1, 0)).rate} ${T('לשעה')}` : Js.map(J => J.job.name).join(' · '),
-    tiles, lines,
-    cols: [{ title: T('תאריך'), w: .14 }, { title: T('יום'), w: .09 }, { title: T('כניסה'), w: .09 }, { title: T('יציאה'), w: .09 }, { title: T('הפסקה'), w: .10 }, { title: T('שעות'), w: .09 }, { title: T('שכר'), w: .13 }, { title: T('הערות'), w: .27 }],
-    rows, total: [T('סה״כ'), '', '', '', '', hm(sumH), money2(sumPay), ''],
-    footer: T('הופק באצבע · etzba.co.il · חישוב לפי החוק וההגדרות שהוזנו, לא תלוש שכר רשמי'),
-    pageLabel: (i, n) => `${i} / ${n}`,
-  });
-  return pagesToPDF(pages);
-}
 
 const SUPPORT_MAIN = [['support_10', 10], ['support_20', 20], ['support_50', 50]];
 const SUPPORT_MORE = [['support_5', 5], ['support_15', 15], ['support_30', 30], ['support_75', 75], ['support_100', 100], ['support_200', 200]];
-async function openSupport() {
+export async function openSupport() {
   const all = [...SUPPORT_MAIN, ...SUPPORT_MORE];
   let prices = new Map(), chosen = 'support_20', owned = new Set();
   const price = (id, n) => prices.get(id) || `₪${n}`;
@@ -361,7 +134,7 @@ const isDate = d => typeof d === 'string' && /^\d{4}-\d\d-\d\d$/.test(d);
 const earlyOpen = (name, who = 'all') => { const d = earlyDate(name, who); return !d || dateKey(new Date()) >= d; };
 const earlyLater = (name, who = 'all') => (earlyDate(name, who) || '') >= '2090';
 const openForMe = name => isSup() ? earlyOpen(name, 'supporters') || earlyOpen(name) : earlyOpen(name);
-const earlyWhen = name => {
+export const earlyWhen = name => {
   const all = earlyLater(name) ? null : earlyDate(name), sup = earlyDate(name, 'supporters'), supOpen = earlyOpen(name, 'supporters');
   if (isSup()) return sup && !earlyLater(name, 'supporters') ? `ייפתח לך ב־${dShort(sup)}, לפני כולם` : 'עוד לא נקבע מתי ייפתח';
   if (!all) return supOpen ? 'בינתיים לתומכים בלבד' : sup && !earlyLater(name, 'supporters') ? `לתומכים מ־${dShort(sup)}` : 'עוד לא נקבע מתי ייפתח';
@@ -406,8 +179,8 @@ function announceEarly() {
   $('#en-go', pop).onclick = () => { closePop(); news.go(); };
   $('#en-later', pop).onclick = closePop;
 }
-const recapOpen = () => openForMe('recap');
-const RECAP_YEAR = 2026;
+export const recapOpen = () => openForMe('recap');
+export const RECAP_YEAR = 2026;
 function recapBanner() {
   const el = $('#rcBanner'); if (!el) return;
   const now = new Date(), y = RECAP_YEAR;
@@ -483,7 +256,7 @@ const KIND_LINE = { morning: ['טיפוס של בוקר', 'רוב המשמרות
   evening: ['טיפוס של ערב', 'רוב המשמרות שלך התחילו אחרי הצהריים.'], night: ['ינשוף לילה', 'רוב המשמרות שלך היו בלילה.'] };
 const KIND_SHORT = { morning: 'בוקר', noon: 'צהריים', evening: 'ערב', night: 'לילה' };
 const RC_MS = 6500;
-function openRecap(y) {
+export function openRecap(y) {
   const R = recapStats(y);
   if (!R) return toast(`אין משמרות ב־${y}`);
   const days = Math.floor(R.hours / 24), maxM = Math.max(...R.months, 1);
@@ -610,92 +383,6 @@ async function shareRecap(R) {
 }
 
 /* ================= STATS ================= */
-const GROUPS = ['רגיל', 'נוספות', 'שבת וחג'];
-function agg(list) {
-  const A = { h: [0, 0, 0], m: [0, 0, 0], hours: 0, gross: 0, count: 0 };
-  for (const s of list) {
-    const p = PAY.get(s.id); if (!p) continue;
-    for (const k of TIERS) { const g = /^(rest|chag|elect)/.test(k) ? 2 : /^ot|special/.test(k) ? 1 : 0; A.h[g] += p.b[k]; A.m[g] += p.money[k]; }
-    A.m[0] += p.travel + p.bonus; A.hours += p.hours; A.gross += p.pay; A.count++;
-  }
-  return A;
-}
-const metricSeg = () => `<div class="c-head"><div class="seg sm" data-metric><button data-m="h" class="${S.ui.metric === 'm' ? '' : 'on'}">שעות</button><button data-m="m" class="${S.ui.metric === 'm' ? 'on' : ''}">ברוטו</button></div><div class="c-leg">${GROUPS.map((g, j) => `<span><i class="cg${j}"></i>${g}</span>`).join('')}</div></div>`;
-const bindMetric = root => $$('[data-metric] button', root).forEach(b => b.onclick = () => { S.ui.metric = b.dataset.m; persist(); renderSum(); });
-function mountChart(el, items, sel) {
-  const met = S.ui.metric === 'm' ? 'm' : 'h', fmt = met === 'm' ? money : hm;
-  const tot = it => it[met][0] + it[met][1] + it[met][2];
-  if (sel == null) { sel = items.length - 1; for (let i = items.length - 1; i >= 0; i--) if (tot(items[i]) > 0) { sel = i; break; } }
-  const max = niceMax(Math.max(...items.map(tot), met === 'm' ? 100 : 1));
-  const read = i => { const it = items[i]; return `<div class="c-r1"><b>${it.title}</b><span class="num c-tot">${fmt(tot(it))}</span></div><div class="c-parts">${GROUPS.map((g, j) => it[met][j] > 0.004 ? `<span><i class="cg${j}"></i>${g} <b class="num">${fmt(it[met][j])}</b></span>` : '').join('') || '<span>אין משמרות</span>'}</div>`; };
-  el.innerHTML = `<div class="c-read">${read(sel)}</div>
-    <div class="c-plot"><div class="c-grid">${[1, .5, 0].map(f => `<span style="bottom:${f * 100}%"><em class="num">${fmt(max * f)}</em></span>`).join('')}</div>
-    <div class="c-bars${items.length > 14 ? ' thin' : ''}">${items.map((it, i) => {
-      const parts = it[met], last = parts.reduce((a, v, j) => v > 0.004 ? j : a, -1);
-      return `<button class="c-col${i === sel ? ' on' : ''}" data-i="${i}" aria-label="${it.title}"><span class="c-stack" style="height:${tot(it) / max * 100}%">${parts.map((v, j) => v > 0.004 ? `<i class="cg${j}${j === last ? ' top' : ''}" style="flex:${v}"></i>` : '').join('')}</span><em class="num">${it.label ?? ''}</em></button>`;
-    }).join('')}</div></div>`;
-  const cols = $$('.c-col', el), pick = b => { cols.forEach(x => x.classList.toggle('on', x === b)); $('.c-read', el).innerHTML = read(+b.dataset.i); };
-  $('.c-bars', el).addEventListener('click', e => {
-    let best = null, d = 1e9;
-    for (const c of cols) { const r = c.getBoundingClientRect(), dx = Math.abs(e.clientX - (r.left + r.width / 2)); if (dx < d) { d = dx; best = c; } }
-    if (best) pick(best);
-  });
-}
-function renderSum() {
-  const el = $('#v-sum'), v = S.ui.sumView || 'month';
-  el.innerHTML = `<h1 class="title">סיכום</h1><div class="seg" id="sumSeg">${[['weeks', 'שבועות'], ['month', 'חודש'], ['year', 'שנה']].map(([k, n]) => `<button data-s="${k}" class="${k === v ? 'on' : ''}">${n}</button>`).join('')}</div><div id="sumBody" style="margin-top:12px"></div>`;
-  $$('#sumSeg button', el).forEach(b => b.onclick = () => { S.ui.sumView = b.dataset.s; persist(); renderSum(); });
-  ({ month: sumMonth, weeks: sumWeeks, year: sumYear })[v]($('#sumBody', el));
-}
-function sumWeeks(el) {
-  const items = [], N = 10;
-  for (let i = N - 1; i >= 0; i--) {
-    const ws = weekStart(new Date()); ws.setDate(ws.getDate() - i * 7);
-    const we = new Date(ws); we.setDate(we.getDate() + 6);
-    const list = inWeek(ws);
-    items.push({ ...agg(list), title: `שבוע ${dShort(ws)}–${dShort(we)}`, label: dShort(ws), lim: list.length ? jobById(list[0].jobId).weeklyLimit : 42 });
-  }
-  const worked = items.filter(x => x.count), avgH = worked.length ? worked.reduce((a, x) => a + x.hours, 0) / worked.length : 0, avgG = worked.length ? worked.reduce((a, x) => a + x.gross, 0) / worked.length : 0;
-  el.innerHTML = `<div class="kpis"><div class="kpi"><small>ממוצע שעות לשבוע</small><b class="num">${hm(avgH)}</b></div><div class="kpi"><small>ממוצע ברוטו לשבוע</small><b class="num">${money(avgG)}</b></div></div>
-    <div class="sec"><span>${secIc('cal', 'blue')}${N} שבועות אחרונים</span></div>
-    <div class="card pad">${metricSeg()}<div id="wkChart"></div></div>
-    <div class="sec"><span>${secIc('receipt', 'green')}פירוט</span></div>
-    <div class="card">${[...items].reverse().map(x => `<div class="ln"><span class="l" style="color:var(--ink)">${x.title}<small>${x.count ? x.count + ' משמרות' : 'בלי משמרות'}${x.hours > x.lim ? ` · מעל ${x.lim} ש׳` : ''}</small></span><span class="v num">${hm(x.hours)} ש׳<small style="display:block;font-weight:400;color:var(--ink3)">${money(x.gross)}</small></span></div>`).join('')}</div>`;
-  mountChart($('#wkChart', el), items); bindMetric(el);
-}
-function sumYear(el) {
-  const Ms = Array.from({ length: 12 }, (_, m) => monthCalc(viewY, m));
-  const items = Ms.map((M, m) => { const A = agg(M.shifts); A.m[0] += M.perJob.reduce((a, J) => a + (J.holiday || 0), 0); return { ...A, title: `${MONTHS[m]} ${viewY}`, label: m + 1 }; });
-  const T = Ms.reduce((a, M) => (a.gross += M.gross, a.net += M.gross ? M.net.net : 0, a.tax += M.net.tax, a.hours += M.hours, a.count += M.shifts.length, a), { gross: 0, net: 0, tax: 0, hours: 0, count: 0 });
-  const best = Ms.reduce((a, M) => M.gross > a.gross ? M : a, Ms[0]), act = Ms.filter(M => M.gross > 0).length;
-  const H = items.reduce((a, x) => (a[0] += x.h[0], a[1] += x.h[1], a[2] += x.h[2], a), [0, 0, 0]);
-  const k = (l, v, s = '', d = '') => `<div class="kpi"><small>${l}</small><b class="num">${v}</b>${d ? `<span class="dline">${d}</span>` : ''}${s ? `<em>${s}</em>` : ''}</div>`;
-  const C = yearVsLast(viewY), vsY = `לעומת ${viewY - 1}`;
-  const prevNet = !C.partial && C.b.g ? Array.from({ length: 12 }, (_, m) => monthCalc(viewY - 1, m)).reduce((a, M) => a + (M.gross ? M.net.net : 0), 0) : 0;
-  el.innerHTML = `<div class="monthbar"><button class="ibtn" data-yn="-1" aria-label="שנה קודמת">${I.chevR}</button><b class="num">${viewY}</b><button class="ibtn" data-yn="1" aria-label="שנה הבאה">${I.chevL}</button></div>
-    ${T.count && viewY === RECAP_YEAR ? `<button class="recap-btn${recapOpen() ? '' : ' locked'}" id="openRecap"><span class="grow"><b>השנה שלך באצבע</b><small>${recapOpen() ? 'סיכום השנה כמו סטורי, עם תמונה לשיתוף' : earlyWhen('recap')}</small></span>${recapOpen() ? I.chevL : I.lock}</button>` : ''}
-    ${T.count ? `<div class="kpis" style="margin-top:12px">
-      ${k('ברוטו שנתי', money(T.gross), '', dlt(C.a.g, C.b.g, vsY))}${NET() ? k('נטו משוער', money(T.net), `מס הכנסה ${money(T.tax)}`, prevNet ? dlt(T.net, prevNet, vsY) : '') : k('משמרות', T.count, `${hm(T.count ? T.hours / T.count : 0)} ש׳ בממוצע`)}
-      ${k('שעות', hm(T.hours), `${T.count} משמרות`, dlt(C.a.h, C.b.h, vsY))}${k('ממוצע לשעה', money2(T.hours ? T.gross / T.hours : 0), 'כולל תוספות', dlt(C.a.h ? C.a.g / C.a.h : 0, C.b.h ? C.b.g / C.b.h : 0, vsY))}
-      ${k('ממוצע לחודש', money(act ? T.gross / act : 0), `${act} חודשי עבודה`)}${k('חודש שיא', MONTHS[best.m], money(best.gross))}</div>
-    ${C.b.g ? `<p class="dl-note">האחוזים: לעומת ${viewY - 1}${C.partial ? ', באותה תקופה בשנה' : ''}.</p>` : ''}
-    <div class="sec"><span>${secIc('cal', 'blue')}לפי חודשים</span></div>
-    <div class="card pad">${metricSeg()}<div id="yrChart"></div></div>
-    <div class="sec"><span>${secIc('ot', 'orange')}חלוקת השעות בשנה</span></div>
-    <div class="card pad"><div class="split">${H.map((v, j) => v > 0.004 ? `<i class="cg${j}" style="flex:${v}"></i>` : '').join('')}</div>
-      ${GROUPS.map((g, j) => `<div class="ln flat"><span class="l"><i class="dotc cg${j}"></i>${g}</span><span class="v num">${hm(H[j])} ש׳ · ${T.hours ? Math.round(H[j] / T.hours * 100) : 0}%</span></div>`).join('')}</div>
-    <div class="sec"><span>${secIc('cal', 'blue')}חודשים</span></div>
-    <div class="card">${Ms.map((M, m) => M.shifts.length || M.gross ? `<button class="cell" data-gm="${m}"><span class="grow">${MONTHS[m]}<div class="sub num">${M.shifts.length} משמרות · ${hm(M.hours)} ש׳</div></span><span class="val num" style="text-align:end;color:var(--ink)"><b>${money(M.gross)}</b>${NET() ? `<div class="sub">נטו ${money(M.net.net)}</div>` : ''}</span><span class="chev">${I.chevL}</span></button>` : '').join('')}</div>
-    <div class="card" style="margin-top:12px"><button class="cell" id="xYear"><span class="cell-ic t-blue">${I.file}</span><span class="grow">ייצוא סיכום חודשי (CSV)</span><span class="chev">${I.chevL}</span></button></div>`
-    : `<div class="card" style="margin-top:12px"><div class="empty"><div class="eic">${I.receipt}</div>אין משמרות ב־${viewY}</div></div>`}
-    ${NET() ? `<p class="fine">הנטו השנתי הוא סכום ההערכות החודשיות. החישוב הסופי נעשה בתיאום מס שנתי.</p>` : ''}`;
-  $$('[data-yn]', el).forEach(b => b.onclick = () => { showMonth(viewY + +b.dataset.yn, viewM); renderSum(); });
-  $('#openRecap', el) && ($('#openRecap', el).onclick = () => recapOpen() ? openRecap(viewY) : (native.billing.available() && !isSup() ? openSupport() : toast(earlyWhen('recap'))));
-  if (!T.count) return;
-  mountChart($('#yrChart', el), items, viewY === new Date().getFullYear() ? new Date().getMonth() : undefined); bindMetric(el);
-  $$('[data-gm]', el).forEach(b => b.onclick = () => { showMonth(viewY, +b.dataset.gm); S.ui.sumView = 'month'; persist(); renderSum(); scrollTo(0, 0); });
-  $('#xYear', el).onclick = () => deliver('אצבע-סיכום-חודשי.csv', summaryCSV(), 'text/csv;charset=utf-8');
-}
 
 /* ================= RIGHTS ================= */
 function renderRights() {
@@ -1263,7 +950,7 @@ function shiftsCSV(list) {
   rows.push(tot);
   return toCSV(rows);
 }
-function summaryCSV() {
+export function summaryCSV() {
   const keys = [...index().month.keys()].sort((a, b) => a - b);
   const rows = [['חודש', 'משמרות', 'שעות', 'ברוטו', 'מס הכנסה', 'ביטוח לאומי', 'ביטוח בריאות', 'פנסיה (עובד)', 'קרן השתלמות (עובד)', 'נטו משוער', 'פנסיה (מעסיק)', 'פיצויים', 'עלות מעסיק']];
   for (const k of keys) {
@@ -1272,7 +959,7 @@ function summaryCSV() {
   }
   return toCSV(rows);
 }
-async function deliver(name, text, mime) {
+export async function deliver(name, text, mime) {
   if (native.NATIVE) {
     try { return await native.saveFile(name, text); }
     catch (e) { dbg.log('error', 'native save: ' + (e?.message || e)); toast('לא הצלחתי לשמור את הקובץ'); return false; }
@@ -1293,13 +980,13 @@ async function deliver(name, text, mime) {
 async function copyText(text) {
   try { await navigator.clipboard.writeText(text); toast('הועתק ללוח'); return true; } catch { toast('לא הצלחתי להעתיק'); return false; }
 }
-function exportShifts(scope, how = 'file') {
+export function exportShifts(scope, how = 'file') {
   const list = scope === 'month' ? monthCalc(viewY, viewM).shifts : S.shifts;
   if (!list.length) return toast('אין משמרות לייצא');
   const csv = shiftsCSV(list), name = scope === 'month' ? `אצבע-משמרות-${viewY}-${pad(viewM + 1)}.csv` : `אצבע-כל-המשמרות.csv`;
   how === 'copy' ? copyText(csv.slice(1)) : deliver(name, csv, 'text/csv;charset=utf-8');
 }
-function openExport() {
+export function openExport() {
   let how = 'file';
   openSheet(`<h2>ייצוא</h2><p class="shsub">קובצי CSV נפתחים באקסל ובגוגל שיטס, עם עברית תקינה וטור לכל סוג שעות.</p>
     <div class="seg" id="x-how" style="margin-top:14px"><button data-h="file" class="on">שיתוף / הורדה</button><button data-h="copy">העתקה</button></div>
@@ -1879,7 +1566,7 @@ function drawHeader() {
 const PROBLEMS = [];
 function describe(e) { return ((e && (e.stack || e.message)) || String(e)).split('\n').slice(0, 4).join('\n'); }
 function problemText() { return debugReport(); }
-function report(e) {
+export function report(e) {
   const d = describe(e); if (PROBLEMS[PROBLEMS.length - 1] === d) return;
   PROBLEMS.push(d); console.error(e); dbg.log('error', d);
   let bar = $('#probbar');
