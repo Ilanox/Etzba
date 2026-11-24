@@ -9,7 +9,7 @@ const { LANGS, loadPack } = await import(join(root, 'languages/index.js'));
 
 const IGNORE = new Set(['אצבע', 'עברית']);
 const found = new Map();
-for (const f of readdirSync(join(root, 'js'))) {
+for (const f of readdirSync(join(root, 'js'), { recursive: true }).filter(f => f.endsWith('.js'))) {
   let src = readFileSync(join(root, 'js', f), 'utf8');
   src = src.replace(/\/\* translations: skip-start[\s\S]*?translations: skip-end \*\//g, '');
   src = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/\s.*$/gm, '');

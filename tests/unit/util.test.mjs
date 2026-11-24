@@ -16,7 +16,7 @@ test('util: text and numbers', () => {
 
 test('offline cache lists every app module', () => {
   const sw = readFileSync(new URL('../../service-worker.js', import.meta.url), 'utf8');
-  for (const f of readdirSync(new URL('../../js/', import.meta.url)).filter(f => f.endsWith('.js')))
+  for (const f of readdirSync(new URL('../../js/', import.meta.url), { recursive: true }).filter(f => f.endsWith('.js')))
     assert.ok(sw.includes(`'js/${f}'`), `js/${f} missing from service-worker.js`);
 });
 

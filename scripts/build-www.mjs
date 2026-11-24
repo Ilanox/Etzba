@@ -38,7 +38,7 @@ writeFileSync(join(out, 'fonts/fonts.css'), css);
 // index.html: local font instead of Google Fonts
 let html = readFileSync(join(out, 'index.html'), 'utf8');
 html = html.replace(/<link rel="preconnect"[^>]*>\s*/g, '').replace(/<link href="https:\/\/fonts\.googleapis\.com[^>]*>/, '<link rel="stylesheet" href="fonts/fonts.css">');
-const mods = [...readdirSync(join(root, 'js')).filter(f => f.endsWith('.js')).map(f => 'js/' + f), ...readdirSync(join(root, 'languages')).filter(f => f.endsWith('.js')).map(f => 'languages/' + f)];
+const mods = [...readdirSync(join(root, 'js'), { recursive: true }).filter(f => f.endsWith('.js')).map(f => 'js/' + f), ...readdirSync(join(root, 'languages')).filter(f => f.endsWith('.js')).map(f => 'languages/' + f)];
 html = html.replace('<script type="module"', mods.map(m => `<link rel="modulepreload" href="${m}">`).join('') + '\n<script type="module"');
 html = html.replace(/<meta http-equiv="Content-Security-Policy"[^>]*data-web-only>\n?/, '');
 writeFileSync(join(out, 'index.html'), html);

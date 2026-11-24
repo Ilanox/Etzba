@@ -12,9 +12,11 @@ import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
 import { buzz, toast, hideToast, announce, spokenDate, openSheet, closeSheet, sheetOpen, openPop, popOpen, closePop, keepPopQuiet, confirmBtn } from './ui.js';
+import { LANG, EN, DAYS, MONTHS, DAY_SHORT, useLanguage } from './lang.js';
+import { view, viewY, viewM, showMonth, stepMonth, setView, VIEWS, setRenderHooks, go, render, onSave, setSaveFailed, persist, commit } from './nav.js';
 import { viewAs, isSup, isOwner, applyTheme, startTheme } from './theme.js';
 import { NET, refreshAge, ageAt, minWage, pensionAge, netOpts, electionDate, PAY, recompute, weekRegBefore, livePay, monthVsLast, yearVsLast, havraaOf, leaveOf, monthCalc, withLive } from './pay.js';
-import { S, setState, save, hadLocal, jobById, place, invalidate, index, inWeek } from './state.js';
+import { S, setState, save, hadLocal, jobById, place, index, inWeek } from './state.js';
 import { lawVacDays } from './leave.js';
 import { $, $$, esc, nm, uid, pad, money, money2, hm, pctChange, niceMax, tm, dShort, dFull, dateKey, sameDay } from './util.js';
 import { drawReport, pagesToPDF } from './report.js';
@@ -26,9 +28,6 @@ const VERSION = '1.0.0';
 dbg.log('boot', 'v' + VERSION);
 
 loadRules();
-let LANG = langInfo(S.settings.lang || 'he').code;
-let EN = LANG !== 'he';
-let PACK = null;
 document.documentElement.lang = LANG; document.documentElement.dir = langInfo(LANG).dir;
 
 function ageLine() {
@@ -43,24 +42,13 @@ function pensionLine() {
   return `חלק מהשכר נחסך לגיל פרישה, והמעסיק מוסיף יותר. חובה מגיל ${from}, בדרך כלל אחרי 6 חודשים בעבודה`;
 }
 startTheme(() => syncWidget());
-let warnedSave = false;
-function persist() {
-  invalidate(); planNotifications(); syncGeo(); syncWidget();
-  if (!save() && !warnedSave) { warnedSave = true; toast('לא הצלחתי לשמור בטלפון. כדאי לגבות', 'err', { label: 'גיבוי עכשיו', fn: () => backupNow() }); }
-  return true;
-}
-function commit() { persist(); recompute(); render(); }
+onSave(() => planNotifications()); onSave(() => syncGeo()); onSave(() => syncWidget());
+setSaveFailed(() => toast('לא הצלחתי לשמור בטלפון. כדאי לגבות', 'err', { label: 'גיבוי עכשיו', fn: () => backupNow() }));
 
 /* ================= helpers ================= */
-const HE_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-let DAYS = HE_DAYS;
-const HE_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
-let MONTHS = HE_MONTHS;
 const COLORS = ['#E4572E', '#1E7A4A', '#4B5BD0', '#C98E00', '#1F8F84', '#A1458F', '#5E574C', '#2A6FB0'];
 const tierLabel = (k, job, pct) => k === 'special' ? (pct ? `${TIER_NAME[k]} ${pct}%` : TIER_NAME[k]) : `${TIER_NAME[k]} ${job.r[k]}%`;
 
-let viewY = new Date().getFullYear(), viewM = new Date().getMonth();
-let view = 'home';
 
 
 
@@ -72,8 +60,7 @@ function monthBar() {
 }
 function bindMonthBar(root) {
   $$('[data-mn]', root).forEach(b => b.onclick = () => {
-    viewM += +b.dataset.mn;
-    if (viewM < 0) { viewM = 11; viewY--; } if (viewM > 11) { viewM = 0; viewY++; }
+    stepMonth(+b.dataset.mn);
     render();
   });
 }
@@ -271,7 +258,7 @@ function renderTiles(L) {
       <div class="wkb-days">${H.map((h, i) => `<div class="wkb-d${i === now.getDay() ? ' on' : ''}"><i style="height:${h / mx * 100}%"></i><em>${DAY_SHORT[i]}</em></div>`).join('')}</div>
       <div class="wkb-sub num">${wH > lim ? `${hm(wH - lim)} מעל המכסה השבועית` : `נשארו ${hm(lim - wH)} עד המכסה השבועית`}</div></div>
     ${goalCell(M)}`;
-  $('#mcell', el).onclick = () => { viewY = now.getFullYear(); viewM = now.getMonth(); S.ui.sumView = 'month'; go('sum'); };
+  $('#mcell', el).onclick = () => { showMonth(now.getFullYear(), now.getMonth()); S.ui.sumView = 'month'; go('sum'); };
   $('#goal', el).onclick = openGoal;
   $('#tcell', el).onclick = () => {
     const today = S.shifts.filter(x => sameDay(x.start, now)).sort((a, b) => new Date(b.start) - new Date(a.start));
@@ -494,7 +481,7 @@ function onPunch() {
     if (end - new Date(a.start) < 6e4) end = new Date(+new Date(a.start) + 6e4);
     const sh = { id: uid(), jobId: a.jobId, start: a.start, end: end.toISOString(), breakMin: job.breakMin || 0, bonus: 0, note: '', rest: 'auto', ...(a.planned ? { planned: a.planned } : {}) };
     S.shifts.push(sh); S.active = null;
-    const d = new Date(sh.start); viewY = d.getFullYear(); viewM = d.getMonth();
+    const d = new Date(sh.start); showMonth(d.getFullYear(), d.getMonth());
     const g0 = goalState(withLive(monthCalc(viewY, viewM)));
     commit(); buzz(25); announce('המשמרת נשמרה');
     openShiftDone(sh, a);
@@ -531,8 +518,6 @@ function openShiftDone(sh, was) {
 }
 
 /* ================= SHIFT SHEET ================= */
-const HE_DAY_SHORT = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
-let DAY_SHORT = HE_DAY_SHORT;
 function openShiftSheet(sh, mode) {
   const job = jobById(sh.jobId);
   const st0 = new Date(sh.start), en0 = new Date(sh.end), today = new Date(); today.setHours(0, 0, 0, 0);
@@ -703,7 +688,7 @@ function openShiftSheet(sh, mode) {
     $('#f-save', root).onclick = () => {
       if (kind === 'vac' || kind === 'sick') {
         const n = addLeave(jobId, kind, dateKey(T.date), +$('#f-ndays', root).value);
-        const d = new Date(T.date); viewY = d.getFullYear(); viewM = d.getMonth();
+        const d = new Date(T.date); showMonth(d.getFullYear(), d.getMonth());
         closeSheet(); commit(); buzz(20); return toast(n === 1 ? 'נשמר יום אחד' : `נשמרו ${n} ימים`, 'ok');
       }
       const s = read(), len = new Date(s.end) - new Date(s.start);
@@ -724,7 +709,7 @@ function openShiftSheet(sh, mode) {
       if (!s.id) { s.id = uid(); S.shifts.push(s); } else S.shifts[S.shifts.findIndex(x => x.id === s.id)] = s;
       if (mode === 'end') { S.active = null; announce(`המשמרת נשמרה`); }
       S.settings.lastJob = s.jobId;
-      const d = new Date(s.start); viewY = d.getFullYear(); viewM = d.getMonth();
+      const d = new Date(s.start); showMonth(d.getFullYear(), d.getMonth());
       closeSheet(); commit(); buzz(25);
       toast(`נשמר · ${money(PAY.get(s.id).pay)} על ${hm(PAY.get(s.id).hours)} ש׳`, 'ok');
     };
@@ -995,7 +980,7 @@ function openLeaveSheet(pre = {}) {
       const v = $('#lv-date', root).value;
       if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return toast('צריך לבחור תאריך', 'err');
       const n = addLeave(jobId, kind, v, +$('#lv-n', root).value), [y, m, dd] = v.split('-').map(Number);
-      const d = new Date(y, m - 1, dd); viewY = d.getFullYear(); viewM = d.getMonth();
+      const d = new Date(y, m - 1, dd); showMonth(d.getFullYear(), d.getMonth());
       closeSheet(); commit(); buzz(20); toast(n === 1 ? 'נשמר יום אחד' : `נשמרו ${n} ימים`, 'ok');
     };
   });
@@ -1479,11 +1464,11 @@ function sumYear(el) {
     <div class="card" style="margin-top:12px"><button class="cell" id="xYear"><span class="cell-ic t-blue">${I.file}</span><span class="grow">ייצוא סיכום חודשי (CSV)</span><span class="chev">${I.chevL}</span></button></div>`
     : `<div class="card" style="margin-top:12px"><div class="empty"><div class="eic">${I.receipt}</div>אין משמרות ב־${viewY}</div></div>`}
     ${NET() ? `<p class="fine">הנטו השנתי הוא סכום ההערכות החודשיות. החישוב הסופי נעשה בתיאום מס שנתי.</p>` : ''}`;
-  $$('[data-yn]', el).forEach(b => b.onclick = () => { viewY += +b.dataset.yn; renderSum(); });
+  $$('[data-yn]', el).forEach(b => b.onclick = () => { showMonth(viewY + +b.dataset.yn, viewM); renderSum(); });
   $('#openRecap', el) && ($('#openRecap', el).onclick = () => recapOpen() ? openRecap(viewY) : (native.billing.available() && !isSup() ? openSupport() : toast(earlyWhen('recap'))));
   if (!T.count) return;
   mountChart($('#yrChart', el), items, viewY === new Date().getFullYear() ? new Date().getMonth() : undefined); bindMetric(el);
-  $$('[data-gm]', el).forEach(b => b.onclick = () => { viewM = +b.dataset.gm; S.ui.sumView = 'month'; persist(); renderSum(); scrollTo(0, 0); });
+  $$('[data-gm]', el).forEach(b => b.onclick = () => { showMonth(viewY, +b.dataset.gm); S.ui.sumView = 'month'; persist(); renderSum(); scrollTo(0, 0); });
   $('#xYear', el).onclick = () => deliver('אצבע-סיכום-חודשי.csv', summaryCSV(), 'text/csv;charset=utf-8');
 }
 
@@ -1825,7 +1810,7 @@ function openFileImport(f0) {
         const batch = 'imp-' + Date.now();
         for (const s of fresh) { s.batch = batch; S.shifts.push(s); }
         const last = new Date(Math.max(...fresh.map(s => +new Date(s.start))));
-        viewY = last.getFullYear(); viewM = last.getMonth();
+        showMonth(last.getFullYear(), last.getMonth());
         closeSheet(); commit(); go('shifts');
         announce(`יובאו ${fresh.length} משמרות`);
         toast(`יובאו ${fresh.length} משמרות`, 'ok', { label: 'ביטול', fn: () => {
@@ -2626,16 +2611,16 @@ function selfTest(out) {
     catch (e) { res.push('pay FAIL ' + e.message); dbg.log('error', 'selftest pay: ' + e.message); }
     for (const v of ['home', 'shifts', 'sum', 'rights']) {
       const t = performance.now();
-      try { view = v; RENDER[v](); res.push(`${v} ${Math.round(performance.now() - t)}ms`); }
+      try { setView(v); VIEWS[v](); res.push(`${v} ${Math.round(performance.now() - t)}ms`); }
       catch (e) { res.push(`${v} FAIL ${e.message}`); dbg.log('error', 'selftest ' + v + ': ' + e.message); }
     }
     for (const sv of ['weeks', 'year', 'month']) {
       const t = performance.now();
-      try { S.ui.sumView = sv; view = 'sum'; renderSum(); res.push(`sum/${sv} ${Math.round(performance.now() - t)}ms`); }
+      try { S.ui.sumView = sv; setView('sum'); renderSum(); res.push(`sum/${sv} ${Math.round(performance.now() - t)}ms`); }
       catch (e) { res.push(`sum/${sv} FAIL ${e.message}`); dbg.log('error', 'selftest sum ' + sv + ': ' + e.message); }
     }
-    view = keep.view; viewY = keep.viewY; viewM = keep.viewM; S.ui.sumView = keep.sumView;
-    try { RENDER[view](); } catch {}
+    setView(keep.view); showMonth(keep.viewY, keep.viewM); S.ui.sumView = keep.sumView;
+    try { VIEWS[view](); } catch {}
     const txt = res.join(' · '); dbg.log('perf', 'selftest ' + txt);
     out.textContent = (res.some(r => r.includes('FAIL')) ? '✗ ' : '✓ ') + txt;
   }, 50);
@@ -2644,9 +2629,7 @@ function selfTest(out) {
 async function setLang(l, save = true) {
   const info = langInfo(l);
   const pack = preferPack(info.code, await loadPack(info.code).catch(() => null));
-  LANG = info.code; EN = LANG !== 'he'; PACK = pack;
-  document.documentElement.lang = LANG; document.documentElement.dir = info.dir;
-  DAYS = pack?.days || HE_DAYS; MONTHS = pack?.months || HE_MONTHS; DAY_SHORT = pack?.daysShort || HE_DAY_SHORT;
+  useLanguage(info, pack);
   stopTranslating(); usePack(pack);
   if (pack) startTranslating();
   if (save) { S.settings.lang = LANG; persist(); }
@@ -2655,21 +2638,10 @@ async function setLang(l, save = true) {
 }
 
 /* ================= router ================= */
-const RENDER = { home: renderHome, shifts: renderShifts, sum: renderSum, rights: renderRights, set: renderSet };
-function go(v) {
-  dbg.log('tap', 'tab ' + v);
-  view = v;
-  $$('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
-  $$('.view').forEach(x => x.classList.toggle('on', x.id === 'v-' + v));
-  $('#fab').classList.toggle('hidden', v !== 'shifts');
-  scrollTo(0, 0);
-  render();
-}
-function render() {
-  const v = view;
-  try { dbg.timed('draw ' + v, RENDER[v]); } catch (e) { showFailure($('#v-' + v), e); }
-  dbg.log('begin', 'paint ' + v);
-  requestAnimationFrame(() => requestAnimationFrame(() => dbg.log('end', 'paint ' + v)));
+Object.assign(VIEWS, { home: renderHome, shifts: renderShifts, sum: renderSum, rights: renderRights, set: renderSet });
+setRenderHooks(drawHeader, (el, e) => showFailure(el, e));
+/** The figures in the top bar, redrawn after every screen. */
+function drawHeader() {
   try {
     const now = new Date(), M = withLive(monthCalc(now.getFullYear(), now.getMonth()));
     countUp($('#barNet'), NET() ? M.net.net : M.gross);
@@ -2806,7 +2778,7 @@ step('geo', () => { syncGeo(true); native.appActions.onAction(appAction); syncWi
 step('meter', () => { try { if (localStorage.getItem('etzba.meter') === '1') dbg.setMeter(true); } catch {} });
 step('backupDot', updateBackupDot);
 setInterval(() => { if (document.hidden) return; tickHome(false); if (new Date().getSeconds() === 0) { renderRestCard(); $('#brandMark').innerHTML = mark({ t: new Date(), sw: 5.4 }); } }, 1000);
-$('#chipNet') && ($('#chipNet').onclick = () => { const n = new Date(); viewY = n.getFullYear(); viewM = n.getMonth(); S.ui.sumView = 'month'; go('sum'); setTimeout(() => $('#steps')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 300); });
+$('#chipNet') && ($('#chipNet').onclick = () => { const n = new Date(); showMonth(n.getFullYear(), n.getMonth()); S.ui.sumView = 'month'; go('sum'); setTimeout(() => $('#steps')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 300); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { render(); planNotifications(); checkEarly(); } });
 
 const framed = (() => { try { return window.self !== window.top; } catch { return true; } })();
