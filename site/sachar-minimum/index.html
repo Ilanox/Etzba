@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>שכר מינימום 2026: ₪35.40 לשעה, ולנוער לפי גיל | אצבע</title>
@@ -43,7 +43,22 @@ th,td{text-align:start;padding:11px 10px;border-bottom:1px solid var(--line)}th{
 .faq details{border-bottom:1px solid var(--line);padding:14px 0}.faq summary{cursor:pointer;font-weight:700;color:var(--ink)}.faq p{margin:8px 0 0}
 .more{display:flex;flex-wrap:wrap;gap:10px 18px;padding:0;list-style:none}.more li{margin:0}
 footer{border-top:1px solid var(--line);margin-top:56px;padding:30px 0 46px;font-size:15px;color:var(--ink3)}footer a{color:var(--ink2);text-decoration:none;margin-inline-end:18px}
-.note{font-size:14px;color:var(--ink3)}</style>
+.note{font-size:14px;color:var(--ink3)}
+.calc{margin:10px 0 36px;padding:22px;border:1px solid var(--line);border-radius:20px;background:var(--surface)}
+.calc h2{margin:0 0 16px;font-size:22px}
+.cin{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.cf{display:flex;flex-direction:column;gap:6px;font-size:15px;color:var(--ink2)}.cf small{color:var(--ink3);font-size:13px}
+.cf:has(.cs){grid-column:1/-1}
+.ci{height:48px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:18px;padding:0 14px;font-variant-numeric:tabular-nums;width:100%}
+.ci:focus{outline:2px solid var(--blue);outline-offset:1px}
+.cs{display:flex;flex-wrap:wrap;gap:8px}.cs button{flex:1 1 auto;min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink2);font:inherit;font-size:15px;cursor:pointer}
+.cs button.on{background:var(--ink);color:#141518;border-color:var(--ink);font-weight:700}
+.cc{grid-column:1/-1;display:flex;align-items:center;gap:10px;color:var(--ink2);font-size:15px}.cc input{width:20px;height:20px;accent-color:var(--blue)}
+.cout{margin-top:18px}.ct{margin:0}.ct td small{display:block;color:var(--ink3);font-size:13px}.ct td:last-child,.ct th:last-child{text-align:end;white-space:nowrap}
+.ct .tot th{font-size:20px;border-bottom:0}
+.cn{font-size:15px;margin:10px 0 0}.cok,.cbad{margin:0;font-size:17px;color:var(--ink)}.cbad{color:#EB6E57}
+@media (max-width:560px){.cin{grid-template-columns:1fr}}</style>
+<script type="module" src="/calc.js"></script>
 </head>
 <body>
 <header><div class="wrap"><a class="brand" href="/">אצבע</a><nav><a href="/app/">לפתוח את האפליקציה</a></nav></div></header>
@@ -52,6 +67,7 @@ footer{border-top:1px solid var(--line);margin-top:56px;padding:30px 0 46px;font
 <article>
 <h1>שכר מינימום 2026</h1>
 <p class="lead">מ־1 באפריל 2026 שכר המינימום הוא ₪6,443.85 לחודש במשרה מלאה, ו־₪35.40 לשעה.</p>
+<section class="calc" data-calc="minimum"><noscript><p>המחשבון צריך JavaScript.</p></noscript></section>
 <h2>מבוגרים</h2>
 <table><thead><tr><th>מתאריך</th><th>לחודש</th><th>לשעה</th></tr></thead><tbody>
 <tr><td>1.4.2026</td><td>₪6,443.85</td><td>₪35.40</td></tr>

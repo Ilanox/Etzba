@@ -44,8 +44,9 @@ const PAGES = [
   },
   {
     slug: 'shaot-nosafot',
+    calc: 'overtime',
     nav: 'שעות נוספות',
-    title: 'חישוב שעות נוספות 2026: 125% ו־150%, עם דוגמה',
+    title: 'מחשבון שעות נוספות 2026: 125% ו־150%',
     desc: 'איך מחשבים שעות נוספות לעובד לפי שעה: מתי מתחילות, 125% לשעתיים הראשונות ו־150% מהשלישית, שבוע של 42 שעות, משמרות לילה ויום מקוצר. עם דוגמה מחושבת.',
     h1: 'חישוב שעות נוספות',
     lead: 'שעה נוספת היא כל שעה מעבר ליום העבודה או לשבוע העבודה הרגילים. השעתיים הראשונות ביום משולמות 125%, ומהשעה השלישית 150%.',
@@ -85,8 +86,9 @@ const PAGES = [
   },
   {
     slug: 'shabbat',
+    calc: 'shabbat',
     nav: 'שבת וחג',
-    title: 'תשלום על עבודה בשבת ובחג: 150%, 175% ו־200%',
+    title: 'מחשבון שכר לשבת וחג: 150%, 175% ו־200%',
     desc: 'כמה משלמים על עבודה בשבת ובחג לעובד לפי שעה: 150% לכל שעה במנוחה השבועית, 175% ו־200% לשעות נוספות, דמי חג ויום הבחירות. מתי שבת מתחילה ונגמרת לצורך שכר.',
     h1: 'עבודה בשבת ובחג',
     lead: 'כל שעה במנוחה השבועית או בחג משולמת 150% לפחות. שעות נוספות בשבת משולמות 175%, ומהשעה הנוספת השלישית 200%.',
@@ -113,8 +115,9 @@ const PAGES = [
   },
   {
     slug: 'neto',
+    calc: 'net',
     nav: 'מחשבון נטו',
-    title: 'מחשבון שכר נטו 2026: מס הכנסה, נקודות זיכוי וביטוח לאומי',
+    title: 'מחשבון ברוטו נטו 2026: מס הכנסה, נקודות זיכוי וביטוח לאומי',
     desc: `איך מגיעים מברוטו לנטו ב־2026: מדרגות מס הכנסה, נקודת זיכוי ₪${T.pointValue}, ביטוח לאומי ובריאות, ופנסיה. עם דוגמה מתלוש אמיתי.`,
     h1: 'מברוטו לנטו',
     lead: 'נטו הוא מה שנכנס לחשבון: הברוטו פחות מס הכנסה, ביטוח לאומי, מס בריאות והפרשה לפנסיה.',
@@ -149,6 +152,7 @@ ${B.map((b, i) => `<tr><td>${b[0] ? `${i ? '₪' + n(B[i - 1][0] + 1) + ' עד '
   },
   {
     slug: 'sachar-minimum',
+    calc: 'minimum',
     nav: 'שכר מינימום',
     title: `שכר מינימום 2026: ₪${n(MIN, 2)} לשעה, ולנוער לפי גיל`,
     desc: `שכר המינימום מ־1.4.2026: ₪${n(MIN_M, 2)} לחודש ו־₪${n(MIN, 2)} לשעה. שכר מינימום לנוער: ₪${youth(.7)}, ₪${youth(.75)} ו־₪${youth(.83)} לשעה לפי גיל.`,
@@ -210,8 +214,9 @@ ${B.map((b, i) => `<tr><td>${b[0] ? `${i ? '₪' + n(B[i - 1][0] + 1) + ' עד '
   },
   {
     slug: 'nesiot',
+    calc: 'travel',
     nav: 'דמי נסיעות',
-    title: `דמי נסיעות 2026: עד ₪${n(R.travelMaxDaily, 2)} ליום עבודה`,
+    title: `מחשבון דמי נסיעות 2026: עד ₪${n(R.travelMaxDaily, 2)} ליום`,
     desc: `כמה מגיע על נסיעות לעבודה ב־2026: עד ₪${n(R.travelMaxDaily, 2)} ליום עבודה, רק על ימים שבהם עבדת. מתי מגיע, איך מחשבים בעבודה לפי שעה, ומה לבדוק בתלוש.`,
     h1: 'דמי נסיעות',
     lead: `המעסיק משלם את הוצאות הנסיעה לעבודה ובחזרה, עד ₪${n(R.travelMaxDaily, 2)} ליום עבודה.`,
@@ -253,7 +258,21 @@ th,td{text-align:start;padding:11px 10px;border-bottom:1px solid var(--line)}th{
 .faq details{border-bottom:1px solid var(--line);padding:14px 0}.faq summary{cursor:pointer;font-weight:700;color:var(--ink)}.faq p{margin:8px 0 0}
 .more{display:flex;flex-wrap:wrap;gap:10px 18px;padding:0;list-style:none}.more li{margin:0}
 footer{border-top:1px solid var(--line);margin-top:56px;padding:30px 0 46px;font-size:15px;color:var(--ink3)}footer a{color:var(--ink2);text-decoration:none;margin-inline-end:18px}
-.note{font-size:14px;color:var(--ink3)}`;
+.note{font-size:14px;color:var(--ink3)}
+.calc{margin:10px 0 36px;padding:22px;border:1px solid var(--line);border-radius:20px;background:var(--surface)}
+.calc h2{margin:0 0 16px;font-size:22px}
+.cin{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.cf{display:flex;flex-direction:column;gap:6px;font-size:15px;color:var(--ink2)}.cf small{color:var(--ink3);font-size:13px}
+.cf:has(.cs){grid-column:1/-1}
+.ci{height:48px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:18px;padding:0 14px;font-variant-numeric:tabular-nums;width:100%}
+.ci:focus{outline:2px solid var(--blue);outline-offset:1px}
+.cs{display:flex;flex-wrap:wrap;gap:8px}.cs button{flex:1 1 auto;min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink2);font:inherit;font-size:15px;cursor:pointer}
+.cs button.on{background:var(--ink);color:#141518;border-color:var(--ink);font-weight:700}
+.cc{grid-column:1/-1;display:flex;align-items:center;gap:10px;color:var(--ink2);font-size:15px}.cc input{width:20px;height:20px;accent-color:var(--blue)}
+.cout{margin-top:18px}.ct{margin:0}.ct td small{display:block;color:var(--ink3);font-size:13px}.ct td:last-child,.ct th:last-child{text-align:end;white-space:nowrap}
+.ct .tot th{font-size:20px;border-bottom:0}
+.cn{font-size:15px;margin:10px 0 0}.cok,.cbad{margin:0;font-size:17px;color:var(--ink)}.cbad{color:#EB6E57}
+@media (max-width:560px){.cin{grid-template-columns:1fr}}`;
 
 const esc = s => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const ld = o => `<script type="application/ld+json">${JSON.stringify(o)}</script>`;
@@ -265,7 +284,7 @@ function page(p) {
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(p.title)} | אצבע</title>
@@ -286,7 +305,7 @@ ${ld({ '@context': 'https://schema.org', '@type': 'Article', headline: p.title, 
 ${ld({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'אצבע', item: `${SITE}/` }, { '@type': 'ListItem', position: 2, name: p.h1, item: url }] })}
 ${ld({ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: p.faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) })}
 <link rel="preload" href="/heebo.woff" as="font" type="font/woff" crossorigin>
-<style>${CSS}</style>
+<style>${CSS}</style>${p.calc ? '\n<script type="module" src="/calc.js"></script>' : ''}
 </head>
 <body>
 <header><div class="wrap"><a class="brand" href="/">אצבע</a><nav><a href="/app/">לפתוח את האפליקציה</a></nav></div></header>
@@ -295,6 +314,7 @@ ${ld({ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: p.faq.m
 <article>
 <h1>${p.h1}</h1>
 <p class="lead">${p.lead}</p>
+${p.calc ? `<section class="calc" data-calc="${p.calc}"><noscript><p>המחשבון צריך JavaScript.</p></noscript></section>` : ''}
 ${p.body.trim()}
 <div class="cta"><p>אצבע מחשבת את כל זה לבד: שמים אצבע בכניסה וביציאה, ורואים את השכר לפי החוק, עד הנטו. חינם, בלי חשבון ובלי פרסומות.</p><a class="btn" href="/app/">לפתוח את אצבע</a></div>
 <h2>שאלות נפוצות</h2>
@@ -328,4 +348,7 @@ let home = readFileSync(homeF, 'utf8');
 const links = PAGES.map(p => `<a class="guide" dir="rtl" lang="he" href="${p.slug}/"><b>${p.nav}</b><span>${p.title}</span></a>`).join('\n    ');
 home = home.replace(/(<!-- guides -->)[\s\S]*?(<!-- \/guides -->)/, `$1\n    ${links}\n    $2`);
 writeFileSync(homeF, home);
+// the calculators use this year's figures
+const calcF = new URL('../site/calc.js', import.meta.url);
+writeFileSync(calcF, readFileSync(calcF, 'utf8').replace(/^const MIN_HOURLY = [\d.]+, YOUTH = (\{[^}]*\}), TRAVEL_MAX = [\d.]+;/m, `const MIN_HOURLY = ${MIN.toFixed(2)}, YOUTH = $1, TRAVEL_MAX = ${R.travelMaxDaily.toFixed(2)};`));
 console.log(`${PAGES.length} guide pages, sitemap with ${urls.length} URLs`);
