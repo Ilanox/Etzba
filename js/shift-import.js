@@ -1,4 +1,3 @@
-import { pad } from './util.js';
 
 /* translations: skip-start (column names to recognise in files, not shown) */
 const H = {

@@ -11,8 +11,8 @@ import { usePack, startTranslating, stopTranslating, tr } from './translate.js';
 import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
-import { buzz, toast, announce, spokenDate, openSheet, closeSheet, sheetOpen, openPop, popOpen, closePop, confirmBtn } from './ui.js';
-import { LANG, EN, DAYS, MONTHS, DAY_SHORT, useLanguage } from './lang.js';
+import { buzz, toast, announce, openSheet, closeSheet, sheetOpen, openPop, popOpen, closePop, confirmBtn } from './ui.js';
+import { LANG, EN, DAYS, MONTHS, useLanguage } from './lang.js';
 import { view, viewY, viewM, showMonth, setView, VIEWS, setRenderHooks, go, render, onSave, setSaveFailed, persist, commit } from './nav.js';
 import { viewAs, isSup, isOwner, applyTheme, startTheme } from './theme.js';
 import { NET, refreshAge, ageAt, minWage, pensionAge, netOpts, electionDate, PAY, recompute, weekRegBefore, monthVsLast, yearVsLast, havraaOf, leaveOf, monthCalc, withLive } from './pay.js';
@@ -23,9 +23,11 @@ import { drawReport, pagesToPDF } from './report.js';
 import DEV_KEY from './dev-key.js';
 import { setSpeech, startA11y, speechLang } from './a11y.js';
 import FEATURES from './features.js';
-import { tierLabel, monthBar, bindMonthBar, shiftRow, dlt, bindRows, explain, reduced, countUp, dayWord } from './views/common.js';
+import { openShiftSheet } from './views/shift-form.js';
+import { tierLabel, monthBar, bindMonthBar, dlt, reduced, countUp } from './views/common.js';
 import { celebrate } from './views/celebrate.js';
-import { renderHome, renderRestCard, tickHome, planPay, planAction, planReminders, onPunch } from './views/home.js';
+import { renderHome, renderRestCard, tickHome, planReminders, onPunch } from './views/home.js';
+import { renderShifts } from './views/shifts.js';
 
 const VERSION = '1.0.0';
 dbg.log('boot', 'v' + VERSION);
@@ -52,284 +54,13 @@ setSaveFailed(() => toast('לא הצלחתי לשמור בטלפון. כדאי �
 const COLORS = ['#E4572E', '#1E7A4A', '#4B5BD0', '#C98E00', '#1F8F84', '#A1458F', '#5E574C', '#2A6FB0'];
 
 
-
-
 /* ================= HOME ================= */
 let heroV = 0;
 
 
-
-
 /* ================= SHIFT SHEET ================= */
-export function openShiftSheet(sh, mode) {
-  const job = jobById(sh.jobId);
-  const st0 = new Date(sh.start), en0 = new Date(sh.end), today = new Date(); today.setHours(0, 0, 0, 0);
-  const T = { date: new Date(st0.getFullYear(), st0.getMonth(), st0.getDate()), s: [st0.getHours(), st0.getMinutes()], e: [en0.getHours(), en0.getMinutes()], active: mode === 'end' ? 'e' : 's' };
-  { const d0 = new Date(st0.getFullYear(), st0.getMonth(), st0.getDate()), d1 = new Date(en0.getFullYear(), en0.getMonth(), en0.getDate());
-    T.next = d1 > d0 && (T.e[0] * 60 + T.e[1]) >= (T.s[0] * 60 + T.s[1]); }
-  const mstep = [T.s[1], T.e[1]].every(x => x % 5 === 0) ? 5 : 1;
-  const wheel = (id, n, st) => `<div class="wheel" id="w-${id}" data-step="${st}">${Array.from({ length: n / st }, (_, i) => `<div class="wi num" data-v="${i * st}">${pad(i * st)}</div>`).join('')}</div>`;
-  const title = mode === 'end' ? 'סיום משמרת' : mode === 'new' ? 'משמרת חדשה' : 'עריכת משמרת';
-  const sub = mode === 'end' ? `${nm(job.name)} · אם שכחת להחתים בזמן, אפשר לתקן את השעות.` : '';
-  const d0 = new Date(Math.min(+today - 45 * 864e5, +T.date - 3 * 864e5)), d1 = new Date(Math.max(+today + 7 * 864e5, +T.date + 3 * 864e5));
-  let days = '';
-  d0.setHours(0, 0, 0, 0); d1.setHours(0, 0, 0, 0);
-  for (let d = new Date(d0); d <= d1; d.setDate(d.getDate() + 1)) {
-    const diff = Math.round((today - d) / 864e5);
-    days += `<button type="button" class="day${d.getDay() === 6 ? ' sat' : ''}" data-d="${+d}" aria-label="${spokenDate(d)}"><small>${diff === 0 ? 'היום' : diff === 1 ? 'אתמול' : diff === -1 ? 'מחר' : DAY_SHORT[d.getDay()]}</small><b class="num">${d.getDate()}</b><em class="num">${MONTHS[d.getMonth()].slice(0, 3)}${EN ? '' : '׳'}</em></button>`;
-  }
-  openSheet(`
-    <h2 id="f-title">${title}</h2>${sub ? `<p class="shsub">${sub}</p>` : ''}
-    ${mode !== 'end' ? `<div class="seg kinds" id="f-kind">${[['shift', 'משמרת', 'ot'], ['special', 'מיוחדת', 'pct'], ...(mode === 'new' ? [['plan', 'עתידית', 'cal'], ['vac', 'חופשה', 'vac'], ['sick', 'מחלה', 'sick']] : [])].map(([k, l, i]) => `<button type="button" data-k="${k}" class="c-${k}"><span class="ki">${I[i]}</span>${l}</button>`).join('')}</div>` : ''}
-    <div id="f-special" class="hidden">
-      <h3>תעריף לכל השעות</h3>
-      <div class="qchips" id="f-pq">${[125, 150, 175, 200, 250].map(v => `<button type="button" class="num" data-p="${v}">${v}%</button>`).join('')}
-        <input class="input num mini" type="number" inputmode="numeric" id="f-pct" value="${+sh.specialPct || 200}" aria-label="אחוז"></div>
-      <p class="hint">כל שעה במשמרת הזו משולמת באחוז הזה מהתעריף, בלי שעות נוספות ובלי תוספת שבת. למשל משמרת של 3 שעות שכולה ב־200%.</p>
-    </div>
-    ${S.jobs.length > 1 ? `<div class="chips" id="f-jobs">${S.jobs.map(j => `<button type="button" class="chip" data-j="${j.id}"><span class="dot" style="background:${j.color}"></span>${nm(j.name)}</button>`).join('')}</div>` : ''}
-    <h3>יום</h3>
-    <div class="daystrip" id="f-days">${days}</div>
-    <div id="f-leave" class="hidden">
-      <label class="field"><span>כמה ימים</span><input class="input num" type="number" min="1" max="60" inputmode="numeric" id="f-ndays" value="1"></label>
-      <p class="hint" id="f-lhint"></p>
-    </div>
-    <div id="f-shiftonly">
-    <h3>שעות</h3>
-    <div class="tp">
-      <div class="tp-col"><button type="button" class="tp-cap tp-type" data-t="s" aria-label="הקלדת שעת הכניסה">כניסה<span>${I.clockEdit}</span></button><input type="time" class="tp-in" data-t="s" tabindex="-1" aria-hidden="true"><div class="wheels" dir="ltr">${wheel('sh', 24, 1)}<span class="colon">:</span>${wheel('sm', 60, mstep)}</div></div>
-      <div class="tp-arrow tp-endpart">${I.chevL}</div>
-      <div class="tp-col tp-endpart"><button type="button" class="tp-cap tp-type" data-t="e" aria-label="הקלדת שעת היציאה">יציאה<span>${I.clockEdit}</span></button><input type="time" class="tp-in" data-t="e" tabindex="-1" aria-hidden="true"><div class="wheels" dir="ltr">${wheel('eh', 24, 1)}<span class="colon">:</span>${wheel('em', 60, mstep)}</div><button type="button" class="tp-next" id="tNext" aria-pressed="false">${I.check}<span>למחרת</span></button></div>
-    </div>
-    <div class="tp-sum tp-endpart">סה״כ <b class="num" id="tDur"></b> שעות · גוללים כדי לשנות</div>
-    <div id="f-planbits" class="hidden">
-      <button type="button" class="tp-next" id="f-planend" aria-pressed="false">${I.check}<span>אני יודע/ת מתי היא מסתיימת</span></button>
-      <p class="hint">משמרת עתידית היא רק תכנון: תגיע תזכורת שעה לפני, וכשנכנסים אליה היא נרשמת כרגיל. שעת סיום לא חובה.</p>
-    </div>
-    <div id="f-paybits">
-    <label class="field"><span>הערה</span><input class="input" type="text" id="f-note" value="${esc(sh.note)}" placeholder="אופציונלי"></label>
-    <details class="adv" id="f-more"${+sh.tips || +sh.bonus || sh.travel != null || (sh.rest && sh.rest !== 'auto') ? ' open' : ''}><summary>${I.chevDown}הפסקה, טיפים, בונוס ונסיעות<span class="fhint" id="f-more-s"></span></summary>
-      <h3>הפסקה לא בתשלום</h3>
-      <div class="qchips" id="f-bq">${[0, 15, 30, 45, 60].map(b => `<button type="button" data-b="${b}">${b ? b + ' דק׳' : 'בלי'}</button>`).join('')}
-        <input class="input num mini" type="number" inputmode="numeric" id="f-break" value="${+sh.breakMin || 0}" aria-label="דקות הפסקה"></div>
-      <div class="grid2">
-        <label class="field" id="f-tips-w"><span>טיפים (₪)</span><input class="input num" type="number" inputmode="decimal" id="f-tips" value="${+sh.tips || ''}" placeholder="0"></label>
-        <label class="field"><span>בונוס (₪)</span><input class="input num" type="number" inputmode="decimal" id="f-bonus" value="${+sh.bonus || ''}" placeholder="0"></label>
-        <label class="field"><span>נסיעות (₪)</span><input class="input num" type="number" step="0.5" inputmode="decimal" id="f-travel" value="${sh.travel ?? ''}" placeholder="${jobAt(job, sh.start).travel || 0}"><small class="fhint">ריק: לפי הגדרות העבודה</small></label>
-      </div>
-      <details class="adv" id="f-restd"><summary>${I.chevDown}שבת / חג ידני</summary>
-        <div class="seg" id="f-rest" style="margin-top:10px">
-          <button type="button" data-r="auto">אוטומטי</button><button type="button" data-r="yes">הכל בתוספת שבת</button><button type="button" data-r="no">בלי תוספת</button></div>
-        <p class="hint">"אוטומטי" מחשב לפי זמני כניסת ויציאת שבת וחג בעיר שבחרת.</p></details>
-    </details>
-    <div id="f-explain"></div>
-    </div>
-    </div>
-    <div class="btnrow">
-      <button class="btn ${mode === 'end' ? 'accent' : 'primary'}" id="f-save">${I.check}${mode === 'end' ? 'סיום ושמירה' : 'שמירה'}</button>
-      ${mode === 'end' ? `<button class="btn soft" id="f-cont">חזרה, המשמרת ממשיכה</button><button class="btn danger" id="f-discard">${I.trash}מחיקת המשמרת</button><p class="hint" style="text-align:center">מחיקה: המשמרת לא נשמרת, כאילו לא נכנסת. אפשר לבטל מיד אחרי.</p>` : ''}
-      ${mode === 'edit' ? `<button class="btn danger" id="f-del">${I.trash}מחיקה</button>` : ''}
-    </div>`, root => {
-    let rest = sh.rest || 'auto', jobId = sh.jobId, kind = sh.planId ? 'plan' : +sh.specialPct > 0 ? 'special' : 'shift', planEnd = !!(sh.planId && sh.planEnd);
-    const IH = 44, W = { sh: [T.s, 0], sm: [T.s, 1], eh: [T.e, 0], em: [T.e, 1] };
-    const setWheel = (id, smooth) => { const w = $('#w-' + id, root), [arr, i] = W[id]; w.scrollTo({ top: Math.round(arr[i] / +w.dataset.step) * IH, behavior: smooth ? 'smooth' : 'auto' }); };
-    const read = () => {
-      const st = new Date(T.date); st.setHours(T.s[0], T.s[1], 0, 0);
-      const en = new Date(T.date); en.setHours(T.e[0], T.e[1], 0, 0);
-      if (en <= st || T.next) en.setDate(en.getDate() + 1);
-      return { ...sh, jobId, start: st.toISOString(), end: en.toISOString(),
-        breakMin: Math.max(0, +$('#f-break', root).value || 0), bonus: +$('#f-bonus', root).value || 0,
-        tips: jobById(jobId).tipsOn || +$('#f-tips', root).value ? Math.max(0, +$('#f-tips', root).value || 0) || undefined : undefined, note: $('#f-note', root).value.trim(), rest,
-        travel: $('#f-travel', root).value === '' ? undefined : Math.max(0, +$('#f-travel', root).value || 0),
-        forceRest: kind === 'special' ? undefined : rest === 'yes' ? true : rest === 'no' ? false : undefined,
-        specialPct: kind === 'special' ? Math.max(1, Math.min(1000, +$('#f-pct', root).value || 200)) : undefined };
-    };
-    const upd = () => {
-      const s = read();
-      $$('.wheels', root).forEach(w => w.classList.remove('bad'));
-      { const nx = !sameDay(s.start, s.end), b = $('#tNext', root); b.classList.toggle('on', nx); b.setAttribute('aria-pressed', String(nx)); }
-      $('#tDur', root).textContent = hm((new Date(s.end) - new Date(s.start)) / 3.6e6);
-      for (const id in W) $$('.wi', $('#w-' + id, root)).forEach(it => it.classList.toggle('on', +it.dataset.v === W[id][0][W[id][1]]));
-      $$('.day', root).forEach(b => b.classList.toggle('on', +b.dataset.d === +T.date));
-      $$('#f-rest button', root).forEach(b => b.classList.toggle('on', b.dataset.r === rest));
-      $$('#f-jobs .chip', root).forEach(b => b.classList.toggle('on', b.dataset.j === jobId));
-      $('#f-tips-w', root).classList.toggle('hidden', !jobById(jobId).tipsOn && !+$('#f-tips', root).value);
-      $$('#f-bq button', root).forEach(b => b.classList.toggle('on', +b.dataset.b === s.breakMin));
-      $('#f-more-s', root).innerHTML = [s.breakMin ? `הפסקה ${s.breakMin} דק׳` : '', +$('#f-tips', root).value ? `טיפים ${money(+$('#f-tips', root).value)}` : '', +s.bonus ? `בונוס ${money(+s.bonus)}` : '', rest !== 'auto' ? 'שבת ידני' : ''].filter(Boolean).map(x => `<span>${x}</span>`).join(' · ');
-      $$('#f-kind button', root).forEach(b => b.classList.toggle('on', b.dataset.k === kind));
-      $('#f-special', root).classList.toggle('hidden', kind !== 'special');
-      $$('#f-pq button', root).forEach(b => b.classList.toggle('on', +b.dataset.p === s.specialPct));
-      $('#f-restd', root)?.classList.toggle('hidden', kind === 'special');
-      const leave = kind === 'vac' || kind === 'sick';
-      $('#f-shiftonly', root).classList.toggle('hidden', leave);
-      $('#f-leave', root).classList.toggle('hidden', !leave);
-      if (mode === 'new') $('#f-title', root).textContent = kind === 'vac' ? 'יום חופשה' : kind === 'sick' ? 'יום מחלה' : kind === 'plan' ? 'משמרת עתידית' : title;
-      const plan = kind === 'plan';
-      $('#f-planbits', root).classList.toggle('hidden', !plan);
-      $('#f-paybits', root).classList.toggle('hidden', plan);
-      $$('.tp-endpart', root).forEach(e => e.classList.toggle('hidden', plan && !planEnd));
-      $('.tp', root).classList.toggle('tp-one', plan && !planEnd);
-      { const b = $('#f-planend', root); b.classList.toggle('on', planEnd); b.setAttribute('aria-pressed', String(planEnd)); }
-      if (leave) { $('#f-lhint', root).textContent = leaveHint(kind); return; }
-      if (plan) return;
-      const j = jobAt(jobById(jobId), s.start), p = shiftPay(s, j, place(), weekRegBefore(j, s.start));
-      $('#f-explain', root).innerHTML = explain(s, j, p);
-    };
-    for (const id in W) {
-      const w = $('#w-' + id, root); let t;
-      w.addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(() => {
-        const [arr, i] = W[id], st = +w.dataset.step, idx = Math.max(0, Math.min(w.children.length - 1, Math.round(w.scrollTop / IH)));
-        if (arr[i] !== idx * st) { arr[i] = idx * st; buzz(5); upd(); }
-      }, 80); }, { passive: true });
-      $$('.wi', w).forEach(it => it.onclick = () => { W[id][0][W[id][1]] = +it.dataset.v; setWheel(id, true); upd(); });
-    }
-    const restep = id => {
-      const w = $('#w-' + id, root); if (+w.dataset.step === 1) return;
-      w.dataset.step = 1; w.innerHTML = Array.from({ length: 60 }, (_, i) => `<div class="wi num" data-v="${i}">${pad(i)}</div>`).join('');
-      $$('.wi', w).forEach(it => it.onclick = () => { W[id][0][W[id][1]] = +it.dataset.v; setWheel(id, true); upd(); });
-    };
-    $$('.tp-type', root).forEach(b => b.onclick = () => {
-      const t = b.dataset.t, inp = $(`.tp-in[data-t="${t}"]`, root), v = T[t];
-      inp.value = `${pad(v[0])}:${pad(v[1])}`;
-      try { inp.showPicker(); } catch { inp.focus(); inp.click(); }
-    });
-    $$('.tp-in', root).forEach(inp => inp.onchange = () => {
-      const m = /^(\d{1,2}):(\d{2})/.exec(inp.value); if (!m) return;
-      const t = inp.dataset.t, h = +m[1], mm = +m[2];
-      T[t][0] = h; T[t][1] = mm;
-      if (mm % 5) { restep('sm'); restep('em'); }
-      setWheel(t + 'h'); setWheel(t + 'm'); upd(); buzz(8);
-    });
-    $$('.day', root).forEach(b => b.onclick = () => { T.date = new Date(+b.dataset.d); upd(); });
-    $('#tNext', root).onclick = () => {
-      if (T.e[0] * 60 + T.e[1] <= T.s[0] * 60 + T.s[1]) return toast('שעת היציאה מוקדמת משעת הכניסה, אז היציאה למחרת');
-      T.next = !T.next; buzz(8); upd();
-    };
-    $$('#f-jobs .chip', root).forEach(b => b.onclick = () => { jobId = b.dataset.j; upd(); });
-    $$('#f-rest button', root).forEach(b => b.onclick = () => { rest = b.dataset.r; upd(); });
-    $$('#f-bq button', root).forEach(b => b.onclick = () => { $('#f-break', root).value = b.dataset.b; upd(); });
-    $$('#f-pq button', root).forEach(b => b.onclick = () => { $('#f-pct', root).value = b.dataset.p; upd(); });
-    $$('#f-kind button', root).forEach(b => b.onclick = () => {
-      const k = b.dataset.k;
-      if (k === 'plan' && +T.date <= +new Date(new Date().setHours(0, 0, 0, 0))) {
-        const t = new Date(); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() + 1); T.date = t;
-        // the usual start time (the most common one lately), else 9:00
-        const hs = S.shifts.slice(-30).map(x => new Date(x.start).getHours()), c = {}; hs.forEach(h => c[h] = (c[h] || 0) + 1);
-        const h0 = hs.length ? +Object.entries(c).sort((a, b) => b[1] - a[1])[0][0] : 9;
-        T.s[0] = h0; T.s[1] = 0; setTimeout(() => { setWheel('sh'); setWheel('sm'); }, 30);
-        setTimeout(() => { const st = $('#f-days', root), on = $('.day.on', root); if (st && on) { const a = on.getBoundingClientRect(), c = st.getBoundingClientRect(); st.scrollLeft += (a.left + a.width / 2) - (c.left + c.width / 2); } }, 30);
-      }
-      kind = k; upd();
-    });
-    $('#f-planend', root).onclick = () => { planEnd = !planEnd; buzz(8); upd(); };
-    $$('input', root).forEach(i => i.addEventListener('input', upd));
-    upd();
-    for (const id in W) setWheel(id, false);
-    const centerDay = () => { const st = $('#f-days', root), on = $('.day.on', root); if (!st || !on) return;
-      const a = on.getBoundingClientRect(), b = st.getBoundingClientRect(); st.scrollLeft += (a.left + a.width / 2) - (b.left + b.width / 2); };
-    centerDay(); requestAnimationFrame(() => requestAnimationFrame(centerDay)); setTimeout(centerDay, 350);
-    $('#f-save', root).onclick = () => {
-      if (kind === 'vac' || kind === 'sick') {
-        const n = addLeave(jobId, kind, dateKey(T.date), +$('#f-ndays', root).value);
-        const d = new Date(T.date); showMonth(d.getFullYear(), d.getMonth());
-        closeSheet(); commit(); buzz(20); return toast(n === 1 ? 'נשמר יום אחד' : `נשמרו ${n} ימים`, 'ok');
-      }
-      const s = read(), len = new Date(s.end) - new Date(s.start);
-      if (kind === 'plan') {
-        if (+new Date(s.start) < Date.now() - 6e4) return toast('משמרת עתידית צריכה להתחיל אחרי עכשיו', 'err');
-        const np = { id: sh.planId || uid(), jobId: s.jobId, start: s.start, end: planEnd ? s.end : null, breakMin: 0 };
-        if (sh.planId) S.plans = S.plans.map(x => x.id === sh.planId ? np : x); else S.plans.push(np);
-        closeSheet(); commit(); planNotifications(true); buzz(20);
-        return toast(sh.planId ? 'המשמרת העתידית עודכנה' : `נשמרה משמרת עתידית ל${dayWord(s.start)} · תזכורת שעה לפני`, 'ok');
-      }
-      if (mode === 'new' && +new Date(s.start) > Date.now() + 10 * 6e4 && len > 0) {
-        S.plans.push({ id: uid(), jobId: s.jobId, start: s.start, end: s.end, breakMin: s.breakMin, ...(s.specialPct ? { specialPct: s.specialPct } : {}) });
-        closeSheet(); commit(); planNotifications(true); buzz(20);
-        return toast(`נשמרה משמרת מתוכננת ל${dayWord(s.start)} · תזכורת שעה לפני`, 'ok');
-      }
-      if (len < 6e4) { $$('.wheels', root).forEach(w => w.classList.add('bad')); return toast('המשמרת קצרה מדי. אפשר לבטל אותה', 'err'); }
-      if (len > 24 * 3.6e6) { $$('.wheels', root).forEach(w => w.classList.add('bad')); return toast('משמרת לא יכולה להיות יותר מ־24 שעות', 'err'); }
-      if (!s.id) { s.id = uid(); S.shifts.push(s); } else S.shifts[S.shifts.findIndex(x => x.id === s.id)] = s;
-      if (mode === 'end') { S.active = null; announce(`המשמרת נשמרה`); }
-      S.settings.lastJob = s.jobId;
-      const d = new Date(s.start); showMonth(d.getFullYear(), d.getMonth());
-      closeSheet(); commit(); buzz(25);
-      toast(`נשמר · ${money(PAY.get(s.id).pay)} על ${hm(PAY.get(s.id).hours)} ש׳`, 'ok');
-    };
-    $('#f-cont', root) && ($('#f-cont', root).onclick = closeSheet);
-    $('#f-discard', root) && ($('#f-discard', root).onclick = () => {
-      const was = S.active; S.active = null; closeSheet(); commit(); buzz(20); announce('המשמרת נמחקה');
-      toast('המשמרת נמחקה', '', { label: 'ביטול', fn: () => { S.active = was; commit(); toast('המשמרת חזרה', 'ok'); } });
-    });
-    $('#f-del', root) && ($('#f-del', root).onclick = () => {
-      const i = S.shifts.findIndex(x => x.id === sh.id), was = S.shifts[i];
-      if (i < 0) return closeSheet();
-      S.shifts.splice(i, 1); closeSheet(); commit(); buzz(20); announce('המשמרת נמחקה');
-      toast('המשמרת נמחקה', '', { label: 'ביטול', fn: () => { S.shifts.push(was); commit(); toast('המשמרת חזרה', 'ok'); } });
-    });
-  });
-}
 
 /* ================= SHIFTS ================= */
-const FILTERS = [['all', 'הכל'], ['morning', 'בוקר'], ['noon', 'צהריים'], ['evening', 'ערב'], ['night', 'לילה'], ['rest', 'שבת וחג'], ['ot', 'עם נוספות']];
-const SORTS = [['old', 'מהישן לחדש'], ['new', 'מהחדש לישן'], ['pay', 'הכי משתלמות'], ['hours', 'הכי ארוכות']];
-function renderShifts() {
-  const el = $('#v-shifts');
-  if (!SORTS.some(x => x[0] === S.ui.sort)) S.ui.sort = 'old';
-  if (!FILTERS.some(x => x[0] === S.ui.filter)) S.ui.filter = 'all';
-  const M = monthCalc(viewY, viewM), f = S.ui.filter, so = S.ui.sort;
-  let list = M.shifts.filter(s => {
-    const p = PAY.get(s.id), k = shiftKind(s, p);
-    return f === 'all' || (f === 'rest' ? (k === 'shabbat' || k === 'chag') : f === 'ot' ? p.otHours > 0.01 : k === f);
-  });
-  const by = { new: (a, b) => new Date(b.start) - new Date(a.start), old: (a, b) => new Date(a.start) - new Date(b.start),
-    pay: (a, b) => PAY.get(b.id).pay - PAY.get(a.id).pay, hours: (a, b) => PAY.get(b.id).hours - PAY.get(a.id).hours };
-  list.sort(by[so]);
-  const tot = list.reduce((a, s) => (a.h += PAY.get(s.id).hours, a.p += PAY.get(s.id).pay, a), { h: 0, p: 0 });
-  let body = '';
-  const abs = f === 'all' && (so === 'new' || so === 'old') ? M.absent : [];
-  const mk = `${viewY}-${pad(viewM + 1)}`, plans = f === 'all' && (so === 'new' || so === 'old') ? S.plans.filter(x => dateKey(x.start).startsWith(mk)) : [];
-  const planRow = x => { const d = new Date(x.start), j = jobById(x.jobId);
-    return `<button class="srow planned" data-planrow="${x.id}"><span class="kic k-plan">${I.cal}</span>
-      <span class="mid"><span class="t1">${DAYS[d.getDay()]} ${dShort(d)}</span><span class="t2 num tline">${x.end ? `<bdi dir="ltr" class="trange">${tm(x.start)}–${tm(x.end)}</bdi>` : `<span>מ־${tm(x.start)}</span>`}<span class="tmore"><span class="sep">·</span>עתידית${S.jobs.length > 1 ? `<span class="sep">·</span>${nm(j.name)}` : ''}</span></span></span>
-      <span class="end"><span class="amt num" dir="ltr">~${money(planPay(x))}</span></span></button>`; };
-  const absRow = a => { const d = new Date(a.date + 'T12:00:00'), P = M.absPay.get(a.id), j = jobById(a.jobId);
-    return `<button class="srow" data-abs="${a.id}"><span class="kic k-${a.kind}">${I[a.kind]}</span>
-      <span class="mid"><span class="t1">${DAYS[d.getDay()]} ${dShort(d)}</span><span class="t2">${a.kind === 'sick' ? 'יום מחלה' : 'יום חופשה'}${a.kind === 'sick' && P ? ` · ${Math.round(P.share * 100)}%` : ''}${S.jobs.length > 1 ? ` · ${nm(j.name)}` : ''}</span></span>
-      <span class="end"><span class="amt num">${money(P?.pay || 0)}</span></span></button>`; };
-  if (!list.length && !abs.length && !plans.length) body = `<div class="card"><div class="empty"><div class="eic">${I.list}</div>${M.shifts.length ? 'אין משמרות שמתאימות לסינון' : 'אין משמרות בחודש הזה'}</div></div>`;
-  else if (so === 'new' || so === 'old') {
-    const groups = new Map(), items = [...list.map(s => ({ t: +new Date(s.start), s })), ...abs.map(a => ({ t: +new Date(a.date + 'T12:00:00'), a })), ...plans.map(x => ({ t: +new Date(x.start), x }))];
-    items.sort((x, y) => so === 'new' ? y.t - x.t : x.t - y.t);
-    for (const it of items) { const k = +weekStart(it.t); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(it); }
-    for (const [k, arr] of groups) {
-      const ws = new Date(k), we = new Date(k + 6 * 864e5);
-      let wh = 0; for (const s of inWeek(k)) wh += PAY.get(s.id).hours;
-      const lim = jobById((arr[0].s || arr[0].a || arr[0].x).jobId).weeklyLimit;
-      body += `<div class="week-h"><span>שבוע ${dShort(ws)}–${dShort(we)}</span><span class="wk num${wh > lim ? ' over' : ''}">${hm(wh)} ש׳ מתוך ${lim}</span></div>
-        <div class="card">${arr.map(it => it.s ? shiftRow(it.s) : it.a ? absRow(it.a) : planRow(it.x)).join('')}</div>`;
-    }
-  } else body = `<div class="card" style="margin-top:12px">${list.map(shiftRow).join('')}</div>`;
-  el.innerHTML = `<h1 class="title">משמרות</h1>${monthBar()}
-    <div class="chips" id="fchips">${FILTERS.map(([k, n]) => `<button class="chip${f === k ? ' on' : ''}" data-f="${k}">${k !== 'all' && k !== 'ot' && k !== 'rest' ? I[k] : k === 'rest' ? I.shabbat : k === 'ot' ? I.ot : ''}${n}</button>`).join('')}</div>
-    <div class="toolrow"><span class="num">${list.length} משמרות · ${hm(tot.h)} ש׳ · ${money(tot.p)}</span>
-      <button class="sortbtn" id="sortBtn">${I.sort}${SORTS.find(x => x[0] === so)[1]}</button></div>
-    ${body}`;
-  bindMonthBar(el); bindRows(el);
-  $$('[data-planrow]', el).forEach(b => b.onclick = () => planAction(b.dataset.planrow, 'open'));
-  $$('[data-abs]', el).forEach(b => b.onclick = () => {
-    const a = S.absences.find(x => x.id === b.dataset.abs); if (!a) return;
-    openSheet(`<h2>${a.kind === 'sick' ? 'יום מחלה' : 'יום חופשה'}</h2><p class="shsub">${DAYS[new Date(a.date + 'T12:00:00').getDay()]} ${dFull(a.date + 'T12:00:00')}</p>
-      <div class="btnrow"><button class="btn danger" id="ab-del">${I.trash}מחיקה</button><button class="btn soft" id="ab-no">סגירה</button></div>`, root => {
-      $('#ab-no', root).onclick = closeSheet;
-      $('#ab-del', root).onclick = () => { const was = a; S.absences = S.absences.filter(x => x.id !== a.id); closeSheet(); commit(); toast('נמחק', '', { label: 'ביטול', fn: () => { S.absences.push(was); commit(); } }); };
-    });
-  });
-  $$('#fchips .chip', el).forEach(c => c.onclick = () => { S.ui.filter = c.dataset.f; persist(); renderShifts(); });
-  $('#sortBtn', el).onclick = () => openSheet(`<h2>מיון</h2><div class="card" style="margin-top:12px">${SORTS.map(([k, n]) =>
-    `<button class="cell" data-s="${k}"><span class="grow">${n}</span>${so === k ? `<span style="width:20px;color:var(--accent)">${I.check}</span>` : ''}</button>`).join('')}</div>`, root =>
-    $$('[data-s]', root).forEach(b => b.onclick = () => { S.ui.sort = b.dataset.s; persist(); closeSheet(); renderShifts(); }));
-}
 
 /* ================= SUMMARY (תלוש) ================= */
 function sumMonth(el) {
@@ -434,10 +165,10 @@ function bindLeave(root) {
     toast('נמחק', '', { label: 'ביטול', fn: () => { S.absences.push(was); commit(); } });
   });
 }
-const leaveHint = kind => kind === 'sick'
+export const leaveHint = kind => kind === 'sick'
   ? 'דמי מחלה: היום הראשון בלי תשלום, השני והשלישי 50%, ומהרביעי 100%. צריך אישור מחלה. ימים ברצף נספרים יחד.'
   : 'ימי עבודה בלבד: בלי שבתות וחגים שלא עובדים בהם.';
-function addLeave(jobId, kind, from, n) {
+export function addLeave(jobId, kind, from, n) {
   n = Math.min(60, Math.max(1, Math.round(+n || 1)));
   const job = jobById(jobId), [y, m, dd] = from.split('-').map(Number);
   let added = 0;

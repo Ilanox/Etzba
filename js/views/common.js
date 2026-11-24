@@ -6,7 +6,7 @@ import { viewM, viewY, stepMonth, render } from '../nav.js';
 import { $$, esc, hm, nm, dShort, tm, money, pctChange, $, money2 } from '../util.js';
 import { jobById, S, index } from '../state.js';
 import { PAY, minWage } from '../pay.js';
-import { openShiftSheet } from '../app.js';
+import { openShiftSheet } from './shift-form.js';
 
 export const tierLabel = (k, job, pct) => k === 'special' ? (pct ? `${TIER_NAME[k]} ${pct}%` : TIER_NAME[k]) : `${TIER_NAME[k]} ${job.r[k]}%`;
 

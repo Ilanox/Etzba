@@ -2,7 +2,8 @@
 import { ridges, I, handAngles } from '../svg-icons.js';
 import { $$, $, nm, esc, tm, pad, money2, money, hm, sameDay, uid, dShort } from '../util.js';
 import { S, jobById, index, place, inWeek } from '../state.js';
-import { secIc, openJobSheet, notifLine, planNotifications, openShiftSheet, notifOn, askPersist } from '../app.js';
+import { secIc, openJobSheet, notifLine, planNotifications, notifOn, askPersist } from '../app.js';
+import { openShiftSheet } from './shift-form.js';
 import { commit, persist, go, view, showMonth, viewY, viewM } from '../nav.js';
 import { toast, announce, buzz, openSheet, closeSheet, openPop, closePop, keepPopQuiet, hideToast } from '../ui.js';
 import { shiftRow, bindRows, tierLabel, dlt, showWhy, dayWord } from './common.js';
