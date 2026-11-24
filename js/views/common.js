@@ -72,7 +72,7 @@ export function explain(sh, job, p) {
   return `<div class="explain"><div class="ehead"><b class="num">${money2(p.pay)}</b><span class="num">${hm(p.hours)} שעות</span></div>${lines.join('')}${why.join('')}</div>`;
 }
 
-export const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export function countUp(el, to, fmt = money) {
   const from = el._v ?? 0; el._v = to;
