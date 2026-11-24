@@ -8,9 +8,10 @@ import { esc, dateKey } from '../util.js';
 import { rules } from '../rules.js';
 import { CITIES } from '../hebrew-calendar.js';
 import { commit, go, persist } from '../nav.js';
-import { askFirstPerms, openFileImport, setLang } from '../app.js';
+import { askFirstPerms, setLang } from '../app.js';
 import { toast, buzz } from '../ui.js';
 import { minWage, refreshAge } from '../pay.js';
+import { openFileImport } from './data.js';
 
 export function openOnboarding() {
   const job = S.jobs[0];

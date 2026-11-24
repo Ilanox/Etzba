@@ -42,3 +42,12 @@ test('every imported name is exported by the file it comes from', () => {
   }
 });
 function require_path() { return { dirname: p => p.split('/').slice(0, -1).join('/'), join: (...a) => a.join('/').replace(/\/+/g, '/'), normalize: p => { const out = []; for (const s of p.split('/')) s === '..' ? out.pop() : s !== '.' && out.push(s); return out.join('/'); } }; }
+
+test('translation skip markers come in pairs, start before end', () => {
+  const root = new URL('../../js/', import.meta.url);
+  for (const f of readdirSync(root, { recursive: true }).filter(f => f.endsWith('.js'))) {
+    const marks = [...readFileSync(new URL(f, root), 'utf8').matchAll(/translations: skip-(start|end)/g)].map(m => m[1]);
+    for (let i = 0; i < marks.length; i++) assert.equal(marks[i], i % 2 ? 'end' : 'start', `js/${f}: markers out of order`);
+    assert.equal(marks.length % 2, 0, `js/${f}: a skip-start without its skip-end`);
+  }
+});

@@ -1,6 +1,5 @@
 // Etzba Wrapped (the year in stories) and the early-access announcements for it.
 import { isSup } from '../theme.js';
-import { deliver } from '../app.js';
 import { popOpen, sheetOpen, openPop, closePop, toast, buzz } from '../ui.js';
 import { tr } from '../translate.js';
 import * as native from '../native-bridge.js';
@@ -14,6 +13,7 @@ import { dlt, countUp } from './common.js';
 import { MONTHS, DAYS, EN } from '../lang.js';
 import { celebrate } from './celebrate.js';
 import { openForMe, EARLY_URL, earlyDate } from '../early.js';
+import { deliver } from '../files.js';
 
 const EARLY_NEWS = {
   recap: { title: 'השנה שלך באצבע פתוחה לכולם', supTitle: 'השנה שלך באצבע כאן, לפני כולם', body: 'סיכום השנה שלך כמו סטורי, עם תמונה לשיתוף.', btn: 'לסיכום השנה', go: () => openRecap(RECAP_YEAR) },
