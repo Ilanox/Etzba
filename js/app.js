@@ -11,13 +11,15 @@ import { usePack, startTranslating, stopTranslating, tr } from './translate.js';
 import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
+import { buzz, toast, hideToast, announce, spokenDate, openSheet, closeSheet, sheetOpen, openPop, popOpen, closePop, keepPopQuiet, confirmBtn } from './ui.js';
+import { viewAs, isSup, isOwner, applyTheme, startTheme } from './theme.js';
 import { NET, refreshAge, ageAt, minWage, pensionAge, netOpts, electionDate, PAY, recompute, weekRegBefore, livePay, monthVsLast, yearVsLast, havraaOf, leaveOf, monthCalc, withLive } from './pay.js';
 import { S, setState, save, hadLocal, jobById, place, invalidate, index, inWeek } from './state.js';
 import { lawVacDays } from './leave.js';
 import { $, $$, esc, nm, uid, pad, money, money2, hm, pctChange, niceMax, tm, dShort, dFull, dateKey, sameDay } from './util.js';
 import { drawReport, pagesToPDF } from './report.js';
 import DEV_KEY from './dev-key.js';
-import { setSpeech, startA11y, say, speechLang } from './a11y.js';
+import { setSpeech, startA11y, speechLang } from './a11y.js';
 import FEATURES from './features.js';
 
 const VERSION = '1.0.0';
@@ -28,7 +30,6 @@ let LANG = langInfo(S.settings.lang || 'he').code;
 let EN = LANG !== 'he';
 let PACK = null;
 document.documentElement.lang = LANG; document.documentElement.dir = langInfo(LANG).dir;
-const darkMQ = matchMedia('(prefers-color-scheme: dark)');
 
 function ageLine() {
   const a = ageAt(new Date());
@@ -41,24 +42,7 @@ function pensionLine() {
   if (a != null && a < from) return `חובה רק מגיל ${from}. עד אז לא יורד לך כסף לפנסיה`;
   return `חלק מהשכר נחסך לגיל פרישה, והמעסיק מוסיף יותר. חובה מגיל ${from}, בדרך כלל אחרי 6 חודשים בעבודה`;
 }
-const viewAs = () => S.settings.owner ? (S.settings.viewAs || 'dev') : null;
-const isSup = () => { const v = viewAs(); return v ? v !== 'regular' : !!S.settings.supported; };
-const isOwner = () => viewAs() === 'dev';
-const FREE_THEMES = ['auto', 'light', 'dark', 'blurple'];
-function applyTheme() {
-  let t = S.settings.theme || 'auto';
-  if ((!isSup() && !FREE_THEMES.includes(t)) || (t === 'dev' && !isOwner())) t = 'auto';
-  const r = t === 'auto' ? (darkMQ.matches ? 'dark' : 'light') : t;
-  document.documentElement.dataset.theme = r;
-  const bg = { light: '#F1EEE6', dark: '#141518', blurple: '#1E1F22', gold: '#15130E', night: '#0C1322', sunset: '#F7EEE8', forest: '#0F1712', ocean: '#0B1A1E', plum: '#171021', ember: '#1A100C', sand: '#F2EDDF', dev: '#07090B', aurora: '#101531', dawn: '#FBEFE8', neon: '#0A0712', rosegold: '#F6EAE4' }[r];
-  document.querySelectorAll('meta[name=theme-color]').forEach(m => { m.removeAttribute('media'); m.content = bg; });
-  document.documentElement.classList.toggle('supporter', isSup());
-  const tag = document.getElementById('devTag');
-  if (tag) { tag.hidden = !isSup(); tag.textContent = tr(isOwner() ? 'מצב מפתח' : 'תומך'); }
-  native.setBars(!['light', 'sunset', 'sand', 'dawn', 'rosegold'].includes(r));
-  try { syncWidget(); } catch {}
-}
-applyTheme(); darkMQ.addEventListener?.('change', applyTheme);
+startTheme(() => syncWidget());
 let warnedSave = false;
 function persist() {
   invalidate(); planNotifications(); syncGeo(); syncWidget();
@@ -73,50 +57,13 @@ let DAYS = HE_DAYS;
 const HE_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
 let MONTHS = HE_MONTHS;
 const COLORS = ['#E4572E', '#1E7A4A', '#4B5BD0', '#C98E00', '#1F8F84', '#A1458F', '#5E574C', '#2A6FB0'];
-const buzz = ms => { if (native.haptic(+ms >= 30 || Array.isArray(ms) ? 'medium' : 'light')) return; try { navigator.vibrate?.(ms); } catch {} };
 const tierLabel = (k, job, pct) => k === 'special' ? (pct ? `${TIER_NAME[k]} ${pct}%` : TIER_NAME[k]) : `${TIER_NAME[k]} ${job.r[k]}%`;
 
 let viewY = new Date().getFullYear(), viewM = new Date().getMonth();
 let view = 'home';
 
-function toast(msg, kind = '', action = null) {
-  const t = $('#toast'); t.className = 'toast ' + kind + (action ? ' act' : '');
-  const spoken = say(tr(msg)), alt = spoken !== tr(msg);
-  t.innerHTML = (kind === 'ok' ? I.check : kind === 'err' ? I.warn : '') + `<span${alt ? ' aria-hidden="true"' : ''}>${esc(msg)}</span>${alt ? `<span class="sr" lang="en">${esc(spoken)}</span>` : ''}` + (action ? `<button type="button" class="t-act">${esc(action.label)}</button>` : '');
-  if (action) {
-    $('.t-act', t).onclick = () => { t.classList.remove('on'); clearTimeout(toast.t); action.fn(); };
-    const hold = () => clearTimeout(toast.t), go = () => { clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 4000); };
-    t.onpointerdown = t.onfocusin = hold; t.onpointerup = t.onpointercancel = t.onfocusout = go;
-  } else t.onpointerdown = t.onfocusin = t.onpointerup = t.onpointercancel = t.onfocusout = null;
-  void t.offsetWidth; t.classList.add('on');
-  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), action ? 8000 : 2400);
-}
-const spokenDate = d => new Date(d).toLocaleDateString(speechLang() === 'en' ? 'en-GB' : 'he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
-function announce(msg) { const el = $('#sr'); el.textContent = ''; setTimeout(() => { el.textContent = say(tr(msg)); el.lang = /[\u0590-\u05FF]/.test(el.textContent) ? 'he' : 'en'; }, 60); }
 
 
-/* ================= sheets ================= */
-const sheet = $('#sheet'), scrim = $('#scrim');
-function openSheet(html, mount) {
-  dbg.log('tap', 'sheet: ' + (/<h2[^>]*>([^<]*)/.exec(html)?.[1] || '?'));
-  $('#toast').classList.remove('on');
-  sheet.innerHTML = '<div class="grab"></div>' + html;
-  sheet.scrollTop = 0; sheet.style.transform = '';
-  scrim.classList.add('on'); sheet.classList.add('on');
-  mount?.(sheet);
-}
-function closeSheet() { scrim.classList.remove('on'); sheet.classList.remove('on'); sheet.style.transform = ''; }
-scrim.onclick = () => { if (pop.classList.contains('on')) return closePop(); closeSheet(); };
-(() => {
-  let y0 = null, dy = 0;
-  sheet.addEventListener('touchstart', e => {
-    const top = sheet.getBoundingClientRect().top, y = e.touches[0].clientY;
-    if (y - top < 56 && !e.target.closest('button,input,select,.wheel,.qchips,.chips,.daystrip')) { y0 = y; dy = 0; sheet.style.transition = 'none'; }
-  }, { passive: true });
-  sheet.addEventListener('touchmove', e => { if (y0 == null) return; dy = Math.max(0, e.touches[0].clientY - y0); if (dy > 0) sheet.style.transform = `translateY(${dy}px)`; }, { passive: true });
-  const end = () => { sheet.style.transition = ''; if (y0 != null && dy > 90) closeSheet(); else sheet.style.transform = ''; y0 = null; };
-  sheet.addEventListener('touchend', end); sheet.addEventListener('touchcancel', end);
-})();
 
 /* ================= shared bits ================= */
 function monthBar() {
@@ -556,12 +503,9 @@ function onPunch() {
   }
 }
 
-const pop = $('#pop');
-function closePop() { if (!pop.classList.contains('on')) return; pop.classList.remove('on'); if (!sheet.classList.contains('on')) scrim.classList.remove('on'); pop._close?.(); pop._close = null; }
 function openShiftDone(sh, was) {
   const job = jobAt(jobById(sh.jobId), sh.start), p = PAY.get(sh.id);
-  $('#toast').classList.remove('on');
-  pop.innerHTML = `<div class="pop-ic">${I.check}</div>
+  const html = `<div class="pop-ic">${I.check}</div>
     <h2 id="pop-h">המשמרת נשמרה</h2>
     <div class="pop-pay num">${money(p.pay)}</div>
     <p class="pop-sub"><span class="num" dir="ltr">${tm(sh.start)}–${tm(sh.end)}</span> · <span class="num">${hm(p.hours)}</span> ש׳${S.jobs.length > 1 ? ' · ' + nm(job.name) : ''}${+sh.breakMin ? ` · הפסקה ${+sh.breakMin} דק׳` : ''}</p>
@@ -571,17 +515,16 @@ function openShiftDone(sh, was) {
       <button class="btn soft" id="pd-edit">עריכה</button>
       <button class="btn ghost" id="pd-undo">ביטול, המשמרת ממשיכה</button>
     </div>`;
-  const tipsIn = $('#pd-tips', pop);
+  let tipsIn;
   const keepTips = () => {
     const v = tipsIn ? Math.max(0, +tipsIn.value || 0) : 0, cur = S.shifts.find(x => x.id === sh.id);
     if (cur && v !== (+cur.tips || 0)) { cur.tips = v || undefined; commit(); }
   };
-  pop._close = keepTips;
-  scrim.classList.add('on'); void pop.offsetWidth; pop.classList.add('on');
+  const pop = openPop(html, keepTips); tipsIn = $('#pd-tips', pop);
   $('#pd-ok', pop).onclick = () => { closePop(); toast(`נשמר · ${money(PAY.get(sh.id).pay)} על ${hm(PAY.get(sh.id).hours)} ש׳`, 'ok'); };
   $('#pd-edit', pop).onclick = () => { closePop(); const cur = S.shifts.find(x => x.id === sh.id); if (cur) openShiftSheet(cur, 'edit'); };
   $('#pd-undo', pop).onclick = () => {
-    pop._close = null; closePop();
+    keepPopQuiet(); closePop();
     S.shifts = S.shifts.filter(x => x.id !== sh.id); S.active = was; commit(); buzz(15);
     toast('המשמרת ממשיכה', 'ok'); announce('המשמרת ממשיכה');
   };
@@ -800,7 +743,7 @@ function openShiftSheet(sh, mode) {
 }
 function openStartTime() {
   const a = S.active; if (!a) return;
-  $('#toast').classList.remove('on');
+  hideToast();
   const now = new Date(), st0 = new Date(a.start);
   const T = [st0.getHours(), st0.getMinutes()];
   const IH = 44;
@@ -846,11 +789,6 @@ function openStartTime() {
       dbg.log('info', 'start time changed');
     };
   });
-}
-function confirmBtn(btn, msg, fn) {
-  if (btn.dataset.armed) return fn();
-  btn.dataset.armed = '1'; btn.classList.add('armed'); const old = btn.innerHTML; btn.innerHTML = msg; buzz(20);
-  setTimeout(() => { btn.dataset.armed = ''; btn.classList.remove('armed'); btn.innerHTML = old; }, 3000);
 }
 
 /* ================= SHIFTS ================= */
@@ -1242,20 +1180,19 @@ function announceEarly() {
   const who = isSup() ? 'supporters' : 'all', newsFor = n => ({ ...EARLY_NEWS[n], title: isSup() ? EARLY_NEWS[n].supTitle : EARLY_NEWS[n].title });
   for (const name of Object.keys(EARLY_NEWS)) {
     if (!openForMe(name)) locked.add(name);
-    else if (locked.has(name) && !news && !pop.classList.contains('on') && !sheet.classList.contains('on')) { locked.delete(name); news = newsFor(name); }
+    else if (locked.has(name) && !news && !popOpen() && !sheetOpen()) { locked.delete(name); news = newsFor(name); }
   }
   try { localStorage.setItem('etzba.early.locked', JSON.stringify([...locked])); } catch {}
   const watch = [...locked].filter(n => EARLY_NEWS[n]).map(n => ({ name: n, group: who, title: tr(newsFor(n).title), body: tr(newsFor(n).body) })), wsig = JSON.stringify(watch);
   if (wsig !== announceEarly.watched) { announceEarly.watched = wsig; native.watchEarly(EARLY_URL, watch); }
   if (!news) return;
-  pop.innerHTML = `<div class="pop-ic">${I.cal}</div>
+  const pop = openPop(`<div class="pop-ic">${I.cal}</div>
     <h2 id="pop-h">${news.title}</h2>
     <p class="pop-sub">${news.body}</p>
     <div class="pop-btns">
       <button class="btn primary" id="en-go">${news.btn}</button>
       <button class="btn ghost" id="en-later">אחר כך</button>
-    </div>`;
-  scrim.classList.add('on'); void pop.offsetWidth; pop.classList.add('on');
+    </div>`);
   $('#en-go', pop).onclick = () => { closePop(); news.go(); };
   $('#en-later', pop).onclick = closePop;
 }
@@ -2811,7 +2748,7 @@ step('shared', () => {
   native.onSharedFile(f => { dbg.log('info', 'native share: ' + f.name); $('#onboard')?.remove(); go('set'); openFileImport(f); });
 });
 step('back', () => native.onBack(() => {
-  if (sheet.classList.contains('on')) { closeSheet(); return true; }
+  if (sheetOpen()) { closeSheet(); return true; }
   if ($('#onboard')) return false;
   if (view !== 'home') { go('home'); return true; }
   openSheet(`<h2>לצאת מאצבע?</h2>${S.active ? '<p class="shsub">המשמרת ממשיכה להיספר גם כשהאפליקציה סגורה.</p>' : ''}
