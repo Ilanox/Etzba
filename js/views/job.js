@@ -8,10 +8,10 @@ import { MONTHS, DAYS } from '../lang.js';
 import { openSheet, closeSheet, toast, confirmBtn } from '../ui.js';
 import { I } from '../svg-icons.js';
 import { commit } from '../nav.js';
-import { syncGeo } from '../app.js';
 import { lawVacDays } from '../leave.js';
 import * as native from '../native-bridge.js';
 import { secIc } from './settings.js';
+import { syncGeo } from '../outside.js';
 
 export const COLORS = ['#E4572E', '#1E7A4A', '#4B5BD0', '#C98E00', '#1F8F84', '#A1458F', '#5E574C', '#2A6FB0'];
 

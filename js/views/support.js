@@ -30,7 +30,7 @@ export async function openSupport() {
     $$('[data-id]', root).forEach(b => b.onclick = () => { chosen = b.dataset.id; buzz(8); draw(root); });
   };
   const pay = async id => {
-    $$('[data-id], #sp-pay', sheet).forEach(b => b.disabled = true);
+    $$('[data-id], #sp-pay', $('#sheet')).forEach(b => b.disabled = true);
     try {
       const r = await native.billing.buy(id);
       if (r?.ok) {
@@ -40,7 +40,7 @@ export async function openSupport() {
       } else if (r?.why === 'pending') toast('התשלום ממתין לאישור. תודה!', 'ok');
       else if (!r?.cancelled) toast('התשלום לא עבר. אפשר לנסות שוב', 'err');
     } catch (e) { report(e); toast('לא הצלחתי לפתוח את Google Play', 'err'); }
-    finally { $$('[data-id], #sp-pay', sheet).forEach(b => b.disabled = false); }
+    finally { $$('[data-id], #sp-pay', $('#sheet')).forEach(b => b.disabled = false); }
   };
   openSheet(`<div class="sp-ic">${I.heart}</div><h2 style="text-align:center">תמיכה באצבע</h2>
     <p class="shsub" style="text-align:center">אצבע חינמית, בלי פרסומות, והנתונים שלך נשארים בטלפון. אם היא עוזרת לך, אפשר לתמוך בפיתוח בתשלום חד־פעמי.</p>

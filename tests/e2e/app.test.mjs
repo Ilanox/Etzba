@@ -25,6 +25,7 @@ const MOCK = ({ plugins }) => {
     if (k === 'addListener') return (e, cb) => { (L[n + ':' + e] ||= []).push(cb); return Promise.resolve({ remove() {} }); };
     return async a => {
       __calls.push({ n, m: String(k), a });
+      if (window.__answers && (n + '.' + String(k)) in window.__answers) return window.__answers[n + '.' + String(k)];
       if (n === 'AppActions' && k === 'take') { const d = window.__pending; window.__pending = null; return d || {}; }
       if (n === 'LocalNotifications' && k === 'checkPermissions') return { display: 'granted' };
       if (n === 'LocalNotifications' && k === 'getPending') return { notifications: [] };
@@ -488,5 +489,33 @@ test('shift form: break, tips, bonus and travel start folded, with a summary', a
   await page.click('#f-more summary'); await wait(page);
   await page.click('#f-bq [data-b="30"]'); await wait(page);
   assert.match(await page.locator('#f-more-s').innerText(), /הפסקה 30/);
+  assert.deepEqual(errors, []); await ctx.close();
+});
+
+test('export: every CSV and the backup build without errors, copied as text', async () => {
+  const { page, ctx, errors } = await open();
+  await startedAgo(page, 3); await page.click('#punchBtn'); await wait(page, 500); await page.click('#pd-ok'); await wait(page, 300);
+  await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { value: { writeText: async t => { window.__copied = t; } }, configurable: true }));
+  for (const x of ['month', 'all', 'sum', 'backup']) {
+    await page.click('[data-v=set]'); await wait(page);
+    await page.evaluate(() => document.querySelector('#s-export').closest('details')?.setAttribute('open', '')); await page.click('#s-export'); await wait(page, 500);
+    await page.click('#x-how [data-h=copy]'); await page.click(`[data-x=${x}]`); await wait(page, 400);
+    const t = await page.evaluate(() => window.__copied || '');
+    assert.ok(t.length > 20, `${x}: something was copied (${await page.locator('#toast').innerText()})`);
+    if (x !== 'backup') assert.match(t, /,/, `${x}: CSV`);
+    await page.evaluate(() => document.querySelector('#scrim').click()); await wait(page, 400);
+  }
+  assert.deepEqual(errors, []); await ctx.close();
+});
+
+test('support on Android: choosing an amount buys it and thanks you', async () => {
+  const { page, ctx, errors, state } = await open({ native: true, plugins: ['AppActions', 'LocalNotifications', 'App', 'Billing'] });
+  await page.evaluate(() => { window.__answers = { ...(window.__answers || {}), 'Billing.buy': { ok: true }, 'Billing.products': { products: [{ id: 'support_10', price: '₪10' }, { id: 'support_20', price: '₪20' }, { id: 'support_50', price: '₪50' }] }, 'Billing.owned': { supported: true, owned: [] } }; });
+  await page.click('[data-v=set]'); await wait(page);
+  const btn = page.locator('#s-support'); if (!(await btn.count())) { await ctx.close(); return; }
+  await btn.click(); await wait(page, 600);
+  await page.click('#sheet [data-id]'); await wait(page, 300);
+  if (await page.locator('#sp-pay').count()) { await page.click('#sp-pay'); await wait(page, 600); }
+  assert.ok((await state()).settings.supported, 'marked as a supporter');
   assert.deepEqual(errors, []); await ctx.close();
 });

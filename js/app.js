@@ -1,5 +1,5 @@
 // אצבע — app
-import { rateChanges, computeAll, shiftPay, jobAt } from './pay-engine.js';
+import { computeAll, jobAt } from './pay-engine.js';
 import { I, mark } from './svg-icons.js';
 import { loadRules, checkForUpdates, rules } from './rules.js';
 import { preferPack, checkPack } from './remote-packs.js';
@@ -8,27 +8,30 @@ import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
 import { buzz, toast, openSheet, closeSheet, sheetOpen } from './ui.js';
-import { LANG, EN, MONTHS, useLanguage } from './lang.js';
+import { LANG, EN, useLanguage } from './lang.js';
 import { view, viewY, viewM, showMonth, setView, VIEWS, setRenderHooks, go, render, onSave, setSaveFailed, persist, commit } from './nav.js';
-import { viewAs, isSup, applyTheme, startTheme } from './theme.js';
-import { NET, recompute, weekRegBefore, monthCalc, withLive } from './pay.js';
+import { viewAs, applyTheme, startTheme } from './theme.js';
+import { NET, recompute, monthCalc, withLive } from './pay.js';
 import { S, setState, save, hadLocal, jobById, place, index } from './state.js';
-import { $, $$, esc, nm, uid, pad, money, hm, tm } from './util.js';
+import { $, $$, esc, uid, pad, tm } from './util.js';
 import DEV_KEY from './dev-key.js';
 import { setSpeech, startA11y } from './a11y.js';
 import FEATURES from './features.js';
 import { openShiftSheet } from './views/shift-form.js';
-import { tierLabel, countUp } from './views/common.js';
-import { renderHome, renderRestCard, tickHome, planReminders, onPunch } from './views/home.js';
+import { countUp } from './views/common.js';
+import { renderHome, renderRestCard, tickHome } from './views/home.js';
 import { renderShifts } from './views/shifts.js';
 import { renderSum } from './views/summary.js';
-import { recapBanner, hrs } from './views/recap.js';
+import { recapBanner } from './views/recap.js';
 import { checkEarly } from './early.js';
 import { renderRights } from './views/rights.js';
 import { openOnboarding } from './views/onboarding.js';
 import { renderSet, openLegal } from './views/settings.js';
 import { deliver, copyText } from './files.js';
 import { openFileImport, takeSharedFile, backupNow, updateBackupDot } from './views/data.js';
+import { buildNotifications, planNotifications, askFirstPerms } from './notifications.js';
+import { syncWidget } from './widget.js';
+import { syncGeo, appAction } from './outside.js';
 
 export const VERSION = '1.0.0';
 dbg.log('boot', 'v' + VERSION);
@@ -40,30 +43,8 @@ startTheme(() => syncWidget());
 onSave(() => planNotifications()); onSave(() => syncGeo()); onSave(() => syncWidget());
 setSaveFailed(() => toast('לא הצלחתי לשמור בטלפון. כדאי לגבות', 'err', { label: 'גיבוי עכשיו', fn: () => backupNow() }));
 
-/* ================= helpers ================= */
-
-
-/* ================= HOME ================= */
-
-
-/* ================= SHIFT SHEET ================= */
-
-/* ================= SHIFTS ================= */
-
-/* ================= SUMMARY (תלוש) ================= */
-
-/* ================= sick days and vacation ================= */
-
-/* ================= monthly report (PDF) ================= */
-
-
-/* ================= STATS ================= */
-
-/* ================= RIGHTS ================= */
-
-
 export const devOK = () => FEATURES.devTools || !!S.settings.owner;
-async function devUnlock(sig) {
+export async function devUnlock(sig) {
   try {
     if (!DEV_KEY || !sig) throw new Error(DEV_KEY ? 'no signature' : 'no public key in this build');
     const id = await native.appActions.deviceId(); if (!id) throw new Error('no device id');
@@ -74,159 +55,6 @@ async function devUnlock(sig) {
     S.settings.owner = true; S.settings.dev = true; S.settings.supported = true; S.settings.supportedAt ||= new Date().toISOString();
     persist(); applyTheme(); buzz(40); toast('מצב מפתח פעיל: הכול פתוח', 'ok'); go('set');
   } catch (e) { dbg.log('warn', 'dev unlock: ' + (e?.message || e)); toast('לא הצלחתי להפעיל מצב מפתח', 'err'); }
-}
-
-/* ================= RETROACTIVE OR NOT ================= */
-
-
-/* ================= JOB SHEET ================= */
-
-/* ================= CSV / EXPORT ================= */
-
-
-export const notifOn = () => { const n = S.settings.notif || {}; return n.rates !== false || n.rest !== false || n.long !== false; };
-function buildNotifications(a, N = { rates: true, rest: true, long: true, ...(S.settings.notif || {}) }) {
-  const job = jobAt(jobById(a.jobId), a.start), start = +new Date(a.start), items = [], wb = weekRegBefore(job, a.start);
-  const special = k => /^(rest|chag|elect)/.test(k);
-  const perHour = k => money(job.rate * (job.r[k] ?? 100) / 100);
-  const earned = at => money(shiftPay({ start: a.start, end: new Date(at), breakMin: 0 }, job, place(), wb).base);
-  const changes = rateChanges(a.start, job, place(), wb, 14);
-  changes.forEach((c, i) => {
-    const pct = job.r[c.key] ?? 100;
-    if (special(c.key) && !special(c.from)) {
-      if (!N.rest) return;
-      const until = changes.slice(i + 1).find(x => !special(x.key));
-      const tail = until ? `, עד ${tm(until.at)}` : '';
-      if (c.key.startsWith('rest')) items.push({ at: c.at, title: 'שבת שלום · התוספת התחילה', body: `מעכשיו ${pct}% (${perHour(c.key)} לשעה)${tail}.` });
-      else if (c.key.startsWith('elect')) items.push({ at: c.at, title: 'יום הבחירות · התוספת התחילה', body: `מעכשיו ${pct}% (${perHour(c.key)} לשעה)${tail}.` });
-      else items.push({ at: c.at, title: `חג שמח${c.names[0] ? ' · ' + c.names[0] : ''}`, body: `התוספת התחילה: ${pct}% (${perHour(c.key)} לשעה)${tail}.` });
-    } else if (special(c.from) && !special(c.key)) {
-      if (!N.rest) return;
-      const title = c.from.startsWith('rest') ? 'שבוע טוב · השבת יצאה' : c.from.startsWith('elect') ? 'יום הבחירות נגמר' : 'החג יצא';
-      items.push({ at: c.at, title, body: `חוזרים ל־${pct}% (${perHour(c.key)} לשעה). עד עכשיו: ${earned(c.at)}.` });
-    } else if (N.rates && pct !== job.r[c.from]) {
-      const hrs = hm((+c.at - start) / 3.6e6);
-      if (c.weekly) items.push({ at: c.at, title: `עברת ${job.weeklyLimit} שעות השבוע`, body: `מעכשיו זה שעות נוספות: ${pct}% (${perHour(c.key)} לשעה). עד עכשיו: ${earned(c.at)}.` });
-      else if (/ot1$/i.test(c.key)) items.push({ at: c.at, title: 'השעות הנוספות התחילו', body: `${hrs} שעות במשמרת. מעכשיו ${pct}% (${perHour(c.key)} לשעה). עד עכשיו: ${earned(c.at)}.` });
-      else items.push({ at: c.at, title: `שעות נוספות · ${pct}%`, body: `${hrs} שעות במשמרת. מעכשיו ${perHour(c.key)} לשעה. עד עכשיו: ${earned(c.at)}.` });
-    }
-  });
-  if (N.long) items.push({ at: new Date(start + 12 * 3.6e6), title: 'עדיין במשמרת?', body: 'המשמרת פתוחה כבר 12 שעות. אם כבר יצאת, אפשר לסיים אותה ולתקן את שעת היציאה.' });
-  return items;
-}
-var planTimer = null;
-let NOTIF = { state: 'unknown', next: null, exact: null };
-export async function drawNotifStatus() {
-  const box = $('#s-nstat'); if (!box || !native.NATIVE) return;
-  if (!notifOn()) { box.innerHTML = ''; return; }
-  const st = await native.notifyStatus();
-  // a line under the switch, lined up with its title
-  const row = (icon, text, btn) => `<div class="nline${icon === I.check ? ' ok' : ''}">${icon}<span>${text}</span>${btn ? `<button class="btn soft mini" type="button" data-n="${btn[0]}">${btn[1]}</button>` : ''}</div>`;
-  box.innerHTML = st.display === 'denied' ? row(I.bellOff, 'חסומות בהגדרות הטלפון, אז לא יגיעו.', ['open', 'לאפשר'])
-    : st.display !== 'granted' ? row(I.bell, 'הטלפון יבקש אישור בפעם הבאה שנכנסים למשמרת.')
-    : row(I.check, 'מאושרות. מגיעות גם כשהאפליקציה סגורה. כשהטלפון במנוחה או בחיסכון בסוללה הן יכולות לאחר בכמה דקות.');
-}
-export function notifLine() {
-  if (!native.NATIVE || !S.active) return '';
-  if (NOTIF.state === 'denied') return `<button class="nstat warn" type="button" data-n="open">${I.bellOff}ההתראות חסומות בטלפון · לפתוח הגדרות</button>`;
-  if (NOTIF.state === 'error') return `<span class="nstat warn">${I.bellOff}לא הצלחתי לקבוע התראות</span>`;
-  if (NOTIF.state === 'ok' && NOTIF.next) return `<span class="nstat">${I.bell}${'התראה הבאה בסביבות '}${tm(NOTIF.next.at)}</span>`;
-  return '';
-}
-export function planNotifications(ask = false) {
-  if (!native.NATIVE) return;
-  clearTimeout(planTimer);
-  planTimer = setTimeout(async () => {
-    try {
-      const a = S.active, N = { rates: true, rest: true, long: true, ...(S.settings.notif || {}) };
-      const on = N.rates || N.rest || N.long, ahead = on ? planReminders() : [];
-      if (!on || (!a && !ahead.length)) { NOTIF = { state: 'off', next: null, exact: null }; if (planNotifications.last !== '[]') await native.scheduleNotifications([]); planNotifications.last = '[]'; return; }
-      if (!(await native.notifyAllowed(ask))) { NOTIF = { state: 'denied', next: null, exact: null }; dbg.log('warn', 'notifications: not allowed'); return; }
-      const st = await native.notifyStatus();
-      const items = [...(a ? buildNotifications(a, N) : []), ...ahead].filter(x => +x.at > Date.now() + 5000).sort((x, y) => x.at - y.at);
-      const send = items.map(x => ({ ...x, title: tr(x.title), body: tr(x.body) })), sig = JSON.stringify(send.map(x => [+x.at, x.title, x.body]));
-      const n = sig === planNotifications.last ? items.length : await native.scheduleNotifications(send);
-      planNotifications.last = sig;
-      NOTIF = { state: 'ok', next: items[0] || null, exact: st.exact, count: n };
-      dbg.log('info', `notifications: ${n} scheduled`);
-    } catch (e) {
-      NOTIF = { state: 'error', next: null, exact: null };
-      dbg.log('error', 'notifications: ' + (e?.message || e));
-    } finally { if (view === 'home') renderHome(); if (view === 'set') drawNotifStatus(); }
-  }, 400);
-}
-
-var geoSent = '';
-export function syncGeo(force = false) {
-  if (!native.geo.available()) return;
-  const fences = S.jobs.filter(j => j.place && j.place.on !== false).map(j => ({ id: j.id, name: j.name, lat: j.place.lat, lng: j.place.lng, radius: j.place.radius || 300 }));
-  const texts = { inTitle: tr('הגעת לעבודה?'), inBody: tr('{job} · להתחיל משמרת עכשיו?'), inAction: tr('להתחיל משמרת'),
-    outTitle: tr('יצאת מהעבודה?'), outBody: tr('{job} · המשמרת עדיין רצה. לסיים אותה?'), outAction: tr('לסיים משמרת'), channel: tr('הגעה ויציאה מהעבודה') };
-  const key = JSON.stringify([fences, texts, !!S.active, S.active?.jobId]);
-  if (key === geoSent && !force) return;
-  geoSent = key;
-  native.geo.setFences(fences, texts).then(r => dbg.log('info', `geofences: ${fences.length}${r.registered ? '' : ' (not allowed)'}`));
-  native.geo.setActive(!!S.active, S.active?.jobId);
-}
-let lastWidget = '';
-function cssHex(name) {
-  try {
-    const el = document.createElement('i'); el.style.color = `var(${name})`; el.style.display = 'none'; document.body.appendChild(el);
-    const m = getComputedStyle(el).color.match(/[\d.]+/g); el.remove();
-    if (!m || m.length < 3) return '';
-    return '#' + m.slice(0, 3).map(x => Math.round(+x).toString(16).padStart(2, '0')).join('').toUpperCase();
-  } catch { return ''; }
-}
-function syncWidget() {
-  if (!native.NATIVE) return;
-  const a = S.active, job = a ? jobAt(jobById(a.jobId), a.start) : jobById(S.settings.lastJob);
-  let segs = [], thr = job?.regHours || 8.6;
-  if (a) {
-    const k = JSON.stringify([a.start, a.jobId, LANG, job, place(), S.settings.birth]);
-    if (syncWidget.k !== k) {
-      const wb = weekRegBefore(job, a.start), p1 = shiftPay({ start: a.start, end: new Date(+new Date(a.start) + 6e4).toISOString(), breakMin: 0 }, job, place(), wb);
-      const per = key => Math.round(job.rate * job.r[key]) / 100, lab = key => tr(tierLabel(key, job));
-      syncWidget.segs = [[+new Date(a.start), per(p1.lastKey || 'reg'), lab(p1.lastKey || 'reg')], ...rateChanges(a.start, job, place(), wb, 16).map(c => [+new Date(c.at), per(c.key), lab(c.key)])];
-      syncWidget.thr = p1.threshold; syncWidget.k = k;
-    }
-    segs = syncWidget.segs; thr = syncWidget.thr;
-  }
-  const now = new Date(), M = monthCalc(now.getFullYear(), now.getMonth());
-  const theme = Object.fromEntries([['bg', '--bg'], ['surface', '--surface'], ['line', '--line'], ['ink', '--ink'], ['ink3', '--ink3'],
-    ['accent', '--accent'], ['rega', '--g-money-a'], ['regb', '--g-money-b'], ['ot1a', '--g-ot-a'], ['ot1b', '--g-ot-b'], ['ot2a', '--g-hot-a'], ['ot2b', '--g-hot-b'], ['hub', '--g-acc-a']]
-    .map(([k, v]) => [k, cssHex(v)]));
-  const state = { active: !!a, start: a ? +new Date(a.start) : 0, job: job?.name || '', rate: +job?.rate || 0, rtl: document.documentElement.dir === 'rtl', segs,
-    extra: { thr, ot1: job?.ot1Hours ?? 2, otOn: job?.otOn !== false, theme: isSup() ? { ...theme, ring: (S.settings.theme === 'gold' ? '#D9A93F' : cssHex('--accent')) } : theme, wstyle: isSup() ? (S.settings.widgetStyle || 'classic') : 'classic', month: { name: MONTHS[now.getMonth()], gross: money(M.gross), count: M.shifts.length } },
-    labels: EN
-      ? { idle: 'Not on shift', starts: 'Starts ', since: 'since ', perHour: 'per hour', toOt: 'Overtime in {t}', now: 'Now: ', shortReg: 'regular', shortOt: 'overtime',
-          tapStart: 'Tap the dial to clock in', tapShort: 'Tap to start', gross: 'gross', shifts: 'shifts' }
-      : { idle: 'לא במשמרת', starts: 'מתחילה ב־', since: 'מ־', perHour: 'לשעה', toOt: 'עוד {t} לשעות נוספות', now: 'עכשיו ', shortReg: 'רגילות', shortOt: 'נוספות',
-          tapStart: 'נגיעה בחוגה כדי להתחיל', tapShort: 'נגיעה להתחלה', gross: 'ברוטו', shifts: 'משמרות' } };
-  const k = JSON.stringify(state); if (k === lastWidget) return; lastWidget = k;
-  native.appActions.updateWidget(state);
-}
-function appAction({ action, jobId, sig }) {
-  dbg.log('info', 'app action ' + action);
-  if (action === 'dev_unlock') return devUnlock(sig);
-  if (action === 'toggle') {
-    go('home');
-    if (S.active) openSheet(`<h2>לסיים את המשמרת?</h2><p class="shsub">${nm(jobById(S.active.jobId).name)} · ${hm((Date.now() - new Date(S.active.start)) / 36e5)}</p>
-      <div class="btnrow"><button class="btn primary" id="wa-end">${I.check}סיום משמרת</button><button class="btn soft" id="wa-no">עדיין לא</button></div>`, root => {
-      $('#wa-end', root).onclick = () => { closeSheet(); if (S.active) onPunch(); };
-      $('#wa-no', root).onclick = closeSheet;
-    });
-    else onPunch();
-    return;
-  }
-  const job = S.jobs.find(j => j.id === jobId); if (!job) return;
-  go('home');
-  if (action === 'start' && !S.active) { S.settings.lastJob = job.id; onPunch(); return; }
-  if ((action === 'end' || action === 'ask_end') && S.active) { onPunch(); return; }
-  if (action === 'ask_start' && !S.active) openSheet(`<h2>הגעת לעבודה?</h2><p class="shsub">${nm(job.name)}</p>
-    <div class="btnrow"><button class="btn primary" id="ga-yes">${I.check}להתחיל משמרת</button><button class="btn soft" id="ga-no">לא עכשיו</button></div>`, root => {
-    $('#ga-yes', root).onclick = () => { closeSheet(); S.settings.lastJob = job.id; onPunch(); };
-    $('#ga-no', root).onclick = closeSheet;
-  });
 }
 
 /* translations: skip-start (developer tools stay in Hebrew) */
@@ -310,15 +138,6 @@ export function openDevTools() {
 }
 /* translations: skip-end */
 
-export async function askFirstPerms() {
-  if (!native.NATIVE || S.settings.askedPerms) return;
-  S.settings.askedPerms = true; persist();
-  const ok = await native.notifyAllowed(true);
-  dbg.log('info', 'notification permission: ' + (ok ? 'allowed' : 'not allowed'));
-  planNotifications();
-}
-
-/* ================= diagnostics ================= */
 function debugReport() {
   const e = dbg.env(), c = dbg.lastCrash();
   const lines = [
@@ -407,7 +226,6 @@ export async function setLang(l, save = true) {
   syncGeo(true); planNotifications(); syncWidget();
 }
 
-/* ================= router ================= */
 Object.assign(VIEWS, { home: renderHome, shifts: renderShifts, sum: renderSum, rights: renderRights, set: renderSet });
 setRenderHooks(drawHeader, (el, e) => showFailure(el, e));
 /** The figures in the top bar, redrawn after every screen. */

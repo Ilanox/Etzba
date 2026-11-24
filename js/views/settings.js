@@ -10,7 +10,7 @@ import { CITIES } from '../hebrew-calendar.js';
 import { LANGS } from '../../languages/index.js';
 import { LANG } from '../lang.js';
 import { speechLang, setSpeech } from '../a11y.js';
-import { notifOn, devOK, VERSION, report, setLang, openDebug, openDevTools, planNotifications, drawNotifStatus } from '../app.js';
+import { devOK, VERSION, report, setLang, openDebug, openDevTools } from '../app.js';
 import * as dbg from '../diagnostics.js';
 import { openJobSheet, COLORS } from './job.js';
 import { defaultJob } from '../pay-engine.js';
@@ -18,6 +18,7 @@ import { commit, persist } from '../nav.js';
 import { openSupport } from './support.js';
 import { toast, buzz, announce, openSheet } from '../ui.js';
 import { backupDue, storeNote, openExport, openImport, backupNow, openFileImport, persistState } from './data.js';
+import { notifOn, planNotifications, drawNotifStatus } from '../notifications.js';
 
 function ageLine() {
   const a = ageAt(new Date());

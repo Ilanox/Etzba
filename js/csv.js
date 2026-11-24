@@ -1,7 +1,7 @@
 // Shifts and monthly totals as CSV, for Excel and Google Sheets. Column names stay in Hebrew.
 import { TIERS, KIND_NAME, shiftKind } from './pay-engine.js';
 import { PAY, monthCalc } from './pay.js';
-import { jobById } from './state.js';
+import { jobById, index } from './state.js';
 import { dFull, tm, pad } from './util.js';
 import { DAYS } from './lang.js';
 
