@@ -11,6 +11,7 @@ import { usePack, startTranslating, stopTranslating, tr } from './translate.js';
 import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
+import { S, setState, save, hadLocal, jobById, place, MEMO, invalidate, index, inMonth, inWeek } from './state.js';
 import { balances, dayValue, sickShares, runStarts, havraa, lawVacDays, setYoungInYear } from './leave.js';
 import { $, $$, esc, nm, uid, pad, money, money2, hm, pctChange, niceMax, tm, dShort, dFull, dateKey, sameDay } from './util.js';
 import { drawReport, pagesToPDF } from './report.js';
@@ -21,54 +22,6 @@ import FEATURES from './features.js';
 const VERSION = '1.0.0';
 dbg.log('boot', 'v' + VERSION);
 
-/* ================= state ================= */
-const KEY = 'etzba.v1', OLD_KEY = 'shifts.v1';
-function fresh() {
-  const job = defaultJob('העבודה שלי');
-  return {
-    settings: { city: 'תל אביב', candleMin: 20, havdalahMin: 40, sex: 2.25, extraPts: 0, pension: false, pEmp: 6, pEr: 6.5, sev: 8.33, hish: false, theme: 'auto', lang: 'he', lastJob: job.id, notif: { rates: true, rest: true, long: true } },
-    jobs: [job], shifts: [], absences: [], plans: [], active: null, ui: {},
-  };
-}
-function load() {
-  let d = null;
-  try { d = JSON.parse(localStorage.getItem(KEY) || localStorage.getItem(OLD_KEY)); } catch {}
-  return normalizeState(d);
-}
-function normalizeState(d) {
-  if (!d || !Array.isArray(d.jobs) || !d.jobs.length) d = fresh();
-  const f = fresh();
-  d.jobs = d.jobs.map(normalizeJob);
-  const okId = v => typeof v === 'string' && /^[\w.:-]{1,80}$/.test(v), okColor = v => typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v);
-  const idMap = new Map();
-  d.jobs.forEach((j, i) => { if (!okId(j.id)) { const n = 'j' + Date.now().toString(36) + i; idMap.set(j.id, n); j.id = n; } if (!okColor(j.color)) j.color = f.jobs[0].color; });
-  const fix = x => { if (idMap.has(x.jobId)) x.jobId = idMap.get(x.jobId); if (!okId(x.id)) x.id = 'x' + Math.random().toString(36).slice(2, 12); return x; };
-  d.settings = { ...f.settings, ...d.settings };
-  if (d.settings.birth && !/^(19|20)\d\d-\d\d-\d\d$/.test(d.settings.birth)) d.settings.birth = '';
-  d.shifts = (d.shifts || []).filter(s => s && s.start && s.end && !isNaN(new Date(s.start)) && !isNaN(new Date(s.end))).map(fix);
-  d.absences = (d.absences || []).filter(a => a && /^\d{4}-\d\d-\d\d$/.test(a.date) && (a.kind === 'sick' || a.kind === 'vac')).map(fix);
-  d.plans = (d.plans || []).filter(x => x && x.start && x.jobId && !isNaN(new Date(x.start))).map(fix);
-  if (d.active && (!d.active.start || isNaN(new Date(d.active.start)))) d.active = null; else if (d.active && idMap.has(d.active.jobId)) d.active.jobId = idMap.get(d.active.jobId);
-  d.ui = { sort: 'old', filter: 'all', ...(d.ui || {}) };
-  if (!d.settings.migSort) { if (d.ui.sort === 'new') d.ui.sort = 'old'; d.settings.migSort = 1; }
-  if (d.settings.onboarded == null && (d.shifts.length || d.active)) d.settings.onboarded = true;
-  if (!d.settings.migTravel) {
-    const byJob = new Map();
-    for (const s of d.shifts) if (s.src === 'import' && s.travel != null) { const m = byJob.get(s.jobId) || new Map(); m.set(s.travel, (m.get(s.travel) || 0) + 1); byJob.set(s.jobId, m); }
-    for (const [jid, m] of byJob) {
-      const common = [...m.entries()].sort((a, b) => b[1] - a[1])[0][0], job = d.jobs.find(j => j.id === jid);
-      if (!job) continue;
-      for (const s of d.shifts) if (s.jobId === jid && s.src === 'import' && s.travel === common) {
-        const jt = +jobAt(job, s.start).travel || 0;
-        if (jt > 0 || jt === common) delete s.travel;
-      }
-    }
-    d.settings.migTravel = 1;
-  }
-  return d;
-}
-let S = load();
-const hadLocal = (() => { try { return !!localStorage.getItem(KEY); } catch { return false; } })();
 loadRules();
 function electionDate() {
   const list = rules().elections.map(e => e.date).sort(), today = new Date().toISOString().slice(0, 10);
@@ -133,32 +86,13 @@ function applyTheme() {
 }
 applyTheme(); darkMQ.addEventListener?.('change', applyTheme);
 let PAY = new Map();
-const persist = () => { invalidate(); S.updatedAt = Date.now(); planNotifications(); syncGeo(); syncWidget(); const json = JSON.stringify(S); native.snapshot.save(json); try { localStorage.setItem(KEY, json); localOk = true; } catch {
-  localOk = false;
-  if (!warnedLocal) { warnedLocal = true; toast('לא הצלחתי לשמור בטלפון. כדאי לגבות', 'err', { label: 'גיבוי עכשיו', fn: () => backupNow() }); }
+let warnedSave = false;
+function persist() {
+  invalidate(); planNotifications(); syncGeo(); syncWidget();
+  if (!save() && !warnedSave) { warnedSave = true; toast('לא הצלחתי לשמור בטלפון. כדאי לגבות', 'err', { label: 'גיבוי עכשיו', fn: () => backupNow() }); }
+  return true;
 }
-  return true; };
-let localOk = true, warnedLocal = false;
 const recompute = () => { invalidate(); PAY = computeAll(S.shifts, jobById, place()); };
-let IDX = null; const MEMO = new Map();
-function invalidate() { IDX = null; MEMO.clear(); }
-function index() {
-  if (IDX) return IDX;
-  const month = new Map(), week = new Map(), t = new Map();
-  for (const s of S.shifts) {
-    const d = new Date(s.start), k = d.getFullYear() * 12 + d.getMonth(), w = +weekStart(d);
-    t.set(s, +d);
-    (month.get(k) || month.set(k, []).get(k)).push(s);
-    (week.get(w) || week.set(w, []).get(w)).push(s);
-  }
-  for (const a of month.values()) a.sort((x, y) => t.get(x) - t.get(y));
-  for (const a of week.values()) a.sort((x, y) => t.get(x) - t.get(y));
-  const newest = [...S.shifts].sort((x, y) => t.get(y) - t.get(x));
-  const byId = new Map(S.shifts.map(s => [s.id, s]));
-  return (IDX = { month, week, newest, byId, t });
-}
-const inMonth = (y, m) => index().month.get(y * 12 + m) || [];
-const inWeek = ws => index().week.get(+ws) || [];
 function commit() { persist(); recompute(); render(); }
 
 /* ================= helpers ================= */
@@ -167,8 +101,6 @@ let DAYS = HE_DAYS;
 const HE_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
 let MONTHS = HE_MONTHS;
 const COLORS = ['#E4572E', '#1E7A4A', '#4B5BD0', '#C98E00', '#1F8F84', '#A1458F', '#5E574C', '#2A6FB0'];
-const place = () => ({ city: S.settings.city, candleMin: S.settings.candleMin, havdalahMin: S.settings.havdalahMin });
-const jobById = id => S.jobs.find(j => j.id === id) || S.jobs[0];
 const buzz = ms => { if (native.haptic(+ms >= 30 || Array.isArray(ms) ? 'medium' : 'light')) return; try { navigator.vibrate?.(ms); } catch {} };
 const tierLabel = (k, job, pct) => k === 'special' ? (pct ? `${TIER_NAME[k]} ${pct}%` : TIER_NAME[k]) : `${TIER_NAME[k]} ${job.r[k]}%`;
 
@@ -2427,11 +2359,11 @@ function openImport() {
         const jobIds = new Set(S.jobs.map(j => j.id));
         S.jobs.push(...d.jobs.filter(j => !jobIds.has(j.id)).map(normalizeJob));
         S.shifts.push(...freshList);
-        S = normalizeState(S);
+        setState(S);
         closeSheet(); commit(); toast(`נוספו ${fresh} משמרות`, 'ok');
       };
       $('#imp-replace', root).onclick = () => confirmBtn($('#imp-replace', root), `ללחוץ שוב: ${cur} משמרות יימחקו`, () => {
-        localStorage.setItem(KEY, JSON.stringify(d)); S = load(); applyTheme(); closeSheet(); commit(); toast(`שוחזרו ${S.shifts.length} משמרות`, 'ok');
+        setState(d); applyTheme(); closeSheet(); commit(); toast(`שוחזרו ${S.shifts.length} משמרות`, 'ok');
       });
     };
     $('#imp-file', root).onchange = async e => { const f = e.target.files[0]; if (f) show(await f.text()); };
@@ -3002,7 +2934,7 @@ step('restore', async () => {
   const json = await native.snapshot.load(); if (!json) return;
   let d; try { d = JSON.parse(json); } catch (e) { dbg.log('error', 'snapshot unreadable'); return; }
   if (!d || !Array.isArray(d.shifts) || (!d.shifts.length && !d.active)) return;
-  S = normalizeState(d); try { localStorage.setItem(KEY, json); } catch {}
+  setState(d, json);
   $('#onboard')?.remove(); applyTheme(); recompute(); render();
   dbg.log('warn', `restored ${S.shifts.length} shifts from the app's copy`);
   toast(`שוחזרו ${S.shifts.length} משמרות מהעותק השמור בטלפון`, 'ok');
