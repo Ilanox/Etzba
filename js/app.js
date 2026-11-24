@@ -11,7 +11,8 @@ import { usePack, startTranslating, stopTranslating, tr } from './translate.js';
 import { LANGS, loadPack, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
-import { balances, dayValue, sickShares, runStarts, dateKey, havraa, lawVacDays, setYoungInYear } from './leave.js';
+import { balances, dayValue, sickShares, runStarts, havraa, lawVacDays, setYoungInYear } from './leave.js';
+import { $, $$, esc, nm, uid, pad, money, money2, hm, pctChange, niceMax, tm, dShort, dFull, dateKey, sameDay } from './util.js';
 import { drawReport, pagesToPDF } from './report.js';
 import DEV_KEY from './dev-key.js';
 import { setSpeech, startA11y, say, speechLang } from './a11y.js';
@@ -161,18 +162,6 @@ const inWeek = ws => index().week.get(+ws) || [];
 function commit() { persist(); recompute(); render(); }
 
 /* ================= helpers ================= */
-const $ = (q, el = document) => el.querySelector(q);
-const $$ = (q, el = document) => [...el.querySelectorAll(q)];
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const money = n => '₪' + Math.round(n).toLocaleString('he-IL');
-const money2 = n => '₪' + (+n).toLocaleString('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const hm = h => { const m = Math.round(h * 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
-const pad = n => String(n).padStart(2, '0');
-const tm = d => { d = new Date(d); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
-const dShort = d => { d = new Date(d); return `${d.getDate()}.${d.getMonth() + 1}`; };
-const dFull = d => { d = new Date(d); return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`; };
-const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
-const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '' + Math.random());
 const HE_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 let DAYS = HE_DAYS;
 const HE_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
@@ -181,7 +170,6 @@ const COLORS = ['#E4572E', '#1E7A4A', '#4B5BD0', '#C98E00', '#1F8F84', '#A1458F'
 const place = () => ({ city: S.settings.city, candleMin: S.settings.candleMin, havdalahMin: S.settings.havdalahMin });
 const jobById = id => S.jobs.find(j => j.id === id) || S.jobs[0];
 const buzz = ms => { if (native.haptic(+ms >= 30 || Array.isArray(ms) ? 'medium' : 'light')) return; try { navigator.vibrate?.(ms); } catch {} };
-const nm = t => `<bdi>${esc(t)}</bdi>`;
 const tierLabel = (k, job, pct) => k === 'special' ? (pct ? `${TIER_NAME[k]} ${pct}%` : TIER_NAME[k]) : `${TIER_NAME[k]} ${job.r[k]}%`;
 
 let viewY = new Date().getFullYear(), viewM = new Date().getMonth();
@@ -349,7 +337,6 @@ function sumPeriod(from, to) {
   for (const s of S.shifts) { const d = new Date(s.start); if (d >= from && d < to) { const p = PAY.get(s.id); if (p) { g += p.pay; h += p.hours; c++; } } }
   return { g, h, c };
 }
-const pctChange = (cur, prev) => prev > 0.5 && isFinite(cur) ? Math.round((cur - prev) / prev * 100) : null;
 function dlt(cur, prev, what = '') {
   const p = pctChange(cur, prev); if (p === null) return '';
   const cls = p > 0 ? 'up' : p < 0 ? 'down' : 'flat';
@@ -1688,7 +1675,6 @@ function agg(list) {
   }
   return A;
 }
-const niceMax = v => { if (v <= 0) return 1; const p = 10 ** Math.floor(Math.log10(v)), n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * p; };
 const metricSeg = () => `<div class="c-head"><div class="seg sm" data-metric><button data-m="h" class="${S.ui.metric === 'm' ? '' : 'on'}">שעות</button><button data-m="m" class="${S.ui.metric === 'm' ? 'on' : ''}">ברוטו</button></div><div class="c-leg">${GROUPS.map((g, j) => `<span><i class="cg${j}"></i>${g}</span>`).join('')}</div></div>`;
 const bindMetric = root => $$('[data-metric] button', root).forEach(b => b.onclick = () => { S.ui.metric = b.dataset.m; persist(); renderSum(); });
 function mountChart(el, items, sel) {

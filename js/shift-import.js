@@ -1,3 +1,4 @@
+import { pad } from './util.js';
 
 /* translations: skip-start (column names to recognise in files, not shown) */
 const H = {
@@ -64,7 +65,6 @@ export function guessYear(...hints) {
   for (const h of hints) { const m = /(?:^|\D)(20\d{2})(?:\D|$)/.exec(String(h || '')); if (m) return +m[1]; }
   return null;
 }
-const pad = n => String(n).padStart(2, '0');
 const localISO = (y, mo, d, min) => { const t = new Date(y, mo - 1, d, Math.floor(min / 60), min % 60); return t.toISOString(); };
 
 function readSummary(rows, from) {

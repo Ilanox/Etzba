@@ -1,7 +1,8 @@
+import { dateKey } from './util.js';
 
 const DAY = 864e5;
 export const SICK_PER_MONTH = 1.5, SICK_MAX = 90;
-export const dateKey = d => { d = new Date(d); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+export { dateKey };
 const fromKey = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
 
 let YOUNG = () => false;

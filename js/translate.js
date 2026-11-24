@@ -1,5 +1,5 @@
 const HEB = /[֐-׿]/;
-const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const squash = s => s.replace(/\s+/g, ' ').trim();
 
 let EXACT = new Map(), TPL = [], RULES = [], POLISH = [], PACK = null;
@@ -12,9 +12,9 @@ export function usePack(pack) {
   // 1. whole text: phrases first, then single words/terms
   for (const [he, t] of Object.entries(words)) EXACT.set(squash(he), t);
   for (const [he, t] of Object.entries(phrases)) EXACT.set(squash(he), t);
-  TPL = (pack.templates || []).map(([he, t]) => [new RegExp('^' + squash(he).split('{}').map(esc).join('(.+?)') + '$'), t]);
+  TPL = (pack.templates || []).map(([he, t]) => [new RegExp('^' + squash(he).split('{}').map(reEsc).join('(.+?)') + '$'), t]);
   RULES = Object.entries(words).sort((a, b) => b[0].length - a[0].length)
-    .map(([he, t]) => [new RegExp('(^|[^\\u0590-\\u05FF])' + esc(he) + '(?=[^\\u0590-\\u05FF]|$)', 'g'), t]);
+    .map(([he, t]) => [new RegExp('(^|[^\\u0590-\\u05FF])' + reEsc(he) + '(?=[^\\u0590-\\u05FF]|$)', 'g'), t]);
   // 4. language-specific clean-up after the swap
   POLISH = pack.polish || [];
 }
@@ -24,9 +24,9 @@ export function translator(pack) {
   const words = pack.words || {}, phrases = pack.phrases || {}, ex = new Map(), cache = new Map();
   for (const [he, t] of Object.entries(words)) ex.set(squash(he), t);
   for (const [he, t] of Object.entries(phrases)) ex.set(squash(he), t);
-  const tpl = (pack.templates || []).map(([he, t]) => [new RegExp('^' + squash(he).split('{}').map(esc).join('(.+?)') + '$'), t]);
+  const tpl = (pack.templates || []).map(([he, t]) => [new RegExp('^' + squash(he).split('{}').map(reEsc).join('(.+?)') + '$'), t]);
   const rules = Object.entries(words).sort((a, b) => b[0].length - a[0].length)
-    .map(([he, t]) => [new RegExp('(^|[^\\u0590-\\u05FF])' + esc(he) + '(?=[^\\u0590-\\u05FF]|$)', 'g'), t]);
+    .map(([he, t]) => [new RegExp('(^|[^\\u0590-\\u05FF])' + reEsc(he) + '(?=[^\\u0590-\\u05FF]|$)', 'g'), t]);
   const pol = pack.polish || [];
   const inner = s => {
     if (!s || !HEB.test(s)) return s;
