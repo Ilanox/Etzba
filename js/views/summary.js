@@ -5,7 +5,7 @@ import { holidaysOfGregorianYear } from '../hebrew-calendar.js';
 import { monthBar, dlt, tierLabel, bindMonthBar, countUp } from './common.js';
 import { MONTHS, DAYS } from '../lang.js';
 import { money, hm, nm, money2, dShort, $, $$, niceMax } from '../util.js';
-import { secIc, exportShifts, openExport, openSupport, deliver, summaryCSV } from '../app.js';
+import { exportShifts, openExport, deliver, summaryCSV } from '../app.js';
 import { S, inWeek, jobById } from '../state.js';
 import { TIERS, weekStart } from '../pay-engine.js';
 import { I } from '../svg-icons.js';
@@ -16,6 +16,8 @@ import { isSup } from '../theme.js';
 import { toast } from '../ui.js';
 import { RECAP_YEAR, recapOpen, openRecap } from './recap.js';
 import { earlyWhen } from '../early.js';
+import { secIc } from './settings.js';
+import { openSupport } from './support.js';
 
 let heroV = 0;
 

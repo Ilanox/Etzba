@@ -2,7 +2,7 @@
 import { ridges, I, handAngles } from '../svg-icons.js';
 import { $$, $, nm, esc, tm, pad, money2, money, hm, sameDay, uid, dShort } from '../util.js';
 import { S, jobById, index, place, inWeek } from '../state.js';
-import { secIc, openJobSheet, notifLine, planNotifications, notifOn, askPersist } from '../app.js';
+import { notifLine, planNotifications, notifOn, askPersist } from '../app.js';
 import { openShiftSheet } from './shift-form.js';
 import { commit, persist, go, view, showMonth, viewY, viewM } from '../nav.js';
 import { toast, announce, buzz, openSheet, closeSheet, openPop, closePop, keepPopQuiet, hideToast } from '../ui.js';
@@ -16,6 +16,8 @@ import { taxFor, grossToNet } from '../net-pay.js';
 import { isSup } from '../theme.js';
 import { celebrate } from './celebrate.js';
 import * as dbg from '../diagnostics.js';
+import { secIc } from './settings.js';
+import { openJobSheet } from './job.js';
 
 /* ---- the fingerprint button ---- */
 function punchSVG() {
