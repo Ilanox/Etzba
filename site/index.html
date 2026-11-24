@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-TXrFM1tLGMMxlCEMZryDH/9Z0e7/hWeYd9AZIuhisd4='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-cT3/iZJmzj5BJmoPS+90FqidbXj2BYA62/9XCYdw1Yo='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>אצבע · שעון נוכחות ומחשבון שכר לעובדים לפי שעה</title>
 <meta name="description" content="שעון נוכחות בטלפון ומחשבון שכר לפי החוק בישראל: שמים אצבע בכניסה וביציאה מהמשמרת, ורואים את השכר עם שעות נוספות 125% ו־150%, שבת, חג, לילה ונטו אחרי מס. חינם, בלי חשבון, עובד גם בלי אינטרנט.">
@@ -110,12 +110,20 @@ h2{font-size:clamp(28px,3.6vw,40px);font-weight:800;letter-spacing:-.4px;margin:
 html[dir=rtl] .item .k{text-align:right}
 /* gallery */
 
-.gallery{display:grid;grid-template-columns:repeat(4,1fr);gap:28px 22px}
+.slider{position:relative}
+.gallery{display:flex;gap:22px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;padding:4px 44px 8px;scroll-padding-inline:44px;-webkit-mask:linear-gradient(90deg,transparent,#000 40px,#000 calc(100% - 40px),transparent);mask:linear-gradient(90deg,transparent,#000 40px,#000 calc(100% - 40px),transparent)}
+.gallery::-webkit-scrollbar{display:none}
+.sl-btn{position:absolute;top:calc(50% - 40px);width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:rgba(29,31,35,.92);color:var(--ink);font-size:22px;line-height:1;cursor:pointer;display:grid;place-items:center;z-index:2;transition:opacity .2s}
+.sl-btn:hover{background:var(--surface2)}
+.sl-btn[disabled]{opacity:0;pointer-events:none}
+.sl-prev{inset-inline-start:-8px}.sl-next{inset-inline-end:-8px}
+.sl-dots{display:flex;justify-content:center;gap:8px;margin-top:18px}
+.sl-dots i{width:7px;height:7px;border-radius:50%;background:var(--line);transition:background .2s,width .2s}
+.sl-dots i.on{background:var(--ink2);width:20px;border-radius:4px}
 
-.shot{min-width:0}
+.shot{flex:0 0 260px;scroll-snap-align:center}
 .shot img{width:100%;height:auto;border-radius:28px;border:6px solid #26282D;display:block}
 .shot>span{display:block;margin-top:12px;font-size:15px;color:var(--ink2)}
-@media (max-width:1100px) and (min-width:861px){.gallery{grid-template-columns:repeat(3,1fr)}}
 /* privacy */
 .private{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}
 .private ul{margin:0;padding:0;list-style:none}
@@ -143,9 +151,9 @@ html[lang=he] [data-l=he],html[lang=en] [data-l=en]{display:revert}
   .phone.a{position:relative;inset:auto;margin:0 auto}
   .phone.b{display:none}
   .grid,.private,.guides{grid-template-columns:1fr;gap:24px}
-  .gallery{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding-bottom:12px;margin-inline:-24px;padding-inline:24px}
-  .gallery::-webkit-scrollbar{display:none}
-  .shot{flex:0 0 62%;scroll-snap-align:center}
+  .gallery{margin-inline:-24px;padding-inline:24px;-webkit-mask:none;mask:none}
+  .shot{flex:0 0 66%}
+  .sl-btn{display:none}
   .bar nav .hide-m{display:none}
 }
 </style>
@@ -206,7 +214,9 @@ html[lang=he] [data-l=he],html[lang=en] [data-l=en]{display:revert}
 <section><div class="wrap">
   <h2><span data-l="he">ככה זה נראה</span><span data-l="en">What it looks like</span></h2>
   <p class="sub"><span data-l="he">נקי, ובעברית מימין לשמאל. יש גם אנגלית, ערכת צבעים בהירה וכהה.</span><span data-l="en">Clean, and right-to-left in Hebrew. In English too, light or dark.</span></p>
-  <div class="gallery">
+  <div class="slider">
+  <button class="sl-btn sl-prev" type="button" aria-label="הקודם">‹</button><button class="sl-btn sl-next" type="button" aria-label="הבא">›</button>
+  <div class="gallery" id="gallery">
     <div class="shot"><img data-src="home" src="img/he/home.jpg" alt="שעון הנוכחות: משמרת פעילה עם השכר עד עכשיו" loading="lazy" width="280" height="606"><span><span data-l="he">המשמרת שרצה עכשיו</span><span data-l="en">The shift running now</span></span></div>
     <div class="shot"><img data-src="sum" src="img/he/sum.jpg" alt="סיכום חודשי: ברוטו, נטו וניכויים" loading="lazy" width="280" height="606"><span><span data-l="he">סיכום החודש, ברוטו ונטו</span><span data-l="en">The month, gross and net</span></span></div>
     <div class="shot"><img data-src="year" src="img/he/year.jpg" alt="סיכום שנתי: ברוטו, נטו, שעות וממוצעים" loading="lazy" width="280" height="606"><span><span data-l="he">השנה במספרים</span><span data-l="en">The year in numbers</span></span></div>
@@ -216,6 +226,8 @@ html[lang=he] [data-l=he],html[lang=en] [data-l=en]{display:revert}
     <div class="shot"><img data-src="job" src="img/he/job.jpg" alt="הגדרות מקום עבודה: שכר לשעה, הפסקה ונסיעות" loading="lazy" width="280" height="606"><span><span data-l="he">ההגדרות של העבודה</span><span data-l="en">Your job's settings</span></span></div>
     <div class="shot"><img data-src="settings" src="img/he/settings.jpg" alt="הגדרות: מקומות עבודה, מראה, נטו ותאריך לידה" loading="lazy" width="280" height="606"><span><span data-l="he">ההגדרות</span><span data-l="en">Settings</span></span></div>
   </div>
+  </div>
+  <div class="sl-dots" id="dots" aria-hidden="true"></div>
 </div></section>
 <section id="faq"><div class="wrap">
   <h2><span data-l="he">שאלות נפוצות</span><span data-l="en">Questions</span></h2>
@@ -272,6 +284,19 @@ html[lang=he] [data-l=he],html[lang=en] [data-l=en]{display:revert}
   try { saved = localStorage.getItem(KEY); var s = JSON.parse(localStorage.getItem('etzba.v1') || 'null'); appLang = s && s.settings && s.settings.lang; if (s && (s.shifts && s.shifts.length || s.active)) document.getElementById('back').style.display = 'block'; } catch (e) {}
   set(saved || appLang || (/^he|^iw/.test(navigator.language || '') ? 'he' : (navigator.language ? 'en' : 'he')));
   document.getElementById('lang').onclick = function () { set(h.lang === 'he' ? 'en' : 'he'); };
+  var g = document.getElementById('gallery'), dots = document.getElementById('dots'), shots = g.querySelectorAll('.shot');
+  var prev = document.querySelector('.sl-prev'), next = document.querySelector('.sl-next');
+  shots.forEach(function (_, i) { var d = document.createElement('i'); dots.appendChild(d); });
+  function step() { return shots[0].getBoundingClientRect().width + 22; }
+  function sign() { return getComputedStyle(g).direction === 'rtl' ? -1 : 1; }
+  function upd() {
+    var x = Math.abs(g.scrollLeft), max = g.scrollWidth - g.clientWidth;
+    prev.disabled = x < 4; next.disabled = x > max - 4;
+    var k = Math.round(x / step()); dots.querySelectorAll('i').forEach(function (d, i) { d.className = i === k ? 'on' : ''; });
+  }
+  prev.onclick = function () { g.scrollBy({ left: -sign() * step() * 2 }); };
+  next.onclick = function () { g.scrollBy({ left: sign() * step() * 2 }); };
+  g.addEventListener('scroll', upd, { passive: true }); window.addEventListener('resize', upd); upd();
 })();
 </script>
 </body>
