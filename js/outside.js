@@ -2,13 +2,13 @@
 import * as native from './native-bridge.js';
 import { S, jobById } from './state.js';
 import { tr } from './translate.js';
-import { devUnlock } from './app.js';
 import * as dbg from './diagnostics.js';
 import { go } from './nav.js';
 import { openSheet, closeSheet } from './ui.js';
 import { nm, hm, $ } from './util.js';
 import { I } from './svg-icons.js';
 import { onPunch } from './views/home.js';
+import { devUnlock } from './views/dev-tools.js';
 
 let geoSent = '';
 export function syncGeo(force = false) {

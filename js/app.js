@@ -1,20 +1,17 @@
 // אצבע — app
-import { computeAll, jobAt } from './pay-engine.js';
 import { I, mark } from './svg-icons.js';
-import { loadRules, checkForUpdates, rules } from './rules.js';
-import { preferPack, checkPack } from './remote-packs.js';
-import { usePack, startTranslating, stopTranslating, tr } from './translate.js';
-import { LANGS, loadPack, langInfo } from '../languages/index.js';
+import { loadRules, checkForUpdates } from './rules.js';
+import { checkPack } from './remote-packs.js';
+import { LANGS, langInfo } from '../languages/index.js';
 import * as dbg from './diagnostics.js';
 import * as native from './native-bridge.js';
-import { buzz, toast, openSheet, closeSheet, sheetOpen } from './ui.js';
-import { LANG, EN, useLanguage } from './lang.js';
-import { view, viewY, viewM, showMonth, setView, VIEWS, setRenderHooks, go, render, onSave, setSaveFailed, persist, commit } from './nav.js';
-import { viewAs, applyTheme, startTheme } from './theme.js';
+import { toast, openSheet, closeSheet, sheetOpen } from './ui.js';
+import { LANG } from './lang.js';
+import { view, showMonth, VIEWS, setRenderHooks, go, render, onSave, setSaveFailed, persist } from './nav.js';
+import { applyTheme, startTheme } from './theme.js';
 import { NET, recompute, monthCalc, withLive } from './pay.js';
-import { S, setState, save, hadLocal, jobById, place, index } from './state.js';
-import { $, $$, esc, uid, pad, tm } from './util.js';
-import DEV_KEY from './dev-key.js';
+import { S, setState, hadLocal, jobById } from './state.js';
+import { $, $$ } from './util.js';
 import { setSpeech, startA11y } from './a11y.js';
 import FEATURES from './features.js';
 import { openShiftSheet } from './views/shift-form.js';
@@ -27,14 +24,16 @@ import { checkEarly } from './early.js';
 import { renderRights } from './views/rights.js';
 import { openOnboarding } from './views/onboarding.js';
 import { renderSet, openLegal } from './views/settings.js';
-import { deliver, copyText } from './files.js';
+import { copyText } from './files.js';
 import { openFileImport, takeSharedFile, backupNow, updateBackupDot } from './views/data.js';
-import { buildNotifications, planNotifications, askFirstPerms } from './notifications.js';
+import { planNotifications, askFirstPerms } from './notifications.js';
 import { syncWidget } from './widget.js';
 import { syncGeo, appAction } from './outside.js';
+import { report, showFailure } from './problems.js';
+import { openDebug } from './views/debug.js';
+import { setLang } from './switch-language.js';
 
-export const VERSION = '1.0.0';
-dbg.log('boot', 'v' + VERSION);
+dbg.log('boot', 'v' + dbg.VERSION);
 
 loadRules();
 document.documentElement.lang = LANG; document.documentElement.dir = langInfo(LANG).dir;
@@ -43,188 +42,6 @@ startTheme(() => syncWidget());
 onSave(() => planNotifications()); onSave(() => syncGeo()); onSave(() => syncWidget());
 setSaveFailed(() => toast('לא הצלחתי לשמור בטלפון. כדאי לגבות', 'err', { label: 'גיבוי עכשיו', fn: () => backupNow() }));
 
-export const devOK = () => FEATURES.devTools || !!S.settings.owner;
-export async function devUnlock(sig) {
-  try {
-    if (!DEV_KEY || !sig) throw new Error(DEV_KEY ? 'no signature' : 'no public key in this build');
-    const id = await native.appActions.deviceId(); if (!id) throw new Error('no device id');
-    const key = await crypto.subtle.importKey('jwk', DEV_KEY, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
-    const raw = Uint8Array.from(atob(sig.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
-    const ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, raw, new TextEncoder().encode('etzba-dev:' + id));
-    if (!ok) throw new Error('bad signature');
-    S.settings.owner = true; S.settings.dev = true; S.settings.supported = true; S.settings.supportedAt ||= new Date().toISOString();
-    persist(); applyTheme(); buzz(40); toast('מצב מפתח פעיל: הכול פתוח', 'ok'); go('set');
-  } catch (e) { dbg.log('warn', 'dev unlock: ' + (e?.message || e)); toast('לא הצלחתי להפעיל מצב מפתח', 'err'); }
-}
-
-/* translations: skip-start (developer tools stay in Hebrew) */
-export function openDevTools() {
-  const scen = {
-    weekday: ['יום חול ארוך מ־08:00', () => { const d = new Date(); d.setHours(8, 0, 0, 0); return d; }],
-    friday: ['שישי מ־10:00, לתוך השבת', () => { const d = new Date(); d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7)); d.setHours(10, 0, 0, 0); return d; }],
-    current: ['המשמרת שרצה עכשיו', () => S.active ? new Date(S.active.start) : null],
-  };
-  let pick = S.active ? 'current' : 'friday', items = [];
-  const jobId = S.active?.jobId || S.settings.lastJob;
-  openSheet(`<div data-keep><h2>כלי פיתוח</h2><p class="shsub">לבדיקות בלבד. לא משנה את החישובים.</p>
-    ${S.settings.owner ? `<div class="sec"><span>להציג את האפליקציה כמו</span></div>
-    <div class="seg" id="dv-view">${[['regular', 'משתמש רגיל'], ['supporter', 'תומך'], ['dev', 'מפתח']].map(([k, n]) => `<button data-v="${k}" class="${viewAs() === k ? 'on' : ''}">${n}</button>`).join('')}</div>
-    <p class="hint">רק התצוגה משתנה. מצב המפתח נשאר, וכלי הפיתוח תמיד כאן.</p>` : ''}
-    <div class="sec"><span>התראות</span></div>
-    <div class="card">
-      <button class="cell" id="dv-one"><span class="grow">התראה אחת לבדיקה<div class="sub">מגיעה בעוד 3 שניות</div></span></button>
-      <button class="cell" id="dv-soon"><span class="grow">משמרת שמגיעה לשעות נוספות בעוד 2 דקות<div class="sub">מתחילה משמרת אמיתית שהתחילה מוקדם, וההתראה תגיע כרגיל</div></span></button>
-      <button class="cell" id="dv-pend"><span class="grow">ההתראות שמתוזמנות עכשיו</span></button>
-      ${native.geo.available() ? `<button class="cell" id="dv-geo-in"><span class="grow">התראת "הגעת לעבודה?" לבדיקה</span></button>
-      <button class="cell" id="dv-geo-out"><span class="grow">התראת "יצאת מהעבודה?" לבדיקה</span></button>` : ''}
-    </div>
-    <div class="sec"><span>כל ההתראות של משמרת</span></div>
-    <div class="seg" id="dv-scen">${Object.entries(scen).filter(([k]) => k !== 'current' || S.active).map(([k, [l]]) => `<button data-s="${k}">${l}</button>`).join('')}</div>
-    <div class="card pad" id="dv-list" style="margin-top:10px"></div>
-    <button class="btn soft" id="dv-send" style="margin-top:10px">לשלוח את כולן עכשיו, כל 6 שניות</button>
-    <div class="sec"><span>עוד</span></div>
-    <div class="card">
-      <button class="cell" id="dv-onb"><span class="grow">להציג שוב את מסך הפתיחה</span></button>
-      <button class="cell" id="dv-demo"><span class="grow">להוסיף משמרות לדוגמה (3 חודשים)</span></button>
-      <button class="cell" id="dv-undemo"><span class="grow">למחוק את משמרות הדוגמה</span></button>
-      <button class="cell" id="dv-err"><span class="grow">שגיאה לבדיקה<div class="sub">מציג את פס התקלה</div></span></button>
-      <button class="cell" id="dv-reload"><span class="grow">טעינה מחדש של האפליקציה</span></button>
-      <button class="cell" id="dv-off"><span class="grow">כיבוי מצב מפתח</span></button>
-    </div></div>`, root => {
-    const draw = () => {
-      $$('#dv-scen button', root).forEach(b => b.classList.toggle('on', b.dataset.s === pick));
-      const start = scen[pick][1]();
-      items = start ? buildNotifications({ jobId, start: start.toISOString() }) : [];
-      $('#dv-list', root).innerHTML = items.length ? items.map(x => `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(tr(x.title))}</b><span class="num" style="color:var(--ink3)">${tm(x.at)}</span></div><div style="color:var(--ink2);font-size:.9rem">${esc(tr(x.body))}</div></div>`).join('') : '<div class="hint">אין התראות למשמרת הזאת</div>';
-    };
-    $$('#dv-scen button', root).forEach(b => b.onclick = () => { pick = b.dataset.s; draw(); });
-    const send = async list => { if (!native.NATIVE) return toast('התראות עובדות רק באפליקציה לאנדרואיד', 'err');
-      const ok = await native.testNotifications(list.map(x => ({ title: tr(x.title), body: tr(x.body) })));
-      planNotifications.last = null;
-      toast(ok ? `נשלחו ${list.length} התראות` : 'אין הרשאה להתראות. אפשר לאשר בהגדרות הטלפון', ok ? 'ok' : 'err'); };
-    $('#dv-one', root).onclick = () => send([{ title: 'אצבע · בדיקה', body: 'ככה נראית התראה. אם רואים את זה, הכל עובד.' }]);
-    $('#dv-send', root).onclick = () => send(items);
-    $('#dv-soon', root).onclick = () => {
-      const job = jobAt(jobById(jobId), new Date());
-      S.active = { jobId, start: new Date(Date.now() - (job.regHours * 60 - 2) * 6e4).toISOString() };
-      persist(); closeSheet(); go('home'); planNotifications(true); toast('משמרת בדיקה התחילה. ההתראה תגיע בעוד כ־2 דקות', 'ok');
-    };
-    $('#dv-pend', root).onclick = async () => {
-      const p = await native.pendingNotifications();
-      $('#dv-list', root).innerHTML = p.length ? p.map(x => `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>${esc(x.title)}</b> <span class="num" style="color:var(--ink3)">${x.at ? tm(x.at) : ''}</span><div style="color:var(--ink2);font-size:.9rem">${esc(x.body)}</div></div>`).join('') : `<div class="hint">${native.NATIVE ? 'אין התראות מתוזמנות' : 'רק באפליקציה לאנדרואיד'}</div>`;
-    };
-    const geoTest = kind => { if (!native.geo.available()) return toast('רק באפליקציה לאנדרואיד', 'err'); const j = jobById(jobId); syncGeo(true); setTimeout(() => native.geo.test(kind, j.id, j.name), 300); toast('נשלחה התראה', 'ok'); };
-    $('#dv-geo-in', root) && ($('#dv-geo-in', root).onclick = () => geoTest('in'));
-    $('#dv-geo-out', root) && ($('#dv-geo-out', root).onclick = () => geoTest('out'));
-    $$('#dv-view button', root).forEach(b => b.onclick = () => {
-      S.settings.viewAs = b.dataset.v; persist(); applyTheme(); render(); buzz(10);
-      $$('#dv-view button', root).forEach(x => x.classList.toggle('on', x === b));
-      toast(`מוצג כמו ${b.textContent}`, 'ok');
-    });
-    $('#dv-onb', root).onclick = () => { closeSheet(); openOnboarding(); };
-    $('#dv-demo', root).onclick = () => {
-      const days = 90, out = []; const now = new Date();
-      for (let i = days; i > 0; i--) { const d = new Date(now); d.setDate(d.getDate() - i); if (d.getDay() === 6 || Math.random() < .3) continue;
-        const h = [8, 10, 14, 16][i % 4], st = new Date(d); st.setHours(h, [0, 15, 30][i % 3], 0, 0); const en = new Date(+st + (6 + (i % 5)) * 3.6e6);
-        out.push({ id: uid(), jobId, start: st.toISOString(), end: en.toISOString(), breakMin: i % 3 ? 0 : 30, bonus: 0, note: '', rest: 'auto', src: 'demo' }); }
-      S.shifts.push(...out); commit(); toast(`נוספו ${out.length} משמרות לדוגמה`, 'ok');
-    };
-    $('#dv-undemo', root).onclick = () => { const n = S.shifts.length; S.shifts = S.shifts.filter(x => x.src !== 'demo'); commit(); toast(`נמחקו ${n - S.shifts.length} משמרות לדוגמה`, 'ok'); };
-    $('#dv-err', root).onclick = () => { closeSheet(); report(new Error('שגיאה לבדיקה מכלי הפיתוח')); };
-    $('#dv-reload', root).onclick = () => location.reload();
-    $('#dv-off', root).onclick = () => { S.settings.dev = false; persist(); closeSheet(); renderSet(); toast('מצב מפתח כבוי'); };
-    draw();
-  });
-}
-/* translations: skip-end */
-
-function debugReport() {
-  const e = dbg.env(), c = dbg.lastCrash();
-  const lines = [
-    `Etzba ${VERSION} · ${e.where} · ${e.webview} · lite ${e.lite ? 'on' : 'off'} · ${LANG} · view ${view}`,
-    `shifts ${S.shifts.length} · jobs ${S.jobs.length} · phone storage ${e.localStorage}`,
-    `screen ${e.screen} · memory ${e.deviceMemory} · cores ${e.cores} · heap ${e.heap} · online ${e.online}`,
-    c ? `LAST SESSION ENDED DURING: ${c.step} (${new Date(c.at).toLocaleString('en-GB')})` : 'last session ended normally',
-    'timings ms: ' + Object.entries(dbg.timingSummary()).map(([k, v]) => `${k} ${v.last}/${v.max}`).join(', '),
-    PROBLEMS.length ? 'errors:\n' + PROBLEMS.slice(-3).join('\n---\n') : 'errors: none',
-    'log:', ...dbg.getLog().slice(-40).map(x => `${new Date(x.t).toTimeString().slice(0, 8)} ${x.k.padEnd(5)} ${x.m}${x.d !== undefined ? ' ' + JSON.stringify(x.d) : ''}`),
-    e.ua,
-  ];
-  return lines.join('\n');
-}
-function liteSetting() { try { return localStorage.getItem('etzba.lite') || 'auto'; } catch { return 'auto'; } }
-export function openDebug() {
-  const e = dbg.env(), c = dbg.lastCrash(), T = dbg.timingSummary(), lite = liteSetting();
-  let meterOn = false; try { meterOn = localStorage.getItem('etzba.meter') === '1'; } catch {}
-  const row = (l, v) => `<div class="ln flat"><span class="l">${l}</span><span class="v num" data-keep style="direction:ltr">${esc(String(v))}</span></div>`;
-  openSheet(`<h2>אבחון ותקלות</h2>
-    <p class="shsub">אם משהו נתקע או נסגר, להעתיק את הדוח ולשלוח אותו. אין בו משמרות, שכר או שמות, רק מידע טכני.</p>
-    ${c ? `<div class="note" style="margin-top:12px">${I.warn}<span>בפעם הקודמת האפליקציה נסגרה באמצע: <b data-keep style="direction:ltr">${esc(c.step)}</b></span></div>` : ''}
-    <div class="card" style="margin-top:12px">
-      <button class="cell" id="d-copy"><span class="cell-ic t-blue">${I.file}</span><span class="grow">העתקת דוח אבחון</span></button>
-      <button class="cell" id="d-save"><span class="cell-ic t-blue">${I.download}</span><span class="grow">שמירת הדוח כקובץ</span></button>
-    </div>
-    <div class="sec"><span>המכשיר</span></div>
-    <div class="card pad">${row('גרסה', VERSION)}${row('רץ ב־', e.where)}${row('דפדפן', e.webview)}${row('מסך', e.screen)}${row('זיכרון', e.deviceMemory + ' · ' + e.heap)}${row('אחסון בטלפון', e.localStorage)}${row('משמרות', S.shifts.length)}</div>
-    <div class="sec"><span>תצוגה</span></div>
-    <div class="seg" id="d-lite"><button data-l="auto" class="${lite === 'auto' ? 'on' : ''}">אוטומטי</button><button data-l="on" class="${lite === 'on' ? 'on' : ''}">קלה</button><button data-l="off" class="${lite === 'off' ? 'on' : ''}">מלאה</button></div>
-    <p class="fine" style="margin-top:6px">תצוגה קלה מכבה רקע זז, טשטוש ואנימציות. עוזרת בטלפונים חלשים.</p>
-    <label class="cell" style="margin-top:8px"><span class="grow">מד ביצועים על המסך</span><input type="checkbox" id="d-meter" ${meterOn ? 'checked' : ''}></label>
-    <div class="sec"><span>בדיקה עצמית</span></div>
-    <div class="card"><button class="cell" id="d-test"><span class="cell-ic t-green">${I.check}</span><span class="grow">להריץ בדיקה<div class="sub" id="d-test-out">מצייר כל מסך ומחשב את כל המשמרות, ומודד זמנים</div></span></button></div>
-    <div class="sec"><span>זמנים (מ״ש, אחרון / הכי איטי)</span></div>
-    <div class="card pad">${Object.keys(T).length ? Object.entries(T).map(([k, v]) => row(k, v.last + ' / ' + v.max)).join('') : row('—', '')}</div>
-    <div class="sec"><span>יומן</span></div>
-    <pre data-keep style="white-space:pre-wrap;direction:ltr;text-align:left;font-size:11px;line-height:1.35;max-height:40vh;overflow:auto;background:var(--surface);border:1px solid var(--line);padding:8px">${esc(dbg.getLog().slice(-60).reverse().map(x => `${new Date(x.t).toTimeString().slice(0, 8)} ${x.k} ${x.m}${x.d !== undefined ? ' ' + JSON.stringify(x.d) : ''}`).join('\n'))}</pre>
-    <div class="card" style="margin-top:12px"><button class="cell" id="d-clear"><span class="grow">ניקוי היומן</span></button></div>`, root => {
-    $('#d-copy', root).onclick = () => copyText(debugReport());
-    $('#d-save', root).onclick = () => deliver(`etzba-debug-${Date.now()}.txt`, debugReport(), 'text/plain;charset=utf-8');
-    $$('#d-lite button', root).forEach(b => b.onclick = () => {
-      try { b.dataset.l === 'auto' ? localStorage.removeItem('etzba.lite') : localStorage.setItem('etzba.lite', b.dataset.l); } catch {}
-      const framed = (() => { try { return window.self !== window.top; } catch { return true; } })();
-      const on = b.dataset.l === 'on' || (b.dataset.l === 'auto' && (framed || (navigator.deviceMemory && navigator.deviceMemory <= 2)));
-      document.documentElement.classList.toggle('lite', on); dbg.log('info', 'lite ' + b.dataset.l);
-      $$('#d-lite button', root).forEach(x => x.classList.toggle('on', x === b));
-    });
-    $('#d-meter', root).onchange = ev => { try { localStorage.setItem('etzba.meter', ev.target.checked ? '1' : '0'); } catch {} dbg.setMeter(ev.target.checked); };
-    $('#d-clear', root).onclick = () => { dbg.clearLog(); closeSheet(); toast('היומן נוקה'); };
-    $('#d-test', root).onclick = () => selfTest($('#d-test-out', root));
-  });
-}
-function selfTest(out) {
-  out.textContent = 'בודק…';
-  setTimeout(() => {
-    const res = [], keep = { view, viewY, viewM, sumView: S.ui.sumView };
-    const t0 = performance.now();
-    try { const P = computeAll(S.shifts, jobById, place()); let n = 0; for (const x of P.values()) n += x.pay > -1 ? 1 : 0; res.push(`pay ${n}/${S.shifts.length} ${Math.round(performance.now() - t0)}ms`); }
-    catch (e) { res.push('pay FAIL ' + e.message); dbg.log('error', 'selftest pay: ' + e.message); }
-    for (const v of ['home', 'shifts', 'sum', 'rights']) {
-      const t = performance.now();
-      try { setView(v); VIEWS[v](); res.push(`${v} ${Math.round(performance.now() - t)}ms`); }
-      catch (e) { res.push(`${v} FAIL ${e.message}`); dbg.log('error', 'selftest ' + v + ': ' + e.message); }
-    }
-    for (const sv of ['weeks', 'year', 'month']) {
-      const t = performance.now();
-      try { S.ui.sumView = sv; setView('sum'); renderSum(); res.push(`sum/${sv} ${Math.round(performance.now() - t)}ms`); }
-      catch (e) { res.push(`sum/${sv} FAIL ${e.message}`); dbg.log('error', 'selftest sum ' + sv + ': ' + e.message); }
-    }
-    setView(keep.view); showMonth(keep.viewY, keep.viewM); S.ui.sumView = keep.sumView;
-    try { VIEWS[view](); } catch {}
-    const txt = res.join(' · '); dbg.log('perf', 'selftest ' + txt);
-    out.textContent = (res.some(r => r.includes('FAIL')) ? '✗ ' : '✓ ') + txt;
-  }, 50);
-}
-
-export async function setLang(l, save = true) {
-  const info = langInfo(l);
-  const pack = preferPack(info.code, await loadPack(info.code).catch(() => null));
-  useLanguage(info, pack);
-  stopTranslating(); usePack(pack);
-  if (pack) startTranslating();
-  if (save) { S.settings.lang = LANG; persist(); }
-  render(); updateBackupDot();
-  syncGeo(true); planNotifications(); syncWidget();
-}
 
 Object.assign(VIEWS, { home: renderHome, shifts: renderShifts, sum: renderSum, rights: renderRights, set: renderSet });
 setRenderHooks(drawHeader, (el, e) => showFailure(el, e));
@@ -239,30 +56,6 @@ function drawHeader() {
   } catch (e) { report(e); }
 }
 
-const PROBLEMS = [];
-function describe(e) { return ((e && (e.stack || e.message)) || String(e)).split('\n').slice(0, 4).join('\n'); }
-function problemText() { return debugReport(); }
-export function report(e) {
-  const d = describe(e); if (PROBLEMS[PROBLEMS.length - 1] === d) return;
-  PROBLEMS.push(d); console.error(e); dbg.log('error', d);
-  let bar = $('#probbar');
-  if (!bar) {
-    bar = document.createElement('div'); bar.id = 'probbar'; bar.setAttribute('role', 'alert'); bar.dataset.keep = '';
-    document.body.appendChild(bar);
-  }
-  bar.innerHTML = `<span>${EN ? 'Something went wrong. Your data is safe.' : 'משהו השתבש. הנתונים שלך בטוחים.'}</span>
-    <button id="pb-copy">${EN ? 'Copy details' : 'העתקת פרטים'}</button><button id="pb-x" aria-label="${EN ? 'Close' : 'סגירה'}">✕</button>`;
-  $('#pb-copy', bar).onclick = async () => { if (!(await copyText(problemText())) && !$('pre', bar)) bar.insertAdjacentHTML('beforeend', `<pre style="flex-basis:100%;white-space:pre-wrap;direction:ltr;font-size:11px;user-select:all">${esc(problemText())}</pre>`); };
-  $('#pb-x', bar).onclick = () => bar.remove();
-}
-function showFailure(el, e) {
-  report(e);
-  if (!el) return;
-  el.innerHTML = `<div class="card" style="margin-top:16px" data-keep><div class="empty">${EN ? 'This screen couldn’t be drawn.' : 'לא הצלחתי להציג את המסך הזה.'}
-    <pre style="white-space:pre-wrap;direction:ltr;text-align:left;font-size:11px;margin:10px 0">${esc(describe(e))}</pre>
-    <button class="btn" id="fail-copy">${EN ? 'Copy details' : 'העתקת פרטים'}</button></div></div>`;
-  $('#fail-copy', el).onclick = () => copyText(problemText());
-}
 addEventListener('error', e => { if (window.__etzbaReady && e.error) report(e.error); });
 addEventListener('unhandledrejection', e => { if (window.__etzbaReady) report(e.reason); });
 $$('#tabs button').forEach(b => { b.querySelector('.tic').innerHTML = I[b.querySelector('.tic').dataset.i]; b.onclick = () => go(b.dataset.v); });
@@ -283,8 +76,8 @@ step('langCheck', () => {
   if (failed) {
     dbg.log('error', `language ${failed}: the last start didn't finish, back to Hebrew`);
     let errs = ''; try { errs = localStorage.getItem('etzba.bootErr') || ''; } catch {}
-    const report = [`language ${failed} failed to start · v${VERSION}`, errs || '(no error recorded: it stopped responding)', ...dbg.getLog().slice(-40).map(e => JSON.stringify(e)), navigator.userAgent].join('\n');
-    setTimeout(() => toast('השפה הוחזרה לעברית בגלל תקלה. אפשר לנסות שוב בהגדרות', 'err', { label: 'העתקת פרטים', fn: () => copyText(report).then(() => toast('הועתק', 'ok')) }), 800);
+    const details = [`language ${failed} failed to start · v${dbg.VERSION}`, errs || '(no error recorded: it stopped responding)', ...dbg.getLog().slice(-40).map(e => JSON.stringify(e)), navigator.userAgent].join('\n');
+    setTimeout(() => toast('השפה הוחזרה לעברית בגלל תקלה. אפשר לנסות שוב בהגדרות', 'err', { label: 'העתקת פרטים', fn: () => copyText(details).then(() => toast('הועתק', 'ok')) }), 800);
   }
   setTimeout(() => { try { localStorage.removeItem('etzba.langBoot'); } catch {} }, 4000);
 });
@@ -369,10 +162,9 @@ setInterval(() => { if (document.hidden) return; tickHome(false); if (new Date()
 $('#chipNet') && ($('#chipNet').onclick = () => { const n = new Date(); showMonth(n.getFullYear(), n.getMonth()); S.ui.sumView = 'month'; go('sum'); setTimeout(() => $('#steps')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 300); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { render(); planNotifications(); checkEarly(); } });
 
-const framed = (() => { try { return window.self !== window.top; } catch { return true; } })();
 try {
   if (!native.NATIVE && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-    if (framed) navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(() => {});
+    if (dbg.framed) navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(() => {});
     else navigator.serviceWorker.register('service-worker.js').catch(() => {});
   }
 } catch {}

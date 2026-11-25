@@ -6,9 +6,9 @@ import * as native from '../native-bridge.js';
 import { S } from '../state.js';
 import { persist, view, render } from '../nav.js';
 import { applyTheme, isSup } from '../theme.js';
-import { report } from '../app.js';
 import * as dbg from '../diagnostics.js';
 import { renderSet } from './settings.js';
+import { report } from '../problems.js';
 
 const SUPPORT_MAIN = [['support_10', 10], ['support_20', 20], ['support_50', 50]];
 

@@ -6,13 +6,13 @@ import { S, jobById } from '../state.js';
 import { MONTHS, EN, DAYS } from '../lang.js';
 import { nm, $$, $, pad, hm, money2, money, dFull, tm } from '../util.js';
 import { I } from '../svg-icons.js';
-import { report } from '../app.js';
 import { tr } from '../translate.js';
 import { TIERS, jobAt } from '../pay-engine.js';
 import { tierLabel } from './common.js';
 import { grossToNet, taxFor } from '../net-pay.js';
 import { drawReport, pagesToPDF } from '../report.js';
 import { deliver } from '../files.js';
+import { report } from '../problems.js';
 
 export function openReport() {
   const M0 = monthCalc(viewY, viewM);

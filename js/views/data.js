@@ -8,7 +8,6 @@ import { defaultJob, jobAt, computeAll, normalizeJob } from '../pay-engine.js';
 import { showMonth, commit, go, viewY, viewM, persist, view } from '../nav.js';
 import * as dbg from '../diagnostics.js';
 import { readSheets } from '../file-reader.js';
-import { report, VERSION } from '../app.js';
 import { monthCalc } from '../pay.js';
 import { shiftsCSV, summaryCSV } from '../csv.js';
 import { copyText, deliver } from '../files.js';
@@ -16,6 +15,8 @@ import { MONTHS } from '../lang.js';
 import { renderSet } from './settings.js';
 import * as native from '../native-bridge.js';
 import { applyTheme } from '../theme.js';
+import { report } from '../problems.js';
+import { VERSION } from '../diagnostics.js';
 
 export function openFileImport(f0) {
   let parsed = null, sheetIx = 0, year = null, jobId = S.settings.lastJob, newJobName = null, fileName = '';

@@ -519,3 +519,24 @@ test('support on Android: choosing an amount buys it and thanks you', async () =
   assert.ok((await state()).settings.supported, 'marked as a supporter');
   assert.deepEqual(errors, []); await ctx.close();
 });
+
+test('developer mode: diagnostics self-test, demo shifts and the problem bar work', async () => {
+  const { page, ctx, errors, state } = await open();
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('etzba.v1')); s.settings.owner = true; s.settings.dev = true; localStorage.setItem('etzba.v1', JSON.stringify(s)); });
+  await page.reload(); await wait(page, 700);
+  await page.evaluate(() => document.querySelector('#scrim.on')?.click()); await wait(page, 400);   // owners first see the early Wrapped invitation
+  await page.click('[data-v=set]'); await wait(page);
+  await page.evaluate(() => document.querySelector('#s-debug').closest('details')?.setAttribute('open', '')); await page.click('#s-debug'); await wait(page, 400);
+  await page.click('#d-test'); await wait(page, 1500);
+  assert.match(await page.locator('#d-test-out').innerText(), /^✓ pay \d+/, 'self-test passes');
+  await page.evaluate(() => document.querySelector('#scrim').click()); await wait(page, 400);
+  await page.click('[data-v=set]'); await wait(page);
+  await page.evaluate(() => document.querySelector('#s-dev').closest('details')?.setAttribute('open', '')); await page.click('#s-dev'); await wait(page, 400);
+  await page.click('#dv-demo'); await wait(page, 300);
+  assert.ok((await state()).shifts.some(x => x.src === 'demo'), 'demo shifts added');
+  await page.click('#dv-undemo'); await wait(page, 300);
+  assert.ok(!(await state()).shifts.some(x => x.src === 'demo'), 'demo shifts removed');
+  await page.click('#dv-err'); await wait(page, 300);
+  assert.equal(await page.locator('#probbar').count(), 1, 'the problem bar shows');
+  assert.deepEqual(errors, []); await ctx.close();
+});

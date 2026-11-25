@@ -1,4 +1,7 @@
 
+/** The app's version, shown in settings, backups and diagnostic reports. */
+export const VERSION = '1.0.0';
+
 const KEY = 'etzba.log', MAX = 300;
 const T0 = performance.now();
 let entries = [];
@@ -45,8 +48,10 @@ export const getLog = () => entries.slice();
 export function clearLog() { entries = []; crashNote = null; save(true); }
 export const sinceStart = () => Math.round(performance.now() - T0);
 
+/** True when the app runs inside another page's frame (the website's live preview). */
+export const framed = (() => { try { return window.self !== window.top; } catch { return true; } })();
+
 export function env() {
-  const framed = (() => { try { return window.self !== window.top; } catch { return true; } })();
   const ua = navigator.userAgent, standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   let storageOk = false, bytes = 0;
   try { localStorage.setItem('etzba.t', '1'); localStorage.removeItem('etzba.t'); storageOk = true; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); bytes += (localStorage.getItem(k) || '').length * 2; } } catch {}
