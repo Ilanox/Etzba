@@ -144,7 +144,8 @@ export async function pendingNotifications() {
     .catch(() => [])) || [];
 }
 
-const NOTHING_OWNED = { supported: false, owned: [] };
+// owned(): { supported: true when a support purchase is found, owned: its ids, error: why Google Play couldn't be reached }
+const NOTHING_OWNED = { supported: false, owned: [], error: 'no billing' };
 export const billing = {
   available: () => PLATFORM === 'android' && !!window.Capacitor?.isPluginAvailable?.('Billing'),
   products: ids => withP('Billing', b => b.products({ ids })).then(r => r?.products || []),

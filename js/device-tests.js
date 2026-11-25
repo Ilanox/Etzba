@@ -81,7 +81,7 @@ const TESTS = [
     if (!mark) skip('press "בדיקה אחרי הפעלה מחדש" to run this one');
     const m = JSON.parse(mark); localStorage.removeItem(AFTER_RESTART);
     check(m.shifts === S.shifts.length, `before the restart ${m.shifts} shifts, after ${S.shifts.length}`);
-    check(m.updatedAt === S.updatedAt, 'the saved data changed during the restart');
+    check(m.print === fingerprint(), 'the shifts, jobs or days off are not the same after the restart');
     return `${m.shifts} shifts kept, restart took ${Math.round((Date.now() - m.at) / 1000)} s`;
   }],
 
@@ -154,16 +154,19 @@ const TESTS = [
   ['play', 'products', 'מוצרי התמיכה ב־Google Play', async () => {
     android(); if (!native.billing.available()) skip('billing is off in this build');
     const ids = ['support_5', 'support_10', 'support_15', 'support_20', 'support_30', 'support_50', 'support_75', 'support_100', 'support_200'];
-    const found = await native.billing.products(ids);
-    const missing = ids.filter(id => !found.some(p => p.id === id || p.productId === id));
-    check(!missing.length, `${found.length}/${ids.length} found in Play Console; missing: ${missing.join(', ')}`);
-    return `${found.length} products, e.g. ${found[0]?.price || ''}`;
+    let found;
+    try { found = await native.billing.products(ids); } catch (e) { throw new Error('Google Play did not answer: ' + (e?.message || e)); }
+    const missing = ids.filter(id => !found.some(p => p.id === id));
+    // none at all: the app isn't on Google Play yet, or the products aren't created; a part missing is a real mistake
+    if (missing.length === ids.length) skip('Google Play answered, but has none of the products: expected until the app is on Play and support_5 … support_200 are created and active (Monetize → In-app products)');
+    check(!missing.length, `${found.length}/${ids.length} found; missing or not active in Play Console: ${missing.join(', ')}`);
+    return `${found.length} products, e.g. ${found[0].price}`;
   }],
-  ['play', 'owned', 'קריאת רכישות קודמות', async () => {
+  ['play', 'owned', 'חיבור ל־Google Play וקריאת רכישות', async () => {
     android(); if (!native.billing.available()) skip('billing is off in this build');
     const r = await native.billing.owned();
-    check(r && r.supported !== false, 'Google Play billing is not available on this phone');
-    return `${(r.owned || []).length} owned`;
+    check(!r.error, 'Google Play could not be reached: ' + r.error);
+    return r.owned?.length ? `connected; this Google account bought ${r.owned.join(', ')}` : 'connected; no purchases on this Google account';
   }],
   ['net', 'rules', 'הורדת נתוני השכר מהאתר', async () => {
     const d = await fetchJSON(RULES_URL); validRules(d);
@@ -206,9 +209,16 @@ export async function runDeviceTests(onStep) {
   return run;
 }
 
+/** A short fingerprint of everything the user entered (not the save time, which other tests change). */
+function fingerprint() {
+  const text = JSON.stringify([S.shifts, S.jobs, S.absences, S.plans, S.active]);
+  let h = 2166136261; for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+  return (h >>> 0).toString(16) + ':' + text.length;
+}
+
 /** Remembers the data, then restarts the app; the restart test checks it on the way back. */
 export function restartTest() {
-  localStorage.setItem(AFTER_RESTART, JSON.stringify({ at: Date.now(), shifts: S.shifts.length, updatedAt: S.updatedAt }));
+  localStorage.setItem(AFTER_RESTART, JSON.stringify({ at: Date.now(), shifts: S.shifts.length, print: fingerprint() }));
   localStorage.setItem('etzba.devtests.auto', '1');
   location.reload();
 }
@@ -232,7 +242,12 @@ async function deviceInfo() {
 export function reportText(run) {
   const c = count(run), d = run.device || {};
   const line = r => `${r.status === 'pass' ? 'PASS' : r.status === 'fail' ? 'FAIL' : 'SKIP'}  ${r.area}/${r.id}  ${r.name}  (${r.ms} ms)${r.note ? '\n      ' + r.note : ''}`;
-  const log = dbg.getLog().slice(-80).map(x => `${new Date(x.t).toISOString().slice(11, 23)} ${x.k.padEnd(5)} ${x.m}${x.d !== undefined ? ' ' + JSON.stringify(x.d) : ''}`);
+  let day = '';
+  const log = dbg.getLog().slice(-80).flatMap(x => {
+    const iso = new Date(x.t).toISOString(), line = `${iso.slice(11, 23)} ${x.k.padEnd(5)} ${x.m}${x.d !== undefined ? ' ' + JSON.stringify(x.d) : ''}`;
+    if (iso.slice(0, 10) === day) return [line];
+    day = iso.slice(0, 10); return [`-- ${day} (UTC) --`, line];
+  });
   return [
     `Etzba device tests · ${new Date(run.at).toISOString()} · took ${(run.took / 1000).toFixed(1)} s`,
     `${c.pass} passed · ${c.fail} failed · ${c.skip} skipped`,

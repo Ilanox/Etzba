@@ -80,3 +80,13 @@ test('Android: the on-phone tests pass against the pretend bridge (each plugin i
   assert.deepEqual(await page.evaluate(() => Object.keys(window.__mem.files)), ['DATA/etzba-data.json'], 'the test file was deleted');
   assert.deepEqual(errors, []); await ctx.close();
 });
+
+test('Android: before the app is on Play, the products test explains instead of failing; an unreachable Play fails clearly', async () => {
+  const { page, ctx, errors } = await open({ native: true, plugins: ['App', 'AppActions', 'Billing'] });
+  await page.evaluate(() => { window.__answers = { 'Billing.products': { products: [] }, 'Billing.owned': { supported: false, owned: [], error: 'setup 3 Billing unavailable' } }; });
+  const run = await page.evaluate(() => import('/js/device-tests.js').then(m => m.runDeviceTests()));
+  const get = id => run.results.find(r => r.id === id);
+  assert.equal(get('products').status, 'skip'); assert.match(get('products').note, /expected until the app is on Play/);
+  assert.equal(get('owned').status, 'fail'); assert.match(get('owned').note, /could not be reached: setup 3/);
+  assert.deepEqual(errors, []); await ctx.close();
+});

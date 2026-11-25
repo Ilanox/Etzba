@@ -67,6 +67,7 @@ public class BillingPlugin extends Plugin implements PurchasesUpdatedListener {
             });
     }
 
+    /** Support purchases on this Google account: { supported: any found, owned: [ids], error: only when Play couldn't be reached }. */
     @PluginMethod
     public void owned(PluginCall call) {
         ready(() -> client.queryPurchasesAsync(QueryPurchasesParams.newBuilder().setProductType(BillingClient.ProductType.INAPP).build(),

@@ -54,6 +54,7 @@ export async function openSupport() {
     $('#sp-restore', root) && ($('#sp-restore', root).onclick = async () => {
       const r = await native.billing.owned();
       if (r.supported) { S.settings.supported = true; persist(); applyTheme(); render(); closeSheet(); toast('התמיכה שלך שוחזרה. תודה!', 'ok'); }
+      else if (r.error) toast('Google Play לא זמין כרגע. כדאי לבדוק את החיבור ולנסות שוב.', 'err');
       else toast('לא נמצא תשלום בחשבון Google שבטלפון. אם תמכת מחשבון אחר, צריך להיכנס אליו ב־Play.');
     });
     $('#sp-pay', root).onclick = () => pay(chosen);

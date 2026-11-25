@@ -146,3 +146,15 @@ test('device tests: run from the dashboard, Android-only ones skip in a browser,
   assert.match(report, /^Etzba device tests/); assert.match(report, /PASS {2}math\/pay/); assert.match(report, /== Last 80 log lines ==/);
   assert.deepEqual(errors, []); await ctx.close();
 });
+
+test('device tests: the restart test survives a real reload, and passes even though other tests save', async () => {
+  const { page, ctx, errors } = await devApp({ runs: [run()], jobs: jobs() });
+  await startedAgo(page, 2); await page.reload(); await wait(page, 900);
+  await page.evaluate(() => document.querySelector('#scrim.on')?.click()); await wait(page, 300);
+  await page.evaluate(() => import('/js/device-tests.js').then(m => m.restartTest()));
+  await page.waitForFunction(() => { try { const r = JSON.parse(localStorage.getItem('etzba.devtests')); return r && r.results.some(x => x.id === 'restart'); } catch { return false; } }, null, { timeout: 30000 });
+  const r = await page.evaluate(() => JSON.parse(localStorage.getItem('etzba.devtests')).results.find(x => x.id === 'restart'));
+  assert.equal(r.status, 'pass', r.note);
+  assert.equal(await page.locator('#dc-head').count(), 1, 'the results opened by themselves after the restart');
+  assert.deepEqual(errors, []); await ctx.close();
+});

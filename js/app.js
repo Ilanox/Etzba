@@ -146,6 +146,7 @@ step('billing', () => {
   if (!native.billing.available()) return;
   native.billing.onPaid(() => { if (S.settings.supported) return; S.settings.supported = true; persist(); applyTheme(); render(); toast('התשלום עבר. תודה על התמיכה!', 'ok'); });
   if (!S.settings.supported && !S.settings.histChecked) native.billing.owned().then(r => {
+    if (r.error) return dbg.log('warn', 'billing: ' + r.error);   // Play unreachable: try again next start
     S.settings.histChecked = 1;
     if (r.supported) { S.settings.supported = true; applyTheme(); render(); toast('התמיכה שלך שוחזרה. תודה!', 'ok'); }
     persist();

@@ -352,6 +352,7 @@ export default {
     'שעות עבודה': 'Hours worked',
 
     // Support
+    'Google Play לא זמין כרגע. כדאי לבדוק את החיבור ולנסות שוב.': 'Google Play isn’t available right now. Check your connection and try again.',
     'להמשיך': 'Continue',
     'תמיכה באצבע': 'Support Etzba',
     'ארוחה קלה': 'A light meal',
