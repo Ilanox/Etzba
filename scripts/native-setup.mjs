@@ -1,21 +1,30 @@
+// Prepares the native projects (android/, ios/) after `npx cap add`: run by the npm android scripts and the APK build.
 import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, cpSync, rmSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { root, pkg, readJSON, androidSdk } from './lib.mjs';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-const only = process.argv[2];
-const features = { arrivalDetection: false, widget: true, support: true, ...JSON.parse(readFileSync(join(root, 'features.json'), 'utf8')) };
+const only = process.argv[2];   // 'android' or 'ios'; both when empty
+const features = { arrivalDetection: false, widget: true, support: true, ...readJSON('features.json') };
 const GEO = features.arrivalDetection, WIDGET = features.widget, SUPPORT = features.support;
 const [maj, min, pat] = pkg.version.split('.').map(Number);
 const versionCode = maj * 1000000 + min * 1000 + pat;
 const MIMES = ['text/csv', 'text/comma-separated-values', 'application/csv', 'text/tab-separated-values', 'text/plain',
   'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/octet-stream'];
 
+/** Sets up the Android project from features.json: our Java files, the manifest, resources, signing and the version. */
 function android() {
   const app = join(root, 'android/app');
   if (!existsSync(app)) return console.log('android/ not found, run: npx cap add android');
+  javaFiles(app);
+  manifest(app);
+  cpSync(join(root, 'native/android/res'), join(app, 'src/main/res'), { recursive: true });
+  localProperties();
+  gradle(app);
+  console.log(`android ready · ${pkg.version} (${versionCode}) · widget ${WIDGET ? 'on' : 'off'} · arrival detection ${GEO ? 'on' : 'off'}`);
+}
+
+/** Copies our Java files (only the switched-on features) and writes MainActivity with their plugins. */
+function javaFiles(app) {
   const pkgDir = join(app, 'src/main/java/com/edvinstudios/etzba'); mkdirSync(pkgDir, { recursive: true });
   const files = {
     'ShareInPlugin.java': true, 'AppActionsPlugin.java': true, 'Launch.java': true,
@@ -55,7 +64,10 @@ ${plugins.map(p => `        registerPlugin(${p}.class);`).join('\n')}
     }
 }
 `);
-  // 2. manifest: permissions, receivers, and the Share menu
+}
+
+/** The manifest: permissions, receivers, launcher icons and the Share menu. */
+function manifest(app) {
   const mf = join(app, 'src/main/AndroidManifest.xml'); let x = readFileSync(mf, 'utf8');
   const perm = p => `<uses-permission android:name="android.permission.${p}" />`;
   const setPerm = (p, on) => {
@@ -128,15 +140,19 @@ ${data}
     x = x.replace(/(<action android:name="android.intent.action.MAIN" \/>[\s\S]*?<\/intent-filter>)/, `$1\n${filters}`);
     writeFileSync(mf, x);
   }
-  cpSync(join(root, 'native/android/res'), join(app, 'src/main/res'), { recursive: true });
-  // 4. tell Gradle where the Android SDK is, if it isn't set yet
+}
+
+/** Tells Gradle where the Android SDK is, if it isn't set yet. */
+function localProperties() {
   const lp = join(root, 'android/local.properties');
-  if (!existsSync(lp)) {
-    const sdk = [process.env.ANDROID_HOME, process.env.ANDROID_SDK_ROOT, join(homedir(), 'Android/Sdk'), join(homedir(), 'Library/Android/sdk'),
-      join(homedir(), 'AppData/Local/Android/Sdk'), '/opt/android-sdk'].find(d => d && existsSync(d));
-    if (sdk) writeFileSync(lp, `sdk.dir=${sdk.replace(/\\/g, '/')}\n`);
-    else console.log('! Android SDK not found. Install Android Studio and open it once (it downloads the SDK), then run this again.');
-  }
+  if (existsSync(lp)) return;
+  const sdk = androidSdk();
+  if (sdk) writeFileSync(lp, `sdk.dir=${sdk.replace(/\\/g, '/')}\n`);
+  else console.log('! Android SDK not found. Install Android Studio and open it once (it downloads the SDK), then run this again.');
+}
+
+/** build.gradle: the optional libraries, release signing, and the version from package.json. */
+function gradle(app) {
   const bg = join(app, 'build.gradle');
   if (existsSync(bg)) {
     let g = readFileSync(bg, 'utf8');
@@ -169,7 +185,6 @@ if (etzbaKeysFile.exists()) {
     g = g.replace(/versionCode \d+/, `versionCode ${versionCode}`).replace(/versionName "[^"]*"/, `versionName "${pkg.version}"`);
     writeFileSync(bg, g);
   }
-  console.log(`android ready · ${pkg.version} (${versionCode}) · widget ${WIDGET ? 'on' : 'off'} · arrival detection ${GEO ? 'on' : 'off'}`);
 }
 
 function ios() {

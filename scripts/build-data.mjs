@@ -1,9 +1,9 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join, dirname } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { root, isMain } from './lib.mjs';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const { LANGS } = await import(pathToFileURL(join(root, 'languages/index.js')).href);
 mkdirSync(join(root, 'data/lang'), { recursive: true });
 
@@ -16,7 +16,7 @@ export function serialize(pack) {
   };
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) await main();
+if (isMain(import.meta.url)) await main();
 
 async function main() {
 const versions = {};

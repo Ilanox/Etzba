@@ -1,11 +1,10 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { root, pkg } from './lib.mjs';
 import { adb, requirePhone } from './adb.mjs';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
+const version = pkg.version;
 const release = process.argv[2] === 'release';
 const apk = join(root, release ? `etzba-${version}.apk` : 'etzba.apk');
 if (!existsSync(apk)) { console.error(`No ${apk.split('/').pop()} yet. Run: npm run ${release ? 'release' : 'apk'}`); process.exit(1); }

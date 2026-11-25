@@ -1,8 +1,7 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { root } from './lib.mjs';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const HEB = /[֐-׿]/;
 const { usePack, how, tr } = await import(join(root, 'js/translate.js'));
 const { LANGS, loadPack } = await import(join(root, 'languages/index.js'));

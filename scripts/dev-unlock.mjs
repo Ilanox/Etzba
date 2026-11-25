@@ -2,11 +2,10 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from 'node:fs';
 import { createPrivateKey, createPublicKey, generateKeyPairSync, sign } from 'node:crypto';
 import { homedir } from 'node:os';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { root } from './lib.mjs';
 import { adb, APP, requirePhone } from './adb.mjs';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = join(homedir(), '.etzba'), keyFile = join(dir, 'dev-key.pem'), pubFile = join(root, 'js/dev-key.js');
 
 // 1. the key pair

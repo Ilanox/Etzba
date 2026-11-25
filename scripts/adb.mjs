@@ -1,15 +1,13 @@
+// Finds adb and checks a phone is connected, for the scripts that talk to the phone.
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { homedir } from 'node:os';
+import { sdkDirs, WIN } from './lib.mjs';
 
-const exe = process.platform === 'win32' ? 'adb.exe' : 'adb';
-export const adb = [process.env.ANDROID_HOME, process.env.ANDROID_SDK_ROOT, join(homedir(), 'Android/Sdk'), join(homedir(), 'Library/Android/sdk'),
-  join(homedir(), 'AppData/Local/Android/Sdk'), '/opt/android-sdk']
-  .filter(Boolean).map(d => join(d, 'platform-tools', exe)).find(existsSync) || 'adb';
-
+export const adb = sdkDirs().map(d => join(d, 'platform-tools', WIN ? 'adb.exe' : 'adb')).find(existsSync) || 'adb';
 export const APP = 'com.edvinstudios.etzba';
 
+/** Stops with a plain explanation when no phone is ready. */
 export function requirePhone() {
   const devices = spawnSync(adb, ['devices'], { encoding: 'utf8' });
   if (devices.error) { console.error('adb not found. Open Android Studio → SDK Manager → SDK Tools → install "Android SDK Platform-Tools".'); process.exit(1); }

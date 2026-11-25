@@ -1,15 +1,16 @@
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
-import { join, extname, normalize, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join, extname, normalize } from 'node:path';
+import { fromRoot } from './lib.mjs';
 import { networkInterfaces } from 'node:os';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..', process.argv[2] || '');
+const root = fromRoot(process.argv[2] || '');
 const PORT = +process.env.PORT || 5173;
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.webmanifest': 'application/manifest+json',
-  '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
+  '.woff': 'font/woff', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml',
 };
 
 createServer(async (req, res) => {

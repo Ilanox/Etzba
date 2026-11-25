@@ -1,10 +1,9 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { createWriteStream, mkdirSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { root } from './lib.mjs';
 import { adb, APP, requirePhone } from './adb.mjs';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 requirePhone();
 const start = process.argv.includes('--start');
 const verbose = process.argv.includes('--verbose');

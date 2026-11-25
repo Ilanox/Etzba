@@ -1,19 +1,13 @@
-import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
 import { homedir } from 'node:os';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { root, pkg, run, WIN } from './lib.mjs';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const android = join(root, 'android');
-const run = (cmd, args, cwd = root) => {
-  const r = spawnSync(cmd, args, { cwd, stdio: 'inherit', shell: process.platform === 'win32' });
-  if (r.status !== 0) { console.error(`\n✗ ${cmd} ${args.join(' ')} failed`); process.exit(r.status || 1); }
-};
-const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+const npx = WIN ? 'npx.cmd' : 'npx';
 const RELEASE = process.argv[2] === 'release';
-const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
+const version = pkg.version;
 
 const javaMajor = home => {
   try { const m = /JAVA_VERSION="(\d+)/.exec(readFileSync(join(home, 'release'), 'utf8')); return m ? +m[1] : 0; } catch { return 0; }
@@ -49,7 +43,7 @@ async function ensureKey() {
   const pass = (await rl.question('Choose a password for the key (at least 6 characters, write it down): ')).trim();
   rl.close();
   if (pass.length < 6) { console.error('✗ Too short.'); process.exit(1); }
-  const keytool = join(process.env.JAVA_HOME || '', 'bin', process.platform === 'win32' ? 'keytool.exe' : 'keytool');
+  const keytool = join(process.env.JAVA_HOME || '', 'bin', WIN ? 'keytool.exe' : 'keytool');
   run(existsSync(keytool) ? keytool : 'keytool', ['-genkeypair', '-keystore', join(root, 'etzba-upload.jks'), '-alias', 'etzba', '-keyalg', 'RSA', '-keysize', '2048',
     '-validity', '10000', '-storepass', pass, '-keypass', pass, '-dname', 'CN=Ilan Levy, O=Edvin Studios, C=IL']);
   writeFileSync(props, `storeFile=etzba-upload.jks\nstorePassword=${pass}\nkeyAlias=etzba\nkeyPassword=${pass}\n`);
@@ -57,7 +51,7 @@ async function ensureKey() {
   run(process.execPath, [join(root, 'scripts/native-setup.mjs')]);
 }
 
-const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+const gradlew = WIN ? 'gradlew.bat' : './gradlew';
 if (RELEASE) {
   await ensureKey();
   run(gradlew, ['bundleRelease', 'assembleRelease'], android);

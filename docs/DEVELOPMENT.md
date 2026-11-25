@@ -8,7 +8,13 @@ Vanilla JavaScript ES modules, no framework and no bundler. Android through [Cap
 |---|---|
 | `index.html` | the app shell |
 | `css/` | styling, one file per screen (`base`, `components`, `home`, `shift-form`, `shifts`, `summary`, `rights`, `settings`, `onboarding`, `recap`), then `themes` and `adapt` (English, large text, light mode, reduced motion), loaded in that order |
-| `js/app.js` | screens, settings, import/export, notifications, widget sync |
+| `js/app.js` | start-up: wires the parts together and runs each start step |
+| `js/views/` | one file per screen or sheet: `home`, `shift-form`, `shifts`, `summary`, `rights`, `settings`, `job`, `data`, `onboarding`, `recap`, … |
+| `js/state.js`, `js/nav.js` | the saved data and saving it; which screen and month is shown, redrawing |
+| `js/pay.js` | the glue between the saved shifts and the pay engine: month totals, live pay, age rules |
+| `js/ui.js`, `js/util.js`, `js/theme.js`, `js/lang.js` | sheets, popups and toasts; small helpers; themes; the current language |
+| `js/notifications.js`, `js/widget.js`, `js/outside.js` | shift notifications, the home screen widget, location and actions from outside the app |
+| `js/problems.js`, `js/diagnostics.js` | the problem bar and diagnostic report; the log and timings |
 | `js/pay-engine.js` | pay rules: overtime, Shabbat, holidays, election day, weekly limit, breaks |
 | `js/hebrew-calendar.js` | Jewish holidays and Shabbat times per city |
 | `js/net-pay.js` | gross to net: income tax, National Insurance, health tax, pension |
@@ -16,11 +22,11 @@ Vanilla JavaScript ES modules, no framework and no bundler. Android through [Cap
 | `js/translate.js`, `js/remote-packs.js`, `languages/` | translation engine, online pack updates, language packs |
 | `js/native-bridge.js` | everything that talks to Android |
 | `js/file-reader.js`, `js/shift-import.js` | reading .xls/.xlsx/.csv and turning rows into shifts |
-| `native/android/` | Java plugins, widget, Android resources |
-| `site/` | the home page at etzba.co.il |
+| `native/android/` | Java plugins, the widget (`EtzbaWidget`, `WidgetState`, `WidgetViews`, `WidgetArt`), Android resources |
+| `site/` | the website at etzba.co.il; the guide pages are generated from `scripts/site/` by `npm run site` |
 | `store/` | Google Play listing, screenshots and the generator for them |
 | `tests/` | `unit/` and `e2e/` |
-| `scripts/` | build, Android setup, release, install, logs, data |
+| `scripts/` | build, Android setup, release, install, logs, data; `lib.mjs` has what they share |
 | `features.json` | build switches: `widget`, `arrivalDetection`, `devTools` |
 
 ## Getting started
