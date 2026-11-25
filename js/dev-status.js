@@ -81,8 +81,10 @@ async function build() {
   const list = (runs?.workflow_runs || []).map(runOf);
   out.latest = list[0] || null;
   out.lastDone = list.find(r => r.status === 'completed' && r.conclusion !== 'cancelled') || null;
-  // after a rollback, the push whose live check failed
-  if (out.lastDone?.rollback) out.rolledBackFrom = list.find(r => r.event === 'push' && r.status === 'completed' && r.conclusion === 'failure') || null;
+  // a rollback only counts when the newest push failed and the site went back to an older commit
+  // (republishing the same commit by hand is not one)
+  const push = list.find(r => r.event === 'push' && r.status === 'completed' && r.conclusion !== 'cancelled');
+  if (out.lastDone?.rollback && push && push.conclusion === 'failure' && !push.commit.startsWith(out.lastDone.rollback)) out.rolledBackFrom = push;
   if (out.latest) out.latest.jobs = await safe('GitHub', jobsOf(out.latest)) || [];
   if (out.lastDone && out.lastDone !== out.latest) out.lastDone.jobs = await safe('GitHub', jobsOf(out.lastDone)) || [];
   // how far behind the website this phone's copy is
@@ -109,7 +111,7 @@ export function verdict(s) {
     return { level: 'busy', headline: 'פרסום רץ עכשיו', detail: job ? `${plain(job.name)}${job.step ? ' · ' + plain(job.step.name) : ''}` : 'ממתין להתחלה' };
   }
   const done = s.lastDone, bad = failedIn(done);
-  if (done?.rollback && done.conclusion === 'success')
+  if (done?.rollback && s.rolledBackFrom && done.conclusion === 'success')
     return { level: 'bad', headline: `חזר אוטומטית לגרסה ${done.rollback}`, detail: `הגרסה ${s.rolledBackFrom?.commit || 'האחרונה'} נכשלה בבדיקה באתר החי; האתר הוחזר לגרסה שעבדה. צריך לתקן ולדחוף שוב` };
   if (done && done.conclusion === 'failure') {
     const where = bad ? plain(bad.step ? bad.step.name : bad.name) : 'בפרסום';

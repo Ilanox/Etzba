@@ -65,6 +65,8 @@ test('dashboard verdict: offline, website down, GitHub down and a rollback are t
   const back = { ...ok, rollback: 'abc1234', event: 'workflow_dispatch' };
   const v = verdict({ online: true, live, phone, latest: back, lastDone: back, rolledBackFrom: { commit: 'f00ba12' }, behind: 0, errors: [] });
   assert.equal(v.level, 'bad'); assert.match(v.headline, /חזר אוטומטית לגרסה abc1234/); assert.match(v.detail, /f00ba12/);
+  // the same commit published again by hand is just a deploy
+  assert.equal(verdict({ online: true, live, phone, latest: back, lastDone: back, rolledBackFrom: null, behind: 0, errors: [] }).level, 'ok');
 });
 
 test('a failed live check publishes the last good version again, once', () => {
