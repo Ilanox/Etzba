@@ -23,6 +23,9 @@ import { VERSION } from '../diagnostics.js';
 import { report } from '../problems.js';
 import { setLang } from '../switch-language.js';
 import { openDebug } from './debug.js';
+import { openDashboard, statusDot } from './dashboard.js';
+import { loadStatus, lastStatus } from '../dev-status.js';
+import { updateBackupDot } from './data.js';
 
 function ageLine() {
   const a = ageAt(new Date());
@@ -123,9 +126,24 @@ const dataSection = st => `
       <button class="cell" id="s-export"><span class="cell-ic t-green">${I.receipt}</span><span class="grow">ייצוא ל־CSV<div class="sub">לאקסל או לגוגל שיטס</div></span><span class="chev">${I.chevL}</span></button><div class="pad"><div class="note info" id="storeNote">${storeNote()}</div></div></details>
     </div>`;
 
+/* translations: skip-start (developer only) */
+/** The dashboard row: its dot and line show the last known state, and refresh in the background. */
+const dashRow = () => { const st = lastStatus();
+  return `<button class="cell" id="s-dash"><span class="cell-ic t-green">${I.pulse}</span><span class="grow">לוח בקרה<div class="sub" id="s-dash-sub">${esc(st?.headline || 'האתר, הבדיקות והטלפון')}</div></span><span id="s-dash-dot">${statusDot(st?.level || 'unknown')}</span><span class="chev">${I.chevL}</span></button>`; };
+function refreshDash(el) {
+  loadStatus().then(st => {
+    const sub = $('#s-dash-sub', el), dot = $('#s-dash-dot', el);
+    if (sub) sub.textContent = st.headline;
+    if (dot) dot.innerHTML = statusDot(st.level);
+    updateBackupDot();
+  });
+}
+/* translations: skip-end */
+
 /** Diagnostics, developer tools, support, legal and the version line. */
 const moreSection = st => `
     <div class="card" style="margin-top:12px">
+    ${devOK() && S.settings.dev ? dashRow() : ''}
     ${devOK() ? `<button class="cell" id="s-debug"><span class="cell-ic t-violet">${I.info}</span><span class="grow">אבחון ותקלות<div class="sub">${dbg.lastCrash() ? 'האפליקציה נסגרה בפעם הקודמת · פרטים כאן' : 'מידע טכני לשליחה כשמשהו לא עובד'}</div></span><span class="chev">${I.chevL}</span></button>` : ''}
     ${devOK() && S.settings.dev ? `<button class="cell" id="s-dev"><span class="cell-ic t-gray">${I.gear}</span><span class="grow">כלי פיתוח<div class="sub">בדיקת התראות, משמרות לדוגמה ועוד</div></span><span class="chev">${I.chevL}</span></button>` : ''}
     ${native.billing.available() || isOwner() ? `<button class="cell" id="s-support"><span class="cell-ic t-red">${I.heart}</span><span class="grow">${isOwner() ? 'מפתח' : isSup() ? 'תומך/ת באצבע' : 'תמיכה באצבע'}<div class="sub">${isOwner() ? 'כל האפשרויות פתוחות במכשיר הזה' : isSup() ? `מאז ${dFull(S.settings.supportedAt || S.updatedAt)} · תודה! אפשר לתמוך שוב מתי שרוצים` : 'האפליקציה חינמית ובלי פרסומות. תומכים מקבלים ערכות צבע ואייקונים'}</div></span><span class="chev">${I.chevL}</span></button>` : ''}
@@ -185,6 +203,7 @@ function bindSettings(el) {
   $('#s-import', el).onclick = openImport;
   $('#s-debug', el) && ($('#s-debug', el).onclick = openDebug);
   $('#s-dev', el) && ($('#s-dev', el).onclick = openDevTools);
+  if ($('#s-dash', el)) { $('#s-dash', el).onclick = openDashboard; refreshDash(el); }
   { let taps = 0, t; $('#s-ver', el).onclick = () => { clearTimeout(t); t = setTimeout(() => taps = 0, 1500);
       if (++taps < 7) return; taps = 0;
       if (devOK() && !S.settings.dev) { S.settings.dev = true; persist(); buzz(30); toast('מצב מפתח פעיל', 'ok'); renderSet(); } }; }

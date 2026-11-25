@@ -74,3 +74,56 @@ test('developer mode: diagnostics self-test, demo shifts and the problem bar wor
   assert.equal(await page.locator('#probbar').count(), 1, 'the problem bar shows');
   assert.deepEqual(errors, []); await ctx.close();
 });
+
+// pretend answers from the website and GitHub for the developer dashboard
+const sha = 'abc1234def5678';
+const STATUS = { commit: 'abc1234', message: 'Fix', deployed: new Date().toISOString(), tests: { unit: { pass: 84, fail: 0 }, browser: { pass: 31, fail: 0 }, translations: { texts: 753, missing: 0 } },
+  data: { rules: 8, packs: { en: 53 }, early: {} } };
+const run = (over = {}) => ({ id: 7, status: 'completed', conclusion: 'success', head_sha: sha, head_commit: { message: 'Fix the widget' }, run_started_at: new Date().toISOString(), html_url: 'https://github.com/x', ...over });
+const jobs = (test = 'success', step = null) => ({ jobs: [
+  { name: 'test', status: 'completed', conclusion: test, steps: step ? [{ name: step, status: 'completed', conclusion: 'failure' }] : [] },
+  { name: 'deploy', status: 'completed', conclusion: test === 'success' ? 'success' : 'skipped', steps: [] },
+  { name: 'live-check', status: 'completed', conclusion: test === 'success' ? 'success' : 'skipped', steps: [] }] });
+async function devApp(answers) {
+  const app = await open();
+  await app.ctx.route(/etzba\.co\.il\/data\/status\.json/, r => r.fulfill({ json: answers.status ?? STATUS }));
+  await app.ctx.route(/api\.github\.com\/.*\/runs\?/, r => r.fulfill({ json: { workflow_runs: answers.runs } }));
+  await app.ctx.route(/api\.github\.com\/.*\/jobs$/, r => r.fulfill({ json: answers.jobs }));
+  await app.page.evaluate(() => { const s = JSON.parse(localStorage.getItem('etzba.v1')); s.settings.owner = true; s.settings.dev = true; localStorage.setItem('etzba.v1', JSON.stringify(s)); localStorage.removeItem('etzba.devstatus'); });
+  await app.page.reload(); await wait(app.page, 900);
+  await app.page.evaluate(() => document.querySelector('#scrim.on')?.click()); await wait(app.page, 300);   // owners first see the Wrapped invitation
+  return app;
+}
+const openDash = async page => { await page.click('[data-v=set]'); await wait(page); await page.click('#s-dash'); await wait(page, 900); return page.locator('#db-body').innerText(); };
+
+test('dashboard: all good shows green, the test counts and this phone', async () => {
+  const { page, ctx, errors } = await devApp({ runs: [run()], jobs: jobs() });
+  await page.click('[data-v=set]'); await wait(page, 600);
+  assert.match(await page.locator('#s-dash-sub').innerText(), /הכול תקין/, 'the Settings row says it too');
+  const text = await openDash(page);
+  assert.match(text, /הכול תקין/); assert.match(text, /84/); assert.match(text, /31/); assert.match(text, /753 טקסטים/);
+  assert.match(text, /כל הדפים נפתחים/); assert.match(text, /v8 \/ v8/);
+  assert.ok(!(await page.locator('#tabs [data-v=set]').evaluate(b => b.classList.contains('dot'))), 'no alarm dot');
+  assert.deepEqual(errors, []); await ctx.close();
+});
+
+test('dashboard: failed tests show red, say which, and put a dot on the Settings tab', async () => {
+  const { page, ctx, errors } = await devApp({ runs: [run({ conclusion: 'failure' })], jobs: jobs('failure', 'Browser tests') });
+  assert.ok(await page.locator('#tabs [data-v=set]').evaluate(b => b.classList.contains('dot')), 'alarm dot on the Settings tab');
+  const text = await openDash(page);
+  assert.match(text, /נכשל: בדיקות דפדפן/); assert.match(text, /נשאר בגרסה הקודמת/); assert.match(text, /לא רץ: הבדיקות נכשלו/);
+  assert.equal(await page.locator('[data-go=run]').count(), 1, 'a button to the failed run');
+  assert.deepEqual(errors, []); await ctx.close();
+});
+
+test('dashboard: a running deploy says what it is doing; no internet says so', async () => {
+  const busy = { jobs: [{ name: 'test', status: 'in_progress', conclusion: null, steps: [{ name: 'Unit tests', status: 'in_progress', conclusion: null }] }] };
+  let { page, ctx, errors } = await devApp({ runs: [run({ status: 'in_progress', conclusion: null }), run({ id: 6 })], jobs: busy });
+  assert.match(await openDash(page), /פרסום רץ עכשיו[\s\S]*בדיקות יחידה/);
+  assert.deepEqual(errors, []); await ctx.close();
+  ({ page, ctx, errors } = await open());   // everything outside blocked
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('etzba.v1')); s.settings.owner = true; s.settings.dev = true; localStorage.setItem('etzba.v1', JSON.stringify(s)); });
+  await page.reload(); await wait(page, 900); await page.evaluate(() => document.querySelector('#scrim.on')?.click()); await wait(page, 300);
+  assert.match(await openDash(page), /אין חיבור/);
+  assert.deepEqual(errors, []); await ctx.close();
+});

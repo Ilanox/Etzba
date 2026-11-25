@@ -15,6 +15,7 @@
     "apk": "node scripts/build-apk.mjs",
     "install-apk": "node scripts/install-apk.mjs",
     "check:translations": "node scripts/check-translations.mjs",
+    "live-check": "node scripts/live-check.mjs",
     "test": "node scripts/test.mjs",
     "test:e2e": "node scripts/test.mjs e2e",
     "release": "node scripts/build-apk.mjs release",

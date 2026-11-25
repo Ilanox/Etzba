@@ -112,3 +112,21 @@ details.adv-sec[open]>summary>svg{transform:rotate(180deg)}
 details.adv-cell>summary{list-style:none;cursor:pointer}
 details.adv-cell>summary::-webkit-details-marker{display:none}
 details.adv-cell[open]>summary .chev svg{transform:rotate(180deg)}
+
+/* developer dashboard */
+.db-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.db-head .iconbtn svg{width:20px;height:20px}
+.db-hero{display:flex;align-items:center;gap:14px;border-inline-start:4px solid var(--line)}
+.db-hero b{font-size:1.12rem}
+.db-hero.lvl-ok{border-color:var(--up)}.db-hero.lvl-bad{border-color:var(--down)}.db-hero.lvl-warn{border-color:var(--gold)}.db-hero.lvl-busy{border-color:var(--accent)}
+.db-hero .sub{color:var(--ink2);margin-top:2px}
+.db-dot{flex:none;display:inline-block;width:12px;height:12px;border-radius:50%}
+.db-hero .db-dot{width:16px;height:16px}
+.db-dot.busy{animation:db-pulse 1.2s ease-in-out infinite}
+@keyframes db-pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.db-dot.busy{animation:none}}
+.db-row{min-height:46px;padding-block:10px}
+.db-row svg{width:18px;height:18px;display:block}
+.db-ok{color:var(--up)}.db-bad{color:var(--down)}.db-q{width:18px;text-align:center;color:var(--ink3);font-weight:700}
+.db-commit{margin:8px 2px 0;overflow-wrap:anywhere}
+.db-wide{width:100%;margin-top:10px}

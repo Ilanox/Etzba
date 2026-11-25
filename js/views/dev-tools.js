@@ -15,6 +15,7 @@ import { syncGeo } from '../outside.js';
 import { openOnboarding } from './onboarding.js';
 import { report } from '../problems.js';
 import { renderSet } from './settings.js';
+import { openDashboard } from './dashboard.js';
 
 export const devOK = () => FEATURES.devTools || !!S.settings.owner;
 
@@ -41,6 +42,7 @@ export function openDevTools() {
   let pick = S.active ? 'current' : 'friday', items = [];
   const jobId = S.active?.jobId || S.settings.lastJob;
   openSheet(`<div data-keep><h2>כלי פיתוח</h2><p class="shsub">לבדיקות בלבד. לא משנה את החישובים.</p>
+    <button class="btn soft" id="dv-dash" style="width:100%;margin-bottom:6px">לוח בקרה: האתר, הבדיקות והטלפון</button>
     ${S.settings.owner ? `<div class="sec"><span>להציג את האפליקציה כמו</span></div>
     <div class="seg" id="dv-view">${[['regular', 'משתמש רגיל'], ['supporter', 'תומך'], ['dev', 'מפתח']].map(([k, n]) => `<button data-v="${k}" class="${viewAs() === k ? 'on' : ''}">${n}</button>`).join('')}</div>
     <p class="hint">רק התצוגה משתנה. מצב המפתח נשאר, וכלי הפיתוח תמיד כאן.</p>` : ''}
@@ -95,6 +97,7 @@ export function openDevTools() {
       $$('#dv-view button', root).forEach(x => x.classList.toggle('on', x === b));
       toast(`מוצג כמו ${b.textContent}`, 'ok');
     });
+    $('#dv-dash', root).onclick = () => openDashboard();
     $('#dv-onb', root).onclick = () => { closeSheet(); openOnboarding(); };
     $('#dv-demo', root).onclick = () => {
       const days = 90, out = []; const now = new Date();

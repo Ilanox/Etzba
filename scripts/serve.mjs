@@ -1,10 +1,11 @@
+// Serves the app (or another folder: node scripts/serve.mjs <folder>) on this computer and the Wi-Fi, without caching.
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
-import { join, extname, normalize } from 'node:path';
+import { join, extname, normalize, resolve } from 'node:path';
 import { fromRoot } from './lib.mjs';
 import { networkInterfaces } from 'node:os';
 
-const root = fromRoot(process.argv[2] || '');
+const root = resolve(fromRoot(), process.argv[2] || '');   // a folder to serve, from the project or absolute
 const PORT = +process.env.PORT || 5173;
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
@@ -17,9 +18,12 @@ createServer(async (req, res) => {
   try {
     let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (path.endsWith('/')) path += 'index.html';
-    const file = normalize(join(root, path));
+    let file = normalize(join(root, path));
     if (!file.startsWith(root)) { res.writeHead(403).end(); return; }
-    if (!(await stat(file)).isFile()) throw 0;
+    // like GitHub Pages: /privacy serves privacy.html, /neto serves neto/index.html
+    const isFile = f => stat(f).then(x => x.isFile(), () => false);
+    if (!(await isFile(file))) file = (await isFile(file + '.html')) ? file + '.html' : join(file, 'index.html');
+    if (!(await isFile(file))) throw 0;
     res.writeHead(200, { 'Content-Type': TYPES[extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
     res.end(await readFile(file));
   } catch {

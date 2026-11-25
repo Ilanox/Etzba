@@ -26,6 +26,8 @@ import { openOnboarding } from './views/onboarding.js';
 import { renderSet, openLegal } from './views/settings.js';
 import { copyText } from './files.js';
 import { openFileImport, takeSharedFile, backupNow, updateBackupDot } from './views/data.js';
+import { loadStatus } from './dev-status.js';
+import { devOK } from './views/dev-tools.js';
 import { planNotifications, askFirstPerms } from './notifications.js';
 import { syncWidget } from './widget.js';
 import { syncGeo, appAction } from './outside.js';
@@ -158,6 +160,8 @@ step('rules', () => {
 step('geo', () => { syncGeo(true); native.appActions.onAction(appAction); syncWidget(); });
 step('meter', () => { try { if (localStorage.getItem('etzba.meter') === '1') dbg.setMeter(true); } catch {} });
 step('backupDot', updateBackupDot);
+// developer mode: check the website in the background, so a failed deploy shows as a dot on the Settings tab
+step('devStatus', () => { if (S.settings.dev && devOK()) loadStatus().then(updateBackupDot); });
 setInterval(() => { if (document.hidden) return; tickHome(false); if (new Date().getSeconds() === 0) { renderRestCard(); $('#brandMark').innerHTML = mark({ t: new Date(), sw: 5.4 }); } }, 1000);
 $('#chipNet') && ($('#chipNet').onclick = () => { const n = new Date(); showMonth(n.getFullYear(), n.getMonth()); S.ui.sumView = 'month'; go('sum'); setTimeout(() => $('#steps')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 300); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { render(); planNotifications(); checkEarly(); } });

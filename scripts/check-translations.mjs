@@ -1,6 +1,8 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { root } from './lib.mjs';
+const STRICT = process.argv.includes('--strict');
+let failed = false;
 
 const HEB = /[֐-׿]/;
 const { usePack, how, tr } = await import(join(root, 'js/translate.js'));
@@ -24,7 +26,7 @@ for (const f of readdirSync(join(root, 'js'), { recursive: true }).filter(f => f
   });
 }
 
-const only = process.argv[2];
+const only = process.argv.slice(2).find(a => !a.startsWith('--'));   // one language, or all
 for (const L of LANGS.filter(l => l.code !== 'he' && (!only || l.code === only))) {
   const pack = await loadPack(L.code); usePack(pack);
   const missing = [], rough = [];
@@ -46,4 +48,7 @@ for (const L of LANGS.filter(l => l.code !== 'he' && (!only || l.code === only))
   ].join('\n');
   writeFileSync(join(root, 'languages', `missing-${L.code}.txt`), out);
   console.log(`${L.code}: ${found.size - missing.length - rough.length} proper · ${rough.length} word-by-word · ${missing.length} missing → languages/missing-${L.code}.txt`);
+  if (STRICT && missing.length) failed = true;
 }
+// --strict (the website deploy): fail when any text would still show in Hebrew
+if (failed) { console.error('✗ texts still in Hebrew: see languages/missing-*.txt'); process.exit(1); }

@@ -2,7 +2,7 @@
 // and module preloads so the app starts without waiting on each import.
 import { cpSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { root, readJSON, run } from './lib.mjs';
+import { root, readJSON, run, stampBuild } from './lib.mjs';
 
 const out = join(root, 'www');
 const WEB = ['index.html', 'css', 'manifest.webmanifest', 'js', 'languages', 'icons', 'fonts'];
@@ -19,6 +19,8 @@ for (const f of WEB) cpSync(join(root, f), join(out, f), { recursive: true });
 const core = join(root, 'node_modules/@capacitor/core/dist/index.js');
 if (existsSync(core)) { mkdirSync(join(out, 'js/vendor'), { recursive: true }); cpSync(core, join(out, 'js/vendor/capacitor-core.js')); }
 else console.warn('! @capacitor/core not installed: run npm install (the Android app needs it)');
+
+stampBuild(join(out, 'js/build-info.js'));
 
 // index.html: preload every module; the web-only security policy is replaced by the app's own
 const mods = [...readdirSync(join(root, 'js'), { recursive: true }).filter(f => f.endsWith('.js')).map(f => 'js/' + f),

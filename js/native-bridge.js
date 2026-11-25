@@ -196,3 +196,6 @@ export const snapshot = {
     catch { return null; }
   },
 };
+
+/** The installed Android app's version and build number, or null on the web. */
+export const appInfo = () => withP('App', a => a.getInfo()).then(r => r || null, () => null);

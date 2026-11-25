@@ -1,8 +1,9 @@
-# Publishes etzba.co.il on every push to main:
-#   /          the home page (site/)
-#   /app/      the web app
-#   /data/     yearly figures and language packs the apps download
-#   /privacy
+# Publishes etzba.co.il on every push to main, but only if every test passes:
+#   1. test         unit tests, browser tests, the translation check. A failure stops here: the site stays as it was.
+#   2. deploy       /  the home page (site/) · /app/ the web app · /data/ what the apps download · /privacy
+#                   plus /data/status.json for the developer dashboard
+#   3. live-check   opens the live site like a visitor: every page, the app, the data files
+# The developer dashboard in the app (Settings → לוח בקרה) shows all three.
 # One-time setup: repo Settings → Pages → Source: "GitHub Actions"; Custom domain: etzba.co.il.
 name: Pages
 on:
@@ -17,7 +18,50 @@ concurrency:
   group: pages
   cancel-in-progress: true
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    outputs:
+      unit_pass: ${{ steps.unit.outputs.pass }}
+      unit_fail: ${{ steps.unit.outputs.fail }}
+      e2e_pass: ${{ steps.e2e.outputs.pass }}
+      e2e_fail: ${{ steps.e2e.outputs.fail }}
+      tr_texts: ${{ steps.tr.outputs.texts }}
+      tr_missing: ${{ steps.tr.outputs.missing }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Unit tests
+        id: unit
+        env:
+          CHROME: /usr/bin/google-chrome
+        run: |
+          set -o pipefail
+          node scripts/test.mjs 2>&1 | tee unit.log
+          echo "pass=$(grep -oP '^# pass \K\d+' unit.log)" >> "$GITHUB_OUTPUT"
+          echo "fail=$(grep -oP '^# fail \K\d+' unit.log)" >> "$GITHUB_OUTPUT"
+      - name: Browser tests
+        id: e2e
+        env:
+          CHROME: /usr/bin/google-chrome
+        run: |
+          set -o pipefail
+          node scripts/test.mjs e2e 2>&1 | tee e2e.log
+          echo "pass=$(grep -oP '^# pass \K\d+' e2e.log)" >> "$GITHUB_OUTPUT"
+          echo "fail=$(grep -oP '^# fail \K\d+' e2e.log)" >> "$GITHUB_OUTPUT"
+      - name: Translation check
+        id: tr
+        run: |
+          set -o pipefail
+          node scripts/check-translations.mjs --strict | tee tr.log
+          echo "texts=$(grep -oP '\d+(?= proper)' tr.log | head -1)" >> "$GITHUB_OUTPUT"
+          echo "missing=$(grep -oP '\d+(?= missing)' tr.log | head -1)" >> "$GITHUB_OUTPUT"
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -35,13 +79,50 @@ jobs:
           cp -r site/. _site/
           cp -r data privacy.html CNAME _site/
           cp -r index.html css manifest.webmanifest service-worker.js js languages icons fonts _site/app/
-      - name: Name the offline cache after this commit
+      - name: Stamp this commit
         run: |
           sed -i "s/^const VERSION = '[^']*';/const VERSION = 'etzba-${GITHUB_SHA::7}';/" _site/app/service-worker.js
           grep -q "etzba-${GITHUB_SHA::7}" _site/app/service-worker.js
+          node -e "import('./scripts/lib.mjs').then(l => l.stampBuild('_site/app/js/build-info.js', process.env.GITHUB_SHA.slice(0, 7)))"
+          grep -q "${GITHUB_SHA::7}" _site/app/js/build-info.js
+      - name: Status for the dashboard
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          UNIT_PASS: ${{ needs.test.outputs.unit_pass }}
+          UNIT_FAIL: ${{ needs.test.outputs.unit_fail }}
+          E2E_PASS: ${{ needs.test.outputs.e2e_pass }}
+          E2E_FAIL: ${{ needs.test.outputs.e2e_fail }}
+          TR_TEXTS: ${{ needs.test.outputs.tr_texts }}
+          TR_MISSING: ${{ needs.test.outputs.tr_missing }}
+        run: node scripts/status.mjs _site/data/status.json
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+      # GitHub sometimes can't find the upload a moment after it finished; a second try after a pause works
+      - name: Deploy again if GitHub missed the upload
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 20
+      - id: deployment2
+        if: steps.deployment.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+
+  live-check:
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: npm install --no-audit --no-fund playwright
+      - name: Open the live site
+        env:
+          CHROME: /usr/bin/google-chrome
+        run: node scripts/live-check.mjs "$GITHUB_SHA"

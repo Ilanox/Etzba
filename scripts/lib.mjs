@@ -1,6 +1,6 @@
 // Shared by the scripts: paths, the app version, running commands, and where the Android SDK is.
-import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { spawnSync, execFileSync } from 'node:child_process';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,3 +33,10 @@ export function run(cmd, args, cwd = root) {
 export const sdkDirs = () => [process.env.ANDROID_HOME, process.env.ANDROID_SDK_ROOT, join(homedir(), 'Android/Sdk'), join(homedir(), 'Library/Android/sdk'),
   join(homedir(), 'AppData/Local/Android/Sdk'), '/opt/android-sdk'].filter(Boolean);
 export const androidSdk = () => sdkDirs().find(d => existsSync(d));
+
+/** Writes the commit and time into a copy of js/build-info.js (the dashboard compares it with the website). */
+export function stampBuild(file, commit = git('rev-parse', '--short=7', 'HEAD') || 'unknown') {
+  const s = readFileSync(file, 'utf8').replace(/export default \{[^}]*\};/, `export default { commit: '${commit}', built: '${new Date().toISOString()}' };`);
+  writeFileSync(file, s);
+}
+const git = (...args) => { try { return execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim(); } catch { return ''; } };

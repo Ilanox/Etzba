@@ -31,6 +31,13 @@ if (!process.env.JAVA_HOME || !ok(process.env.JAVA_HOME)) {
   }
 }
 if (!existsSync(android)) { console.error('No android/ folder yet. Run first:  npm run android:init'); process.exit(1); }
+// a Play build only from code that passes: the unit tests and the translation check (the website deploy also runs
+// the browser tests on every push). Skip with: npm run release -- --skip-tests
+if (RELEASE && !process.argv.includes('--skip-tests')) {
+  console.log('Checking before building for Play…');
+  run(process.execPath, [join(root, 'scripts/test.mjs')]);
+  run(process.execPath, [join(root, 'scripts/check-translations.mjs'), '--strict']);
+}
 // a Play upload needs a higher build number than the last one, even with the same version
 if (RELEASE) {
   pkg.androidBuild = versionCode(pkg) + 1;

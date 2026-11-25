@@ -1,4 +1,5 @@
 // Data screens: backup, export to CSV, restoring a backup, importing shifts from a file, and asking the browser to keep the data.
+import { devAlarm } from '../dev-status.js';
 import { S, jobById, place, setState } from '../state.js';
 import { openSheet, closeSheet, announce, toast, confirmBtn } from '../ui.js';
 import { I } from '../svg-icons.js';
@@ -159,7 +160,8 @@ export function backupDue() {
   return !last || Date.now() - last > 30 * 864e5;
 }
 
-export function updateBackupDot() { $('#tabs [data-v=set]')?.classList.toggle('dot', backupDue()); }
+/** The dot on the Settings tab: a backup is due, or (developer mode) the last website deploy failed. */
+export function updateBackupDot() { $('#tabs [data-v=set]')?.classList.toggle('dot', backupDue() || (S.settings.dev && devAlarm())); }
 
 export async function askPersist() {
   try { if (navigator.storage?.persist && !(await navigator.storage.persisted())) await navigator.storage.persist(); } catch {}
