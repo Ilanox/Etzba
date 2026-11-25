@@ -1,4 +1,4 @@
-// Language packs that update from GitHub Pages: the downloaded copy must translate exactly like the
+// Language packs that update from etzba.co.il: the downloaded copy must translate exactly like the
 // built-in pack, bad downloads must be rejected, and the data files must be up to date.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

@@ -1,3 +1,4 @@
+// Gross to net: income tax with credit points, National Insurance, health tax and pension, by year and age.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { grossToNet, taxFor, setTaxTables, TAX_2026 } from '../../js/net-pay.js';

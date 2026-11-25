@@ -25,7 +25,7 @@ Vanilla JavaScript ES modules, no framework and no bundler. Android through [Cap
 | `native/android/` | Java plugins, the widget (`EtzbaWidget`, `WidgetState`, `WidgetViews`, `WidgetArt`), Android resources |
 | `site/` | the website at etzba.co.il; the guide pages are generated from `scripts/site/` by `npm run site` |
 | `store/` | Google Play listing, screenshots and the generator for them |
-| `tests/` | `unit/` and `e2e/` |
+| `tests/` | `unit/` (one file per part: pay engine, net pay, translations, project checks…) and `e2e/` (one file per area of the app, sharing `helpers.mjs`) |
 | `scripts/` | build, Android setup, release, install, logs, data; `lib.mjs` has what they share |
 | `features.json` | build switches: `widget`, `arrivalDetection`, `devTools` |
 
