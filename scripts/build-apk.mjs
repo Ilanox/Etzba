@@ -2,7 +2,7 @@ import { copyFileSync, existsSync, readFileSync, readdirSync, writeFileSync } fr
 import { createInterface } from 'node:readline/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { root, pkg, run, WIN } from './lib.mjs';
+import { root, pkg, run, WIN, versionCode } from './lib.mjs';
 
 const android = join(root, 'android');
 const npx = WIN ? 'npx.cmd' : 'npx';
@@ -31,6 +31,12 @@ if (!process.env.JAVA_HOME || !ok(process.env.JAVA_HOME)) {
   }
 }
 if (!existsSync(android)) { console.error('No android/ folder yet. Run first:  npm run android:init'); process.exit(1); }
+// a Play upload needs a higher build number than the last one, even with the same version
+if (RELEASE) {
+  pkg.androidBuild = versionCode(pkg) + 1;
+  writeFileSync(join(root, 'package.json'), JSON.stringify(pkg, null, 2) + '\n');
+  console.log(`Build number ${pkg.androidBuild} (version ${pkg.version}). Commit package.json after uploading, so the next one is higher.`);
+}
 run(process.execPath, [join(root, 'scripts/build-www.mjs')]);
 run(process.execPath, [join(root, 'scripts/native-setup.mjs')]);
 run(npx, ['cap', 'sync', 'android']);

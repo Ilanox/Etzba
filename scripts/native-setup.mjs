@@ -1,13 +1,12 @@
 // Prepares the native projects (android/, ios/) after `npx cap add`: run by the npm android scripts and the APK build.
 import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, cpSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { root, pkg, readJSON, androidSdk } from './lib.mjs';
+import { root, pkg, readJSON, androidSdk, versionCode as codeOf } from './lib.mjs';
 
 const only = process.argv[2];   // 'android' or 'ios'; both when empty
 const features = { arrivalDetection: false, widget: true, support: true, ...readJSON('features.json') };
 const GEO = features.arrivalDetection, WIDGET = features.widget, SUPPORT = features.support;
-const [maj, min, pat] = pkg.version.split('.').map(Number);
-const versionCode = maj * 1000000 + min * 1000 + pat;
+const versionCode = codeOf(pkg);
 const MIMES = ['text/csv', 'text/comma-separated-values', 'application/csv', 'text/tab-separated-values', 'text/plain',
   'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/octet-stream'];
 

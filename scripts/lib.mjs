@@ -12,6 +12,14 @@ export const readJSON = file => JSON.parse(readFileSync(fromRoot(file), 'utf8'))
 export const pkg = readJSON('package.json');
 export const WIN = process.platform === 'win32';
 
+/**
+ * The Android build number (versionCode). Google Play needs it higher on every upload, even when the version
+ * people see (1.0.0) stays the same. `npm run release` raises it and keeps it in package.json (androidBuild).
+ * Before that it came from the version alone: 1.0.0 → 1000000; new numbers always stay above that.
+ */
+export const fromVersion = v => { const [a, b, c] = v.split('.').map(Number); return a * 1000000 + b * 1000 + c; };
+export const versionCode = p => Math.max(p.androidBuild || 0, fromVersion(p.version));
+
 /** True when the file is run directly (node scripts/x.mjs), not imported. */
 export const isMain = url => !!process.argv[1] && fileURLToPath(url) === process.argv[1];
 
