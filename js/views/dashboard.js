@@ -5,6 +5,7 @@ import { openSheet, sheetOpen, toast, buzz } from '../ui.js';
 import { I } from '../svg-icons.js';
 import { $, esc } from '../util.js';
 import * as native from '../native-bridge.js';
+import { openDeviceCheck, lastRunLine } from './device-check.js';
 
 /* translations: skip-start (developer tools stay in Hebrew) */
 const COLOR = { ok: 'var(--up)', busy: 'var(--accent)', warn: 'var(--gold)', bad: 'var(--down)', unknown: 'var(--ink3)' };
@@ -62,6 +63,9 @@ function html(s) {
     ${!p.native && p.cache ? row('מטמון לא מקוון', `<span class="num">${esc(p.cache.replace('etzba-', ''))}</span>`, s.live ? p.cache === 'etzba-' + s.live.commit : null) : ''}
   </div>
 
+  <div class="sec"><span>בדיקות במכשיר</span></div>
+  <div class="card">${(d => `<button class="cell" data-go="device"><span>${statusDot(d.level)}</span><span class="grow">להריץ את הבדיקות בטלפון<div class="sub">${esc(d.text)}</div></span><span class="chev">${I.chevL}</span></button>`)(lastRunLine())}</div>
+
   <div class="sec"><span>קישורים</span></div>
   <div class="card">${link('actions', 'כל הפרסומים ב־GitHub')}${link('commits', 'השינויים האחרונים')}${link('console', 'Search Console')}${link('site', 'האתר')}</div>
   ${s.errors?.length ? `<p class="hint">לא הצלחתי לבדוק: ${esc(s.errors.join(' · '))}</p>` : ''}
@@ -78,6 +82,7 @@ export function openDashboard() {
       if (!sheetOpen() || !body.isConnected) return clearTimeout(timer);
       body.innerHTML = html(s);
       body.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
+        if (b.dataset.go === 'device') return openDeviceCheck();
         const url = b.dataset.go === 'run' ? s.lastDone?.url : LINKS[b.dataset.go];
         if (url) native.NATIVE ? window.open(url, '_system') : window.open(url, '_blank', 'noopener');
       });

@@ -199,3 +199,10 @@ export const snapshot = {
 
 /** The installed Android app's version and build number, or null on the web. */
 export const appInfo = () => withP('App', a => a.getInfo()).then(r => r || null, () => null);
+
+/** Calls any plugin method directly (the on-device tests). Throws when the plugin or method isn't there. */
+export const raw = (name, method, args) => withP(name, p => {
+  if (typeof p[method] !== 'function') throw new Error(`${name}.${method} is missing`);
+  return p[method](args);
+}).then(r => { if (r === undefined && !has(name)) throw new Error(`plugin ${name} is missing`); return r; });
+const has = name => !!window.Capacitor?.isPluginAvailable?.(name);

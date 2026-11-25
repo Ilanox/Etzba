@@ -28,6 +28,12 @@ if (want) {
   }
 }
 
+// the app on the site is this very commit (its build stamp), not a cached older copy
+if (want) {
+  const stamp = await get('/app/js/build-info.js').then(r => r.text()).catch(e => e.message);
+  if (!stamp.includes(`commit: '${want.slice(0, 7)}'`)) problems.push(`/app/js/build-info.js: not stamped with ${want.slice(0, 7)}`);
+}
+
 // 2. the data files the phones download pass the same checks the app runs
 for (const [path, check] of [['/data/rules.json', validRules], ['/data/lang/en.json', d => validPack(d, 'en')], ['/data/early.json', d => { if (!d || typeof d !== 'object') throw new Error('not an object'); }]]) {
   try { check(await get(path).then(r => r.json())); } catch (e) { problems.push(`${path}: ${e.message}`); }

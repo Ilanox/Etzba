@@ -1,6 +1,7 @@
 // End-to-end. Settings: the workplace sheet, release builds, export and backup, and developer mode.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { setup, open, startedAgo, wait } from './helpers.mjs';
 
 setup();
@@ -124,6 +125,24 @@ test('dashboard: a running deploy says what it is doing; no internet says so', a
   ({ page, ctx, errors } = await open());   // everything outside blocked
   await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('etzba.v1')); s.settings.owner = true; s.settings.dev = true; localStorage.setItem('etzba.v1', JSON.stringify(s)); });
   await page.reload(); await wait(page, 900); await page.evaluate(() => document.querySelector('#scrim.on')?.click()); await wait(page, 300);
-  assert.match(await openDash(page), /אין חיבור/);
+  assert.match(await openDash(page), /לא הצלחתי להגיע לאתר ול־GitHub/);
+  assert.deepEqual(errors, []); await ctx.close();
+});
+
+test('device tests: run from the dashboard, Android-only ones skip in a browser, the report can be copied', async () => {
+  const { page, ctx, errors } = await devApp({ runs: [run()], jobs: jobs() });
+  const local = f => readFileSync(new URL(`../../${f}`, import.meta.url), 'utf8');
+  await ctx.route(/etzba\.co\.il\/data\/rules\.json/, r => r.fulfill({ body: local('data/rules.json'), contentType: 'application/json' }));
+  await ctx.route(/etzba\.co\.il\/data\/lang\/en\.json/, r => r.fulfill({ body: local('data/lang/en.json'), contentType: 'application/json' }));
+  await page.evaluate(() => { window.__copied = ''; Object.defineProperty(navigator, 'clipboard', { value: { writeText: async t => { window.__copied = t; } }, configurable: true }); });
+  await openDash(page);
+  await page.click('[data-go=device]');
+  await page.waitForFunction(() => /הכול עבר|נכשלו/.test(document.querySelector('#dc-head')?.textContent || ''), null, { timeout: 60000 });
+  const head = await page.locator('#dc-head').innerText(), list = await page.locator('#dc-list').innerText();
+  assert.match(head, /הכול עבר/, head + '\n' + list);
+  assert.match(list, /חישובי שכר זהים למחשב/); assert.match(list, /only in the Android app/);
+  await page.click('#dc-copy'); await wait(page, 300);
+  const report = await page.evaluate(() => window.__copied);
+  assert.match(report, /^Etzba device tests/); assert.match(report, /PASS {2}math\/pay/); assert.match(report, /== Last 80 log lines ==/);
   assert.deepEqual(errors, []); await ctx.close();
 });

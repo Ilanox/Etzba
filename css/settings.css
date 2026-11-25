@@ -130,3 +130,7 @@ details.adv-cell[open]>summary .chev svg{transform:rotate(180deg)}
 .db-ok{color:var(--up)}.db-bad{color:var(--down)}.db-q{width:18px;text-align:center;color:var(--ink3);font-weight:700}
 .db-commit{margin:8px 2px 0;overflow-wrap:anywhere}
 .db-wide{width:100%;margin-top:10px}
+.db-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.db-actions .btn svg{width:18px;height:18px;vertical-align:-4px;margin-inline-end:6px}
+.db-fail{color:var(--down)}
+#dc-restart .sub{font-size:.78rem;font-weight:400;opacity:.75}

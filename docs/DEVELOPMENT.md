@@ -36,7 +36,8 @@ Every push to `main` goes through `.github/workflows/pages.yml`:
 
 1. **Tests**: unit tests, browser tests, and the translation check (`--strict`: no text may stay in Hebrew). If anything fails, nothing is published and the site stays on the last version that passed. GitHub emails you.
 2. **Deploy**: the website, the web app and `/data/`. The app's offline cache and `js/build-info.js` are stamped with the commit; `data/status.json` records the test results for the dashboard.
-3. **Live check**: `scripts/live-check.mjs` opens the live site like a visitor (every page, the app, the files the phones download) and fails if anything doesn't load. Run it yourself any time: `npm run live-check`.
+3. **Live check**: `scripts/live-check.mjs` opens the live site like a visitor (every page; the app must start and be stamped with this commit; the files the phones download must pass the app's own checks) and fails if anything is wrong. Run it yourself any time: `npm run live-check`.
+4. **Rollback**: if the live check fails, the workflow publishes again the last pushed commit that passed everything (a `workflow_dispatch` run named "Rollback to …"). The broken commit is still on `main`: fix it and push.
 
 `npm run release` runs the unit tests and the translation check before building for Play (skip with `-- --skip-tests`).
 
@@ -44,7 +45,11 @@ On the phones: downloaded yearly figures, language packs and early-access dates 
 
 ### The developer dashboard
 
-In developer mode: Settings → **לוח בקרה** (also from the developer tools). It shows whether the last deploy passed and where it failed, which commit is live, the test counts, whether the live check passed, and whether this phone (app build, yearly figures, language pack, web cache) is behind the website. A red dot on the Settings tab means the last deploy failed. It reads GitHub's public API and `data/status.json`, no sign-in.
+In developer mode: Settings → **לוח בקרה** (also from the developer tools). It shows whether the last deploy passed and where it failed, which commit is live, the test counts, whether the live check passed, and whether this phone (app build, yearly figures, language pack, web cache) is behind the website. A red dot on the Settings tab means the last deploy failed. It reads GitHub's public API and `data/status.json`, no sign-in, and tells apart: the phone offline, the website not answering, GitHub not answering, and an automatic rollback.
+
+### Tests on the phone
+
+Dashboard → **בדיקות במכשיר** runs `js/device-tests.js` on the phone itself: every Android plugin loads, version and build number, the data copy on disk, writing a file, notification permission, scheduling and removing a notification (the real ones are put back), the widget update, the Google Play support products (shows which are missing from Play Console), past purchases, downloading the yearly figures and the English pack, and pay, holiday, Shabbat and number-format results compared with answers worked out on the computer (`js/device-fixtures.js`, from `node scripts/device-fixtures.mjs`; a unit test keeps it current). **בדיקה אחרי הפעלה מחדש** restarts the app and checks no data was lost. **לשלוח את הדוח** shares a text file with every result, the phone's details and the end of the app's log, ready to send for diagnosis. In a browser the Android-only tests are skipped; a browser test runs them all against the pretend Android bridge.
 
 ## Getting started
 

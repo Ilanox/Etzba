@@ -52,7 +52,8 @@ async function jobsOf(run) {
     step: (j.steps || []).find(s => s.conclusion === 'failure') || (j.steps || []).find(s => s.status === 'in_progress') || null,
   }));
 }
-const runOf = r => r && ({ id: r.id, status: r.status, conclusion: r.conclusion, commit: r.head_sha.slice(0, 7),
+const runOf = r => r && ({ id: r.id, status: r.status, conclusion: r.conclusion, commit: r.head_sha.slice(0, 7), event: r.event,
+  rollback: /^Rollback to [0-9a-f]+/.test(r.display_title || '') ? r.display_title.slice(12, 19) : '',
   message: (r.head_commit?.message || r.display_title || '').split('\n')[0], at: r.run_started_at || r.created_at, url: r.html_url });
 
 async function phone() {
@@ -69,7 +70,7 @@ async function phone() {
 }
 
 async function build() {
-  const out = { at: Date.now(), errors: [] };
+  const out = { at: Date.now(), errors: [], online: navigator.onLine !== false };
   const safe = (what, p) => p.catch(e => { out.errors.push(`${what}: ${e.message || e}`); return null; });
   const [live, runs, me] = await Promise.all([
     safe('status.json', getJSON(STATUS_URL + '?t=' + Date.now())),
@@ -80,6 +81,8 @@ async function build() {
   const list = (runs?.workflow_runs || []).map(runOf);
   out.latest = list[0] || null;
   out.lastDone = list.find(r => r.status === 'completed' && r.conclusion !== 'cancelled') || null;
+  // after a rollback, the push whose live check failed
+  if (out.lastDone?.rollback) out.rolledBackFrom = list.find(r => r.event === 'push' && r.status === 'completed' && r.conclusion === 'failure') || null;
   if (out.latest) out.latest.jobs = await safe('GitHub', jobsOf(out.latest)) || [];
   if (out.lastDone && out.lastDone !== out.latest) out.lastDone.jobs = await safe('GitHub', jobsOf(out.lastDone)) || [];
   // how far behind the website this phone's copy is
@@ -97,12 +100,17 @@ async function build() {
  */
 export function verdict(s) {
   const failedIn = run => (run?.jobs || []).find(j => j.conclusion === 'failure');
-  if (!s.latest && !s.live) return { level: 'unknown', headline: 'אין חיבור: לא הצלחתי לבדוק', detail: s.errors.join(' · ') };
+  // three different "can't tell" cases: this phone is offline, the website doesn't answer, GitHub doesn't answer
+  if (s.online === false) return { level: 'unknown', headline: 'הטלפון לא מחובר לאינטרנט', detail: 'אי אפשר לבדוק את האתר עכשיו' };
+  if (!s.latest && !s.live) return { level: 'unknown', headline: 'לא הצלחתי להגיע לאתר ול־GitHub', detail: s.errors.join(' · ') };
+  if (!s.live) return { level: 'bad', headline: 'האתר לא עונה', detail: 'GitHub עונה, אבל etzba.co.il לא החזיר את קובץ המצב' };
   if (s.latest && s.latest.status !== 'completed') {
     const job = (s.latest.jobs || []).find(j => j.status === 'in_progress');
     return { level: 'busy', headline: 'פרסום רץ עכשיו', detail: job ? `${plain(job.name)}${job.step ? ' · ' + plain(job.step.name) : ''}` : 'ממתין להתחלה' };
   }
   const done = s.lastDone, bad = failedIn(done);
+  if (done?.rollback && done.conclusion === 'success')
+    return { level: 'bad', headline: `חזר אוטומטית לגרסה ${done.rollback}`, detail: `הגרסה ${s.rolledBackFrom?.commit || 'האחרונה'} נכשלה בבדיקה באתר החי; האתר הוחזר לגרסה שעבדה. צריך לתקן ולדחוף שוב` };
   if (done && done.conclusion === 'failure') {
     const where = bad ? plain(bad.step ? bad.step.name : bad.name) : 'בפרסום';
     const kept = bad?.name === 'live-check' ? 'האתר עלה, אבל משהו בו לא נפתח כמו שצריך' : 'האתר נשאר בגרסה הקודמת, שעבדה';
@@ -115,6 +123,7 @@ export function verdict(s) {
   if (l && l.rules > p.rules) late.push('נתוני השכר בטלפון ישנים');
   if (l) for (const [c, v] of Object.entries(l.packs || {})) if (v > (p.packs[c] || 0)) late.push(`חבילת השפה ${c} ישנה`);
   if (late.length) return { level: 'warn', headline: 'האתר תקין', detail: late.join(' · ') };
+  if (!s.latest) return { level: 'warn', headline: 'האתר תקין', detail: 'GitHub לא ענה, אז אין מידע על הפרסום האחרון' + (s.errors.length ? ` (${s.errors.join(' · ')})` : '') };
   return { level: 'ok', headline: 'הכול תקין', detail: s.live ? 'כל הבדיקות עברו, האתר והטלפון מעודכנים' : '' };
 }
 

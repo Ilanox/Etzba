@@ -1,6 +1,7 @@
 // End-to-end. Android only: the widget, clocking in from it, notifications, arrival detection, and the support purchase.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { setup, open, wait } from './helpers.mjs';
 
 setup();
@@ -55,5 +56,27 @@ test('support on Android: choosing an amount buys it and thanks you', async () =
   await page.click('#sheet [data-id]'); await wait(page, 300);
   if (await page.locator('#sp-pay').count()) { await page.click('#sp-pay'); await wait(page, 600); }
   assert.ok((await state()).settings.supported, 'marked as a supporter');
+  assert.deepEqual(errors, []); await ctx.close();
+});
+
+test('Android: the on-phone tests pass against the pretend bridge (each plugin is called the right way)', async () => {
+  const plugins = ['App', 'AppActions', 'Filesystem', 'Share', 'Haptics', 'LocalNotifications', 'SplashScreen', 'Notify', 'ShareIn', 'Billing'];
+  const { page, ctx, errors } = await open({ native: true, plugins });
+  const local = f => readFileSync(new URL(`../../${f}`, import.meta.url), 'utf8');
+  await ctx.route(/etzba\.co\.il\/data\/rules\.json/, r => r.fulfill({ body: local('data/rules.json'), contentType: 'application/json' }));
+  await ctx.route(/etzba\.co\.il\/data\/lang\/en\.json/, r => r.fulfill({ body: local('data/lang/en.json'), contentType: 'application/json' }));
+  const ids = ['support_5', 'support_10', 'support_15', 'support_20', 'support_30', 'support_50', 'support_75', 'support_100', 'support_200'];
+  await page.evaluate(ids => {
+    window.__answers = { 'App.getInfo': { version: '1.0.0', build: '1000004' }, 'AppActions.deviceId': { id: 'a1b2c3d4e5f6' },
+      'Billing.products': { products: ids.map(id => ({ id, price: '₪10' })) }, 'Billing.owned': { supported: true, owned: [] } };
+    window.__mem = { notify: [{ id: 100, at: Date.now() + 36e5, title: 'x', body: 'y' }], files: {} };   // one real shift notification
+  }, ids);
+  await page.evaluate(() => import('/js/state.js').then(m => m.save()));   // writes the app's copy (1.5 s later)
+  const run = await page.evaluate(() => import('/js/device-tests.js').then(m => m.runDeviceTests()));
+  const bad = run.results.filter(r => r.status === 'fail').map(r => `${r.area}/${r.id}: ${r.note}`);
+  assert.deepEqual(bad, [], bad.join('\n'));
+  assert.deepEqual(run.results.filter(r => r.status === 'skip').map(r => r.id), ['restart'], 'only the restart test waits for a restart');
+  assert.deepEqual(await page.evaluate(() => window.__mem.notify.map(x => x.id)), [100], 'the real notification is back, the test one gone');
+  assert.deepEqual(await page.evaluate(() => Object.keys(window.__mem.files)), ['DATA/etzba-data.json'], 'the test file was deleted');
   assert.deepEqual(errors, []); await ctx.close();
 });

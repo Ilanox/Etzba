@@ -5,7 +5,7 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { root, readJSON } from './lib.mjs';
 
 const num = k => { const v = Number(process.env[k]); return Number.isFinite(v) ? v : null; };
-const sha = process.env.GITHUB_SHA || '';
+const sha = process.env.COMMIT || process.env.GITHUB_SHA || '';   // COMMIT: a rollback publishes an older commit
 const status = {
   commit: sha.slice(0, 7) || 'local',
   message: (process.env.COMMIT_MESSAGE || '').split('\n')[0].slice(0, 140),

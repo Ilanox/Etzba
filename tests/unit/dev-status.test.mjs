@@ -48,3 +48,28 @@ test('the website deploys only after the tests pass, and is checked after', () =
   assert.match(wf, /\n  live-check:\n    needs: deploy\n/, 'the live check runs after the deploy');
   for (const step of ['scripts/test.mjs 2>&1', 'scripts/test.mjs e2e', 'check-translations.mjs --strict', 'scripts/status.mjs', 'scripts/live-check.mjs']) assert.ok(wf.includes(step), step);
 });
+
+test('the phone-test answers are current: regenerated from the pay engine and calendar, they match js/device-fixtures.js', () => {
+  const now = readFileSync(new URL('../../js/device-fixtures.js', import.meta.url), 'utf8');
+  execFileSync(process.execPath, ['scripts/device-fixtures.mjs']);
+  assert.equal(readFileSync(new URL('../../js/device-fixtures.js', import.meta.url), 'utf8'), now, 'run: node scripts/device-fixtures.mjs');
+});
+
+test('dashboard verdict: offline, website down, GitHub down and a rollback are told apart', () => {
+  const ok = run('success', [job('test', 'success'), job('deploy', 'success'), job('live-check', 'success')]);
+  assert.match(verdict({ online: false, live: null, phone, latest: null, lastDone: null, errors: [] }).headline, /לא מחובר/);
+  const down = verdict({ online: true, live: null, phone, latest: ok, lastDone: ok, errors: ['status.json: HTTP 404'] });
+  assert.equal(down.level, 'bad'); assert.match(down.headline, /האתר לא עונה/);
+  const noGit = verdict({ online: true, live, phone, latest: null, lastDone: null, behind: 0, errors: ['GitHub: HTTP 500'] });
+  assert.equal(noGit.level, 'warn'); assert.match(noGit.detail, /GitHub לא ענה/);
+  const back = { ...ok, rollback: 'abc1234', event: 'workflow_dispatch' };
+  const v = verdict({ online: true, live, phone, latest: back, lastDone: back, rolledBackFrom: { commit: 'f00ba12' }, behind: 0, errors: [] });
+  assert.equal(v.level, 'bad'); assert.match(v.headline, /חזר אוטומטית לגרסה abc1234/); assert.match(v.detail, /f00ba12/);
+});
+
+test('a failed live check publishes the last good version again, once', () => {
+  const wf = readFileSync(new URL('../../.github/workflows/pages.yml', import.meta.url), 'utf8');
+  assert.match(wf, /\n  rollback:\n    needs: live-check\n    if: failure\(\) && needs\.live-check\.result == 'failure' && !inputs\.ref\n/, 'only after a failed live check, and never from a rollback itself');
+  assert.match(wf, /event=push&status=success/, 'goes back to a pushed version that passed everything');
+  assert.match(wf, /gh workflow run pages\.yml .*-f ref=/);
+});

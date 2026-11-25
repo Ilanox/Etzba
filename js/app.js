@@ -27,6 +27,8 @@ import { renderSet, openLegal } from './views/settings.js';
 import { copyText } from './files.js';
 import { openFileImport, takeSharedFile, backupNow, updateBackupDot } from './views/data.js';
 import { loadStatus } from './dev-status.js';
+import { pendingAfterRestart } from './device-tests.js';
+import { openDeviceCheck } from './views/device-check.js';
 import { devOK } from './views/dev-tools.js';
 import { planNotifications, askFirstPerms } from './notifications.js';
 import { syncWidget } from './widget.js';
@@ -161,6 +163,8 @@ step('geo', () => { syncGeo(true); native.appActions.onAction(appAction); syncWi
 step('meter', () => { try { if (localStorage.getItem('etzba.meter') === '1') dbg.setMeter(true); } catch {} });
 step('backupDot', updateBackupDot);
 // developer mode: check the website in the background, so a failed deploy shows as a dot on the Settings tab
+// a restart test reopens the device tests to check nothing was lost
+step('deviceTests', () => { if (pendingAfterRestart()) setTimeout(() => openDeviceCheck(), 600); });
 step('devStatus', () => { if (S.settings.dev && devOK()) loadStatus().then(updateBackupDot); });
 setInterval(() => { if (document.hidden) return; tickHome(false); if (new Date().getSeconds() === 0) { renderRestCard(); $('#brandMark').innerHTML = mark({ t: new Date(), sw: 5.4 }); } }, 1000);
 $('#chipNet') && ($('#chipNet').onclick = () => { const n = new Date(); showMonth(n.getFullYear(), n.getMonth()); S.ui.sumView = 'month'; go('sum'); setTimeout(() => $('#steps')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 300); });

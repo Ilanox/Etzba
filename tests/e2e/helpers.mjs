@@ -33,6 +33,13 @@ export const MOCK = ({ plugins }) => {
       if (n === 'AppActions' && k === 'take') { const d = window.__pending; window.__pending = null; return d || {}; }
       if (n === 'LocalNotifications' && k === 'checkPermissions') return { display: 'granted' };
       if (n === 'LocalNotifications' && k === 'getPending') return { notifications: [] };
+      // a little memory, like the real plugins: scheduled notifications and files
+      const mem = window.__mem ||= { notify: [], files: {} };
+      if (n === 'Notify' && k === 'schedule') { mem.notify = (a.items || []).filter(x => x.at > Date.now()); return { count: mem.notify.length }; }
+      if (n === 'Notify' && k === 'pending') return { items: mem.notify };
+      if (n === 'Filesystem' && k === 'writeFile') { mem.files[a.directory + '/' + a.path] = a.data; return { uri: 'file://' + a.path }; }
+      if (n === 'Filesystem' && k === 'readFile') { const f = mem.files[a.directory + '/' + a.path]; if (f == null) throw new Error('File does not exist'); return { data: f }; }
+      if (n === 'Filesystem' && k === 'deleteFile') { delete mem.files[a.directory + '/' + a.path]; return {}; }
       return {};
     };
   } });
