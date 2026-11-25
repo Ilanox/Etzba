@@ -1,0 +1,74 @@
+/* אצבע: Adapting to the reader: English (LTR), large text, light mode for weak phones, reduced motion */
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+.lite body{
+  background:radial-gradient(120% 60% at 85% 0%,color-mix(in srgb,var(--g-acc-b) 14%,transparent),transparent 60%) var(--bg) no-repeat;min-height:0
+}
+
+[dir=ltr] .chev,[dir=ltr] .monthbar .ibtn,[dir=ltr] .tp-arrow{transform:scaleX(-1)}
+
+[dir=ltr] .tabs button{font-size:.66rem}
+.lite .tabs{background:var(--surface)}
+html.tz-big .tabs button .tl{display:none}
+
+[dir=ltr] :is(.seg button,.kpi small,.sec span,.c-leg span,.cell .sub)::first-letter{text-transform:uppercase}
+html.tz-big .seg{flex-wrap:wrap}
+html.tz-big .seg button{min-width:calc(50% - 4px);height:auto;min-height:44px;padding:6px 8px;line-height:1.25}
+html.tz-big .seg.kinds{flex-wrap:wrap}
+html.tz-big .seg.kinds button{flex:1 1 30%;min-width:calc(33% - 4px)}
+
+.lite .appbar,.lite .tabs,.lite .sheet,.lite .toast{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.lite .appbar{background:var(--bg)}
+
+.lite .punch-btn::after{animation:none;display:none}
+html.tz-big .punch-btn{width:min(48vw,190px)}
+
+.lite .punch.live .ridge{animation:none}
+
+.lite .view,.lite .view.on .card .srow{animation:none}
+
+[dir=ltr] #ob-back svg{transform:scaleX(-1)}
+
+[dir=rtl] .rc-kinds i::after{transform-origin:right}
+
+@media (prefers-reduced-motion:reduce){
+  .rc-slide.in > *,.rc-dial .arc,.rc-kinds i::after{animation:none}
+}
+html.tz-huge .rc-slide h1{font-size:calc(clamp(3.4rem,19vw,7rem) / var(--tz,1) * 1.2)}
+
+@media (prefers-reduced-motion:reduce){
+  .rc-prog i.now b{animation:none;width:100%}
+  .rc-print{transition:none}
+}
+html.tz-big .brand .devtag{display:none}
+
+html.tz-big .chip-net small{display:none}
+
+html.tz-big .tiles{grid-template-columns:1fr}
+html.tz-big .tiles .today,html.tz-big button.today{border-inline-end:0;border-bottom:1px solid var(--line)}
+
+html.tz-big .grid2,html.tz-big .grid3,html.tz-big .kpis{grid-template-columns:1fr}
+
+html.tz-big .srow{flex-wrap:wrap}
+html.tz-big .srow .mid{flex-basis:calc(100% - 60px)}
+html.tz-big .srow .end{margin-inline-start:auto}
+
+html.tz-big .qchips button{height:auto;min-height:32px;padding:4px 12px}
+
+html.tz-big .tp{grid-template-columns:1fr;justify-items:center}
+
+html.tz-big .tp-arrow{display:none}
+
+html.tz-big .tp-col{width:100%}
+
+html.tz-big .cell{flex-wrap:wrap}
+
+html.tz-huge .punch-time,html.tz-huge .today b,html.tz-huge .hero .big,html.tz-huge .earn{font-size:calc(2rem / var(--tz,1) * 1.4)}
+
+[dir=rtl] .rc-rank li i{--o:right}
+
+@media (prefers-reduced-motion:reduce){
+  .rc-rank li,.rc-rank li i,.rc-streak i,.rc-heat i,.rc-rec div{animation:none;opacity:1}
+}

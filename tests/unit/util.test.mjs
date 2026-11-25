@@ -14,10 +14,15 @@ test('util: text and numbers', () => {
   assert.match(money2(5.5), /5\.50/);
 });
 
-test('offline cache lists every app module', () => {
+test('offline cache lists every app module and stylesheet, and the page loads every stylesheet', () => {
   const sw = readFileSync(new URL('../../service-worker.js', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
   for (const f of readdirSync(new URL('../../js/', import.meta.url), { recursive: true }).filter(f => f.endsWith('.js')))
     assert.ok(sw.includes(`'js/${f}'`), `js/${f} missing from service-worker.js`);
+  for (const f of readdirSync(new URL('../../css/', import.meta.url))) {
+    assert.ok(sw.includes(`'css/${f}'`), `css/${f} missing from service-worker.js`);
+    assert.ok(html.includes(`href="css/${f}"`), `css/${f} missing from index.html`);
+  }
 });
 
 test('state: bad data is repaired, not trusted', async () => {

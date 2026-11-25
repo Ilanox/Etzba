@@ -6,7 +6,8 @@ Vanilla JavaScript ES modules, no framework and no bundler. Android through [Cap
 
 | Path | Contents |
 |---|---|
-| `index.html`, `style.css` | the app shell and all styling |
+| `index.html` | the app shell |
+| `css/` | styling, one file per screen (`base`, `components`, `home`, `shift-form`, `shifts`, `summary`, `rights`, `settings`, `onboarding`, `recap`), then `themes` and `adapt` (English, large text, light mode, reduced motion), loaded in that order |
 | `js/app.js` | screens, settings, import/export, notifications, widget sync |
 | `js/pay-engine.js` | pay rules: overtime, Shabbat, holidays, election day, weekly limit, breaks |
 | `js/hebrew-calendar.js` | Jewish holidays and Shabbat times per city |

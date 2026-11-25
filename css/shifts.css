@@ -1,0 +1,10 @@
+/* אצבע: The shifts list */
+.week-h{display:flex;justify-content:space-between;align-items:baseline;padding:16px 4px 8px;font-size:.8rem;font-weight:700;color:var(--ink3)}
+.week-h .wk{color:var(--ink2)}
+.week-h .wk.over{color:var(--accent)}
+
+.toolrow{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:.85rem;color:var(--ink3)}
+
+.sortbtn{display:inline-flex;align-items:center;gap:6px;color:var(--ink2);font-weight:600;padding:6px 4px}
+.sortbtn svg{width:17px;height:17px}
+.sortbtn::after{content:"";position:absolute;inset:-7px 0}

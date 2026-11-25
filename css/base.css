@@ -1,0 +1,31 @@
+/* אצבע: Fonts, colours, page defaults and animations used everywhere */
+@font-face{font-family:Heebo;src:url(../fonts/heebo.woff) format('woff');font-weight:100 900;font-display:swap}
+:root{
+  --tab-h:64px;--shadow:none;--c-special:#7B5CD6;--c-ot:#E07A3A;--c-tips:#C99A2E;--c-vac:#2A9D8F;--c-sick:#D9534F;--c-plan:#3B7DD8;
+  --c-shift:var(--ink2);--up:color-mix(in srgb,#27B062 74%,var(--ink));--down:color-mix(in srgb,#E5484D 78%,var(--ink))
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0}
+html{background:var(--bg);-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+body{
+  font-family:Heebo,"Noto Sans Hebrew",system-ui,-apple-system,Arial,sans-serif;color:var(--ink);background:var(--bg);font-size:16px;line-height:1.4;
+  -webkit-font-smoothing:antialiased;overscroll-behavior-y:none;min-height:100dvh
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer;-webkit-user-select:none;user-select:none}
+svg{display:block}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+.hidden{display:none!important}
+main{max-width:560px;margin:0 auto;padding:0 16px calc(var(--tab-h) + 110px + var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))}
+:root,:root[data-theme=light]{
+  --bg:#F1EEE6;--surface:#FBFAF6;--surface2:#E7E3D8;--ink:#1B1D22;--ink2:#55585F;--line:#D9D4C7;--accent-soft:#F4DDD6;--money:#1B1D22;
+  --money-soft:#E7E3D8;--pen:#2F5FA8;--gold:#A87C10;--g-money-a:#244C8A;--g-money-b:#3F74C4;--g-ot-a:#B02A14;--g-ot-b:#DD4B30;--g-hot-a:#6E1508;
+  --g-hot-b:#9C2412;--k-morning:#55585F;--k-noon:#55585F;--k-evening:#55585F;--k-night:#1B1D22;--k-shabbat:#A87C10;--k-chag:#A87C10;--c1:#2F5FA8;
+  --c2:#C9341C;--c3:#C99A1E;--hero-net:var(--bg);--r:4px;--r-lg:6px;--g-acc-a:#B02A14;--g-acc-b:#D33E23;--ink3:#626367;--accent:#B9301A;
+  --pen-ink:#2F5FA8;--gold-ink:#7A5A08;--accent-ink:#B9301A;--danger:#A8200E
+}
+:root:is([data-theme=light],[data-theme=dark]){--ring-a:var(--accent);--ring-b:color-mix(in srgb,var(--accent) 55%,#fff)}
+
+@keyframes pop{from{opacity:0;transform:translateY(12px) scale(.94)}}
+@keyframes rowin{from{opacity:0;transform:translateX(-14px)}}
+@keyframes tabpop{from{transform:scale(.7)}}
+@keyframes grow{from{transform:scaleX(0)}}

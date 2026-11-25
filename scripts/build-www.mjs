@@ -4,7 +4,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..'), out = join(root, 'www');
-const WEB = ['index.html', 'style.css', 'manifest.webmanifest', 'js', 'languages', 'icons', 'fonts'];
+const WEB = ['index.html', 'css', 'manifest.webmanifest', 'js', 'languages', 'icons', 'fonts'];
 
 { const f = JSON.parse(readFileSync(join(root, 'features.json'), 'utf8'));
   writeFileSync(join(root, 'js/features.js'), `// Generated from features.json by scripts/build-www.mjs: edit features.json, not this.\nexport default ${JSON.stringify(Object.fromEntries(Object.entries(f).filter(([k]) => !k.startsWith('_'))))};\n`); }

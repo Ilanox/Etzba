@@ -1,0 +1,12 @@
+/* אצבע: The rights page */
+details.qa{background:var(--surface);margin-top:10px}
+details.qa summary{list-style:none;display:flex;align-items:center;gap:12px;padding:14px 16px;font-weight:700;cursor:pointer}
+details.qa summary::-webkit-details-marker{display:none}
+details.qa summary .cv{margin-inline-start:auto;width:18px;color:var(--ink3);transition:transform .2s}
+details.qa[open] summary .cv{transform:rotate(180deg)}
+details.qa .ans{padding:0 16px 16px;color:var(--ink2);font-size:.93rem}
+details.qa .ans p + p{margin-top:8px}
+details.qa .ans b{color:var(--ink)}
+
+.rate-grid{display:grid;grid-template-columns:1fr auto;gap:6px 12px;margin-top:8px;font-size:.9rem}
+.rate-grid span:nth-child(2n){font-weight:800;color:var(--ink);text-align:end}

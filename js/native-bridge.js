@@ -144,12 +144,13 @@ export async function pendingNotifications() {
     .catch(() => [])) || [];
 }
 
+const NOTHING_OWNED = { supported: false, owned: [] };
 export const billing = {
   available: () => PLATFORM === 'android' && !!window.Capacitor?.isPluginAvailable?.('Billing'),
   products: ids => withP('Billing', b => b.products({ ids })).then(r => r?.products || []),
   buy: id => withP('Billing', b => b.buy({ id })),
   setIcon: name => withP('Billing', b => b.setIcon({ name })),
-  owned: () => withP('Billing', b => b.owned()).catch(() => ({ supported: false, owned: [] })),
+  owned: () => withP('Billing', b => b.owned()).then(r => r || NOTHING_OWNED, () => NOTHING_OWNED),
   onPaid: cb => withP('Billing', b => { b.addListener('paid', cb); return b.restore(); }).catch(() => {}),
 };
 
