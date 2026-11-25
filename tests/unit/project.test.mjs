@@ -50,3 +50,10 @@ test('js/features.js matches features.json (run npm run build after editing it)'
   const { default: js } = await import('../../js/features.js');
   assert.deepEqual(js, Object.fromEntries(Object.entries(f).filter(([k]) => !k.startsWith('_'))));
 });
+
+test('the website names the offline cache after each commit, so it never has to be bumped by hand', () => {
+  const sw = readFileSync(new URL('../../service-worker.js', import.meta.url), 'utf8');
+  const wf = readFileSync(new URL('../../.github/workflows/pages.yml', import.meta.url), 'utf8');
+  assert.match(sw, /^const VERSION = '[^']*';$/m, 'the line the deploy rewrites');
+  assert.match(wf, /sed -i "s\/\^const VERSION = '\[\^'\]\*';\//, 'pages.yml rewrites it');
+});

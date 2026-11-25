@@ -54,11 +54,16 @@ export function normalizeState(d) {
   return d;
 }
 
-/** One-time fixes for data saved by older versions. Each sets a flag so it runs once. */
-function migrate(d) {
-  if (!d.settings.migSort) { if (d.ui.sort === 'new') d.ui.sort = 'old'; d.settings.migSort = 1; }
-  if (!d.settings.migTravel) {
-    // imported shifts used to copy the job's travel onto every shift; drop the copies
+/**
+ * Upgrades data saved by older versions, one step at a time. The saved data says which format it is in
+ * (`format`); step n turns format n into n + 1. Add a step at the end, never change an old one:
+ * old backups must keep opening. Data from a newer version is kept as it is.
+ */
+const UPGRADES = [
+  // 0 → 1: the shifts list sorted newest first by default; it is now oldest first
+  d => { if (d.ui.sort === 'new') d.ui.sort = 'old'; },
+  // 1 → 2: imported shifts used to copy the job's travel onto every shift; drop the copies
+  d => {
     const byJob = new Map();
     for (const s of d.shifts) if (s.src === 'import' && s.travel != null) {
       const m = byJob.get(s.jobId) || new Map(); m.set(s.travel, (m.get(s.travel) || 0) + 1); byJob.set(s.jobId, m);
@@ -71,8 +76,16 @@ function migrate(d) {
         if (jt > 0 || jt === common) delete s.travel;
       }
     }
-    d.settings.migTravel = 1;
-  }
+  },
+];
+export const FORMAT = UPGRADES.length;
+
+function migrate(d) {
+  // before formats were numbered, each step left a flag in settings
+  let v = Number.isInteger(d.format) ? d.format : d.settings.migTravel ? 2 : d.settings.migSort ? 1 : 0;
+  for (; v < FORMAT; v++) UPGRADES[v](d);
+  d.format = Math.max(v, d.format || 0);
+  delete d.settings.migSort; delete d.settings.migTravel;
 }
 
 function readSaved() {

@@ -10,6 +10,8 @@ import org.json.JSONObject;
 /**
  * What the widget shows, read from what the app last saved (AppActionsPlugin.updateWidget):
  * the running shift, the pay rate segments, the labels in the app's language and the theme colours.
+ * No pay rules live here: the app's pay engine works out each segment (from when, how much an hour, its name)
+ * and the overtime thresholds, and this only adds up time × rate. So the widget can't disagree with the app.
  */
 final class WidgetState {
     final boolean active, rtl, otOn, running;

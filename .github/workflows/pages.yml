@@ -35,6 +35,10 @@ jobs:
           cp -r site/. _site/
           cp -r data privacy.html CNAME _site/
           cp -r index.html css manifest.webmanifest service-worker.js js languages icons fonts _site/app/
+      - name: Name the offline cache after this commit
+        run: |
+          sed -i "s/^const VERSION = '[^']*';/const VERSION = 'etzba-${GITHUB_SHA::7}';/" _site/app/service-worker.js
+          grep -q "etzba-${GITHUB_SHA::7}" _site/app/service-worker.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
