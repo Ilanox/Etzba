@@ -1,9 +1,9 @@
-// Opens the live website like a visitor and fails if anything is broken: the home page, the app, every guide,
-// the privacy page, and the data the phones download. After a deploy it waits until the new commit is live.
+// Opens the live website like a visitor and fails if anything is broken: the home page, the app, every page in the
+// sitemap (guides, Shabbat times, the embeddable calculators), the privacy page, and the data the phones download. After a deploy it waits until the new commit is live.
 //   npm run live-check            check etzba.co.il now
 //   node scripts/live-check.mjs <commit>   (the deploy) wait for that commit first, up to 5 minutes
 import { chromium } from 'playwright';
-import { PAGES } from './site/guides.mjs';
+import { readFileSync } from 'node:fs';
 
 // the app's own checks for downloaded data; they expect a browser around them
 globalThis.addEventListener ??= () => {};
@@ -41,7 +41,9 @@ for (const [path, check] of [['/data/rules.json', validRules], ['/data/lang/en.j
 
 // 3. every page opens without errors; the app gets as far as its clock screen
 const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
-const pages = ['/', '/app/', '/privacy', ...PAGES.map(p => `/${p.slug}/`)];
+// every page in this commit's sitemap, plus one bare embeddable calculator
+const mapped = [...readFileSync(new URL('../site/sitemap.xml', import.meta.url), 'utf8').matchAll(/<loc>https:\/\/[^/]+(\/[^<]*)<\/loc>/g)].map(m => m[1]);
+const pages = [...new Set(['/', '/app/', '/privacy', ...mapped, '/embed/overtime/'])];
 for (const path of pages) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
   const page = await ctx.newPage(), errors = [];
@@ -56,7 +58,10 @@ for (const path of pages) {
     const res = await page.goto(SITE + path, { waitUntil: 'networkidle', timeout: 30000 });
     if (!res?.ok()) errors.push('HTTP ' + res?.status());
     if (path === '/app/') await page.waitForSelector('#punchBtn, #onboard', { timeout: 15000 });
+    else if (path.startsWith('/embed/') && path !== '/embed/') { if (!(await page.locator('.calc .cin').count())) errors.push('the calculator did not draw'); }
     else if (!(await page.locator('h1').count())) errors.push('no heading');
+    if (path.startsWith('/zmanei-shabbat/') && !(await page.locator('.times tbody tr').count())) errors.push('no times');
+    if (await page.locator('[data-calc]').count() && !(await page.locator('[data-calc] .cin').count())) errors.push('the calculator did not draw');
   } catch (e) { errors.push(e.message.split('\n')[0]); }
   if (errors.length) problems.push(`${path}: ${[...new Set(errors)].join('; ')}`);
   else console.log(`✓ ${path}`);

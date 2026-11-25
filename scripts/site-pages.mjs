@@ -1,93 +1,90 @@
-// Builds the website's guide pages (site/<slug>/index.html), the sitemap, the home page's guide links,
-// and this year's figures in the calculators. The content is in scripts/site/guides.mjs, the look in scripts/site/guide.css.
-// Run `npm run site` after changing either, and commit the output.
+// Builds the website's generated pages into site/: the guides, the pages per kind of work, Shabbat times per city,
+// the embeddable calculators, the sitemap, the home page's generated parts, and this year's figures in the calculators.
+// Content: scripts/site/guides.mjs, audiences.mjs, cities.mjs, embed.mjs, seasons.mjs. Switches: scripts/site/config.mjs.
+// The frame and look: scripts/site/layout.mjs and guide.css.
+// Run `npm run site` after changing any of them, and commit the output. The deploy also runs it every week (for the
+// Shabbat times and the home page's line of the season), without committing.
+process.env.TZ = 'Asia/Jerusalem';   // Shabbat times are local times
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
-import { PAGES, R, MIN } from './site/guides.mjs';
+import { PAGES, R, MIN, AVG_WAGE } from './site/guides.mjs';
+import { AUDIENCES } from './site/audiences.mjs';
+import { cityPages, SLUGS, HUB } from './site/cities.mjs';
+import { embedPages } from './site/embed.mjs';
+import { seasonal } from './site/seasons.mjs';
+import { page, heDate, esc, ld } from './site/layout.mjs';
+import { qrSvg } from './site/qr.mjs';
+import { SITE, PLAY, GET, QUOTES, RATING } from './site/config.mjs';
+import * as cal from '../js/hebrew-calendar.js';
+import { upcoming, hm, dm, dayName } from '../site/shabbat-render.js';
 
-const SITE = 'https://etzba.co.il';
-const TODAY = new Date().toISOString().slice(0, 10);
-const CSS = readFileSync(new URL('./site/guide.css', import.meta.url), 'utf8').trim();
-
-const esc = s => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-const ld = o => `<script type="application/ld+json">${JSON.stringify(o)}</script>`;
-
-/** A guide page. `date` is when its content last changed. */
-function page(p, date) {
-  const url = `${SITE}/${p.slug}/`;
-  const others = PAGES.filter(x => x !== p);
-  return `<!doctype html>
-<html lang="he" dir="rtl">
-<head>
-<meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'none'">
-<meta name="referrer" content="strict-origin-when-cross-origin">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${esc(p.title)} | אצבע</title>
-<meta name="description" content="${esc(p.desc)}">
-<meta name="robots" content="index,follow,max-image-preview:large">
-<meta name="theme-color" content="#141518">
-<link rel="canonical" href="${url}">
-<link rel="icon" href="/app/icons/icon-192.png">
-<meta property="og:type" content="article">
-<meta property="og:site_name" content="אצבע">
-<meta property="og:locale" content="he_IL">
-<meta property="og:url" content="${url}">
-<meta property="og:title" content="${esc(p.title)}">
-<meta property="og:description" content="${esc(p.desc)}">
-<meta property="og:image" content="${SITE}/img/he/home.jpg">
-<meta name="twitter:card" content="summary_large_image">
-${ld({ '@context': 'https://schema.org', '@type': 'Article', headline: p.title, description: p.desc, inLanguage: 'he', mainEntityOfPage: url, dateModified: date, image: `${SITE}/img/he/home.jpg`, author: { '@type': 'Person', name: 'Ilan Levy' }, publisher: { '@type': 'Organization', name: 'אצבע', url: `${SITE}/`, logo: { '@type': 'ImageObject', url: `${SITE}/app/icons/icon-512.png` } } })}
-${ld({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'אצבע', item: `${SITE}/` }, { '@type': 'ListItem', position: 2, name: p.h1, item: url }] })}
-${ld({ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: p.faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) })}
-<link rel="preload" href="/heebo.woff" as="font" type="font/woff" crossorigin>
-<style>${CSS}</style>${p.calc ? '\n<script type="module" src="/calc.js"></script>' : ''}
-</head>
-<body>
-<header><div class="wrap"><a class="brand" href="/">אצבע</a><nav><a href="/app/">לפתוח את האפליקציה</a></nav></div></header>
-<main class="wrap">
-<nav class="crumbs" aria-label="מיקום"><a href="/">אצבע</a> › ${p.h1}</nav>
-<article>
-<h1>${p.h1}</h1>
-<p class="lead">${p.lead}</p>
-${p.calc ? `<section class="calc" data-calc="${p.calc}"><noscript><p>המחשבון צריך JavaScript.</p></noscript></section>` : ''}
-${p.body.trim()}
-<div class="cta"><p>אצבע מחשבת את כל זה לבד: שמים אצבע בכניסה וביציאה, ורואים את השכר לפי החוק, עד הנטו. חינם, בלי חשבון ובלי פרסומות.</p><a class="btn" href="/app/">לפתוח את אצבע</a></div>
-<h2>שאלות נפוצות</h2>
-<div class="faq">${p.faq.map(([q, a]) => `<details><summary>${q}</summary><p>${a}</p></details>`).join('')}</div>
-<p class="note">המידע כללי ונכון ל־${date.split('-').reverse().join('.')}. הוא לא ייעוץ משפטי, ובמקום עבודה עם הסכם קיבוצי או חוזה מיטיב ייתכנו תנאים טובים יותר.</p>
-</article>
-<h2>עוד מדריכים</h2>
-<ul class="more">${others.map(o => `<li><a href="/${o.slug}/">${o.nav}</a></li>`).join('')}</ul>
-</main>
-<footer><div class="wrap"><a href="/">אצבע</a><a href="/privacy">מדיניות פרטיות</a><a href="mailto:ilan@edvin.co.il">ilan@edvin.co.il</a></div></footer>
-</body>
-</html>
-`;
-}
-
-// a page keeps its date unless its content changed, so rebuilding doesn't touch every page
+const NOW = new Date(), TODAY = NOW.toISOString().slice(0, 10);
 const site = path => new URL(`../site/${path}`, import.meta.url);
 const read = path => existsSync(site(path)) ? readFileSync(site(path), 'utf8') : '';
+
+/** A guide or a page for one kind of worker. */
+const guide = (p, list, crumb) => date => page({
+  path: `/${p.slug}/`, date, title: p.title, desc: p.desc, h1: p.h1, lead: p.lead, faq: p.faq, crumbs: crumb ? [crumb] : [],
+  top: p.calc ? `<section class="calc" data-calc="${p.calc}"><noscript><p>המחשבון צריך JavaScript.</p></noscript></section>\n` : '',
+  body: p.body, scripts: p.calc ? ['/calc.js'] : [],
+  note: `המידע כללי ונכון ל־${heDate(date)}. הוא לא ייעוץ משפטי, ובמקום עבודה עם הסכם קיבוצי או חוזה מיטיב ייתכנו תנאים טובים יותר.`,
+  more: `<h2>${crumb ? 'עוד לפי סוג העבודה' : 'עוד מדריכים'}</h2>\n<ul class="more">${list.filter(x => x !== p).map(o => `<li><a href="/${o.slug}/">${o.nav}</a></li>`).join('')}</ul>`,
+});
+
+// every page: [path, page(date)]; a page keeps its date unless its content changed, so rebuilding doesn't touch every page
+const ALL = [
+  ...PAGES.map(p => [`/${p.slug}/`, guide(p, PAGES)]),
+  ...AUDIENCES.map(p => [`/${p.slug}/`, guide(p, AUDIENCES, ['לפי סוג העבודה', '/#who'])]),
+  ...cityPages(NOW),
+  ...embedPages(),
+];
 const dates = {};
-for (const p of PAGES) {
-  const file = `${p.slug}/index.html`, before = read(file);
+for (const [path, make] of ALL) {
+  const file = `${path.slice(1)}index.html`, before = read(file);
   const was = /"dateModified":"(\d{4}-\d\d-\d\d)"/.exec(before)?.[1];
-  dates[p.slug] = was && page(p, was) === before ? was : TODAY;
-  mkdirSync(site(p.slug), { recursive: true });
-  writeFileSync(site(file), page(p, dates[p.slug]));
+  dates[path] = was && make(was) === before ? was : TODAY;
+  mkdirSync(site(path.slice(1)), { recursive: true });
+  writeFileSync(site(file), make(dates[path]));
 }
 
-// the home page's guide links, between the markers
-const homeF = site('index.html');
-const homeBefore = readFileSync(homeF, 'utf8');
-const links = PAGES.map(p => `<a class="guide" dir="rtl" lang="he" href="${p.slug}/"><b>${p.nav}</b><span>${p.title}</span></a>`).join('\n    ');
-const home = homeBefore.replace(/(<!-- guides -->)[\s\S]*?(<!-- \/guides -->)/, `$1\n    ${links}\n    $2`);
-if (home !== homeBefore) { writeFileSync(homeF, home); dates[''] = TODAY; }
+// the home page's generated parts, each between <!-- name --> and <!-- /name -->
+const homeF = site('index.html'), homeBefore = readFileSync(homeF, 'utf8');
+const fill = (html, name, inner) => {
+  const re = new RegExp(`(<!-- ${name} -->)[\\s\\S]*?(<!-- /${name} -->)`);
+  if (!re.test(html)) throw new Error(`site/index.html has no <!-- ${name} --> marker`);
+  return html.replace(re, (_, a, b) => `${a}${inner}${b}`);
+};
+const card = (href, b, span) => `<a class="guide" dir="rtl" lang="he" href="${href}"><b>${b}</b><span>${span}</span></a>`;
+const TIMES_CITIES = ['ירושלים', 'תל אביב', 'חיפה', 'באר שבע', 'אשדוד', 'נתניה'];
+const week = upcoming(cal, 'תל אביב', NOW, 12).find(w => w.name.includes('שבת'));
+let home = homeBefore;
+home = fill(home, 'guides', `\n    ${PAGES.map(p => card(`${p.slug}/`, p.nav, p.title)).join('\n    ')}\n    `);
+home = fill(home, 'audiences', `\n    ${AUDIENCES.map(p => card(`${p.slug}/`, p.nav, p.title)).join('\n    ')}\n    `);
+home = fill(home, 'times', `\n  <table class="times" dir="rtl" lang="he" data-cities><caption>שבת ${dm(week.end)}: כניסה ביום ${dayName(week.start)}, יציאה במוצאי שבת</caption><thead><tr><th>עיר</th><th>כניסה</th><th>יציאה</th></tr></thead><tbody>
+  ${TIMES_CITIES.map(c => { const w = upcoming(cal, c, NOW, 12).find(x => x.name.includes('שבת')); return `<tr data-c="${c}"><td><a href="zmanei-shabbat/${SLUGS[c]}/">${c}</a></td><td>${hm(w.start)}</td><td>${hm(w.end)}</td></tr>`; }).join('\n  ')}
+  </tbody></table>
+  <ul class="cities" dir="rtl" lang="he">${Object.keys(SLUGS).filter(c => !TIMES_CITIES.includes(c)).map(c => `<li><a href="zmanei-shabbat/${SLUGS[c]}/">${c}</a></li>`).join('')}<li><a href="zmanei-shabbat/">כל הערים</a></li></ul>
+  <script type="module" src="shabbat-times.js"></script>
+  `);
+home = fill(home, 'season', seasonal(NOW).join(''));
+home = fill(home, 'qr', `<div class="hqr" aria-hidden="true">${qrSvg(GET)}<span><span data-l="he">סורקים ופותחים בטלפון</span><span data-l="en">Scan to open on your phone</span></span></div>`);
+const playIcon = /<svg[\s\S]*?<\/svg>/.exec(home.slice(home.indexOf('<!-- play -->')))[0];
+home = fill(home, 'play', PLAY
+  ? `\n      <a class="btn" href="${PLAY}" rel="noopener">${playIcon}<span data-l="he">להורדה מ־Google Play</span><span data-l="en">Get it on Google Play</span></a>\n      `
+  : `\n      <span class="btn" aria-disabled="true" style="cursor:default">${playIcon}<span data-l="he">Google Play · בקרוב</span><span data-l="en">Google Play · soon</span></span>\n      `);
+home = fill(home, 'proof', !QUOTES.length && !RATING ? '' : `\n<section id="said"><div class="wrap" dir="rtl" lang="he">
+  <h2>מה אומרים</h2>
+  ${RATING ? `<p class="rating">${RATING.value.toFixed(1)} מתוך 5 ב־Google Play, מ־${RATING.count} דירוגים.</p>` : ''}
+  ${QUOTES.length ? `<div class="quotes">${QUOTES.map(q => `<blockquote><p>${esc(q.text)}</p><cite>${esc(q.name)}${q.role ? `, ${esc(q.role)}` : ''}</cite></blockquote>`).join('')}</div>` : ''}
+  ${RATING ? ld({ '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: 'אצבע', operatingSystem: 'Android', applicationCategory: 'BusinessApplication', url: PLAY || `${SITE}/`, offers: { '@type': 'Offer', price: '0', priceCurrency: 'ILS' }, aggregateRating: { '@type': 'AggregateRating', ratingValue: RATING.value, ratingCount: RATING.count, bestRating: 5 } }) : ''}
+</div></section>\n`);
+if (home !== homeBefore) { writeFileSync(homeF, home); dates['/'] = TODAY; }
 
-// the sitemap: each guide's own date, the home page's if its links changed; the rest keep theirs
+// the sitemap: each page's own date; the bare embed calculators stay out (they point search engines at the guides)
 const oldMap = read('sitemap.xml');
-const lastmod = u => dates[u.slice(1, -1)] ?? new RegExp(`<loc>${SITE}${u}</loc><lastmod>([\\d-]+)<`).exec(oldMap)?.[1] ?? TODAY;
-const urls = [['/', '1.0', 'weekly'], ...PAGES.map(p => [`/${p.slug}/`, '0.8', 'monthly']), ['/app/', '0.6', 'weekly'], ['/privacy', '0.3', 'yearly']];
+const lastmod = u => dates[u] ?? new RegExp(`<loc>${SITE}${u}</loc><lastmod>([\\d-]+)<`).exec(oldMap)?.[1] ?? TODAY;
+const urls = [['/', '1.0', 'weekly'], ...PAGES.map(p => [`/${p.slug}/`, '0.8', 'monthly']), ...AUDIENCES.map(p => [`/${p.slug}/`, '0.7', 'monthly']),
+  [HUB, '0.8', 'weekly'], ...Object.values(SLUGS).map(s => [`${HUB}${s}/`, '0.7', 'weekly']), ['/embed/', '0.4', 'monthly'],
+  ['/app/', '0.6', 'weekly'], ['/privacy', '0.3', 'yearly']];
 writeFileSync(site('sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map(([u, pr, f]) => `  <url><loc>${SITE}${u}</loc><lastmod>${lastmod(u)}</lastmod><changefreq>${f}</changefreq><priority>${pr}</priority></url>`).join('\n')}
@@ -96,5 +93,8 @@ ${urls.map(([u, pr, f]) => `  <url><loc>${SITE}${u}</loc><lastmod>${lastmod(u)}<
 
 // the calculators use this year's figures
 const calcF = site('calc.js');
-writeFileSync(calcF, readFileSync(calcF, 'utf8').replace(/^const MIN_HOURLY = [\d.]+, YOUTH = (\{[^}]*\}), TRAVEL_MAX = [\d.]+;/m, `const MIN_HOURLY = ${MIN.toFixed(2)}, YOUTH = $1, TRAVEL_MAX = ${R.travelMaxDaily.toFixed(2)};`));
-console.log(`${PAGES.length} guide pages, sitemap with ${urls.length} URLs`);
+writeFileSync(calcF, readFileSync(calcF, 'utf8')
+  .replace(/^const MIN_HOURLY = [\d.]+, YOUTH = (\{[^}]*\}), TRAVEL_MAX = [\d.]+;/m, `const MIN_HOURLY = ${MIN.toFixed(2)}, YOUTH = $1, TRAVEL_MAX = ${R.travelMaxDaily.toFixed(2)};`)
+  .replace(/^const HAVRAA = [\d.]+, HAVRAA_DAYS = \[[\d, ]+\], AVG_WAGE = \d+;/m, `const HAVRAA = ${Object.values(R.havraa).at(-1).toFixed(2)}, HAVRAA_DAYS = [${R.havraaDays.join(', ')}], AVG_WAGE = ${AVG_WAGE};`));
+
+console.log(`${ALL.length} pages, sitemap with ${urls.length} URLs`);

@@ -352,6 +352,12 @@ export default {
     'שעות עבודה': 'Hours worked',
 
     // Support
+    'לשלוח את אצבע לחבר': 'Send Etzba to a friend',
+    'למי שעובד במשמרות ורוצה לדעת כמה הוא מרוויח': 'For anyone who works shifts and wants to know what they earn',
+    'אצבע: שעון נוכחות ומחשבון שכר לעובדים לפי שעה. חינם, בלי חשבון ובלי פרסומות.': 'Etzba: a time clock and pay calculator for hourly workers. Free, no account and no ads.',
+    'החודש שלי באצבע': 'My month on Etzba',
+    'תמונה של החודש': 'The month as a picture',
+    'שעות, משמרות ושכר, לסטורי או לצ׳אט': 'Hours, shifts and pay, for a story or a chat',
     'Google Play לא זמין כרגע. כדאי לבדוק את החיבור ולנסות שוב.': 'Google Play isn’t available right now. Check your connection and try again.',
     'להמשיך': 'Continue',
     'תמיכה באצבע': 'Support Etzba',

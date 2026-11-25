@@ -86,6 +86,7 @@ export function openOnboarding() {
     commit();
     el.classList.add('out'); setTimeout(() => el.remove(), 250);
     dbg.log('info', 'onboarding done');
+    dispatchEvent(new Event('etzba:onboarded'));
     setTimeout(askFirstPerms, 600);
     go('home');
     if (andImport) { go('set'); openFileImport(); }
@@ -99,7 +100,7 @@ export function openOnboarding() {
     const $o = q => el.querySelector(q);
     $o('#ob-next').onclick = () => { read(); if (step === LAST) return finish(); step++; draw(); };
     if ($o('#ob-back')) $o('#ob-back').onclick = () => { read(); step--; draw(); };
-    $o('#ob-skip').onclick = () => { if (step < LAST) { S.settings.onboarded = true; persist(); el.remove(); dbg.log('info', 'onboarding skipped'); setTimeout(askFirstPerms, 400); } };
+    $o('#ob-skip').onclick = () => { if (step < LAST) { S.settings.onboarded = true; persist(); el.remove(); dbg.log('info', 'onboarding skipped'); dispatchEvent(new Event('etzba:onboarded')); setTimeout(askFirstPerms, 400); } };
     el.querySelectorAll('#ob-lang button').forEach(b => b.onclick = async () => { await setLang(b.dataset.l); d.lang = b.dataset.l; draw(); });
     el.querySelectorAll('.seg[data-k]').forEach(g => g.querySelectorAll('button').forEach(b => b.onclick = () => {
       const k = g.dataset.k; read();

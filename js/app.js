@@ -36,6 +36,7 @@ import { syncGeo, appAction } from './outside.js';
 import { report, showFailure } from './problems.js';
 import { openDebug } from './views/debug.js';
 import { setLang } from './switch-language.js';
+import { takeAddLink, doneAddLink } from './add-link.js';
 
 dbg.log('boot', 'v' + dbg.VERSION);
 
@@ -65,11 +66,15 @@ addEventListener('unhandledrejection', e => { if (window.__etzbaReady) report(e.
 $$('#tabs button').forEach(b => { b.querySelector('.tic').innerHTML = I[b.querySelector('.tic').dataset.i]; b.onclick = () => go(b.dataset.v); });
 $('#fab').innerHTML = I.plus;
 { let lastY = scrollY; addEventListener('scroll', () => { const y = scrollY; if (Math.abs(y - lastY) > 6) { $('#fab').classList.toggle('tuck', y > lastY && y > 80); lastY = y; } }, { passive: true }); }
-$('#fab').onclick = () => {
-  const job = jobById(S.settings.lastJob), end = new Date(); end.setMinutes(0, 0, 0);
-  const start = new Date(+end - Math.round(job.regHours) * 3.6e6);
+/** The "new shift" sheet, for the given hours or the job's usual day ending this hour. */
+function newShift(start, end) {
+  const job = jobById(S.settings.lastJob);
+  if (!end) { end = new Date(); end.setMinutes(0, 0, 0); start = new Date(+end - Math.round(job.regHours) * 3.6e6); }
   openShiftSheet({ id: null, jobId: job.id, start: start.toISOString(), end: end.toISOString(), breakMin: job.breakMin, bonus: 0, note: '', rest: 'auto' }, 'new');
-};
+}
+$('#fab').onclick = () => newShift();
+// a shift from the website's calculators: after the welcome screens, if those are showing
+function openAddLink() { const a = takeAddLink(); if (!a) return; doneAddLink(); go('home'); newShift(a.start, a.end); }
 
 const step = (name, fn) => { try { fn(); } catch (e) { (window.__etzbaErr || []).push(name + ': ' + (e && e.message)); console.error(name, e); } };
 step('recompute', recompute);
@@ -100,6 +105,7 @@ step('restore', async () => {
   toast(`שוחזרו ${S.shifts.length} משמרות מהעותק השמור בטלפון`, 'ok');
 });
 step('welcome', () => { if (!S.settings.onboarded && !S.shifts.length && !S.active) openOnboarding(); });
+step('addLink', () => { if (!takeAddLink()) return; if ($('#onboard')) addEventListener('etzba:onboarded', openAddLink, { once: true }); else setTimeout(openAddLink, 300); });
 step('shared', () => {
   takeSharedFile();
   native.onSharedFile(f => { dbg.log('info', 'native share: ' + f.name); $('#onboard')?.remove(); go('set'); openFileImport(f); });

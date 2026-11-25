@@ -5,7 +5,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.7 Heebo,system-u
 a{color:var(--blue)}.wrap{max-width:760px;margin:0 auto;padding:0 22px}
 header{border-bottom:1px solid var(--line)}header .wrap{display:flex;align-items:center;gap:14px;height:62px;max-width:1080px}
 .brand{font-weight:900;font-size:23px;text-decoration:none;color:var(--ink)}
-header nav{margin-inline-start:auto;font-size:15px}header nav a{color:var(--ink2);text-decoration:none}
+header nav{margin-inline-start:auto;font-size:15px;display:flex;gap:18px}header nav a{color:var(--ink2);text-decoration:none}
+@media (max-width:560px){header nav a:not(:last-child){display:none}}
 .crumbs{font-size:14px;color:var(--ink3);margin:28px 0 0}.crumbs a{color:var(--ink3)}
 h1{font-size:clamp(34px,6vw,52px);line-height:1.1;font-weight:900;letter-spacing:-.5px;margin:10px 0 14px}
 .lead{font-size:20px;color:var(--ink);margin:0 0 28px}
@@ -13,8 +14,15 @@ h2{font-size:25px;font-weight:800;margin:40px 0 10px;line-height:1.25}
 p,li{color:var(--ink2)}b{color:var(--ink)}ul{padding-inline-start:20px}li{margin:6px 0}
 table{width:100%;border-collapse:collapse;margin:14px 0;font-variant-numeric:tabular-nums}
 th,td{text-align:start;padding:11px 10px;border-bottom:1px solid var(--line)}th{color:var(--ink);font-weight:700}td{color:var(--ink2)}
-.cta{margin:44px 0;padding:26px;border:1px solid var(--line);border-radius:18px;background:var(--surface)}
-.cta p{margin:0 0 16px;color:var(--ink)}.btn{display:inline-block;padding:13px 22px;border-radius:13px;background:var(--ink);color:#141518;font-weight:700;text-decoration:none}
+.cta{margin:44px 0;padding:26px;border:1px solid var(--line);border-radius:18px;background:var(--surface);display:flex;gap:26px;align-items:center}
+.cta-t{flex:1}.cta p{margin:0 0 16px;color:var(--ink)}.cta-b{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px}
+.cta-q{display:flex;flex-direction:column;align-items:center;gap:8px;font-size:13px;color:var(--ink3);text-align:center}.cta-q .qr{width:112px;height:112px;border-radius:8px}
+.cta blockquote{margin:0 0 18px;padding-inline-start:14px;border-inline-start:2px solid var(--line)}.cta blockquote p{margin:0 0 4px}.cta cite{font-style:normal;color:var(--ink3);font-size:14px}
+.share{color:var(--ink2);font-size:15px}
+@media (max-width:899px){.cta-q{display:none}}
+.getbar{display:none}
+@media (max-width:899px){body{padding-bottom:72px}.getbar{display:flex;position:fixed;inset-inline:0;bottom:0;z-index:9;align-items:center;gap:12px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:rgba(29,31,35,.96);border-top:1px solid var(--line);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.getbar span{flex:1;font-size:14px;color:var(--ink2);line-height:1.35}.getbar b{color:var(--ink);margin-inline-end:6px}.getbar .btn{padding:10px 18px;border-radius:11px;font-size:15px}}.btn{display:inline-block;padding:13px 22px;border-radius:13px;background:var(--ink);color:#141518;font-weight:700;text-decoration:none}
 .faq details{border-bottom:1px solid var(--line);padding:14px 0}.faq summary{cursor:pointer;font-weight:700;color:var(--ink)}.faq p{margin:8px 0 0}
 .more{display:flex;flex-wrap:wrap;gap:10px 18px;padding:0;list-style:none}.more li{margin:0}
 footer{border-top:1px solid var(--line);margin-top:56px;padding:30px 0 46px;font-size:15px;color:var(--ink3)}footer a{color:var(--ink2);text-decoration:none;margin-inline-end:18px}
@@ -33,3 +41,8 @@ footer{border-top:1px solid var(--line);margin-top:56px;padding:30px 0 46px;font
 .ct .tot th{font-size:20px;border-bottom:0}
 .cn{font-size:15px;margin:10px 0 0}.cok,.cbad{margin:0;font-size:17px;color:var(--ink)}.cbad{color:#EB6E57}
 @media (max-width:560px){.cin{grid-template-columns:1fr}}
+.times{margin:6px 0 10px}.times td b{display:block;color:var(--ink);font-size:18px;font-weight:700}.times caption{text-align:start;color:var(--ink3);font-size:15px;padding-bottom:6px}.times td a{color:var(--ink)}
+.addapp{display:inline-block;margin-top:14px;font-weight:700;text-decoration:none}
+.code{direction:ltr;text-align:left;white-space:pre-wrap;word-break:break-all;font-size:13px;line-height:1.5;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink2);margin:8px 0}
+.btn.small{padding:8px 16px;font-size:15px;border:0;cursor:pointer;font-family:inherit}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}

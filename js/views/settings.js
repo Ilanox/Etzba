@@ -21,6 +21,7 @@ import { notifOn, planNotifications, drawNotifStatus } from '../notifications.js
 import { devOK, openDevTools } from './dev-tools.js';
 import { VERSION } from '../diagnostics.js';
 import { report } from '../problems.js';
+import { shareApp } from '../files.js';
 import { setLang } from '../switch-language.js';
 import { openDebug } from './debug.js';
 import { openDashboard, statusDot } from './dashboard.js';
@@ -147,6 +148,7 @@ const moreSection = st => `
     ${devOK() ? `<button class="cell" id="s-debug"><span class="cell-ic t-violet">${I.info}</span><span class="grow">אבחון ותקלות<div class="sub">${dbg.lastCrash() ? 'האפליקציה נסגרה בפעם הקודמת · פרטים כאן' : 'מידע טכני לשליחה כשמשהו לא עובד'}</div></span><span class="chev">${I.chevL}</span></button>` : ''}
     ${devOK() && S.settings.dev ? `<button class="cell" id="s-dev"><span class="cell-ic t-gray">${I.gear}</span><span class="grow">כלי פיתוח<div class="sub">בדיקת התראות, משמרות לדוגמה ועוד</div></span><span class="chev">${I.chevL}</span></button>` : ''}
     ${native.billing.available() || isOwner() ? `<button class="cell" id="s-support"><span class="cell-ic t-red">${I.heart}</span><span class="grow">${isOwner() ? 'מפתח' : isSup() ? 'תומך/ת באצבע' : 'תמיכה באצבע'}<div class="sub">${isOwner() ? 'כל האפשרויות פתוחות במכשיר הזה' : isSup() ? `מאז ${dFull(S.settings.supportedAt || S.updatedAt)} · תודה! אפשר לתמוך שוב מתי שרוצים` : 'האפליקציה חינמית ובלי פרסומות. תומכים מקבלים ערכות צבע ואייקונים'}</div></span><span class="chev">${I.chevL}</span></button>` : ''}
+    <button class="cell" id="s-friend"><span class="cell-ic t-blue">${I.share}</span><span class="grow">לשלוח את אצבע לחבר<div class="sub">למי שעובד במשמרות ורוצה לדעת כמה הוא מרוויח</div></span><span class="chev">${I.chevL}</span></button>
     <button class="cell" id="s-legal"><span class="cell-ic t-gray">${I.lock}</span><span class="grow">פרטיות ומשפטי<div class="sub">מה נשמר, ומה החישוב כן ולא</div></span><span class="chev">${I.chevL}</span></button>
     </div>
     <p class="fine" id="s-ver"><b>אצבע</b> · גרסה ${VERSION}${isSup() ? ' <span style="color:#D9534F">♥</span>' : ''}<br>An Edvin Studios Project</p>`;
@@ -215,6 +217,7 @@ function bindSettings(el) {
   drawNotifStatus();
   $('#s-backup', el).onclick = () => backupNow();
   $('#s-legal', el).onclick = openLegal;
+  $('#s-friend', el).onclick = () => shareApp();
   $('#s-support', el) && ($('#s-support', el).onclick = openSupport);
   $('#s-fimport', el).onclick = openFileImport;
   persistState().then(v => { const pl = $('#persistLine', el); if (pl && v !== null) pl.textContent = v ? 'הדפדפן אישר אחסון קבוע, כך שלא ימחק את הנתונים כשחסר מקום.' : 'הדפדפן עוד לא אישר אחסון קבוע, ועלול למחוק נתונים כשחסר מקום בטלפון.'; });

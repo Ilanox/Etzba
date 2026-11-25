@@ -1,4 +1,4 @@
-# Publishes etzba.co.il on every push to main, but only if every test passes:
+# Publishes etzba.co.il on every push to main, and every Thursday for the Shabbat times, but only if every test passes:
 #   1. test         unit tests, browser tests, the translation check. A failure stops here: the site stays as it was.
 #   2. deploy       /  the home page (site/) · /app/ the web app · /data/ what the apps download · /privacy
 #                   plus /data/status.json for the developer dashboard
@@ -7,10 +7,13 @@
 # The developer dashboard in the app (Settings → לוח בקרה) shows all three.
 # One-time setup: repo Settings → Pages → Source: "GitHub Actions"; Custom domain: etzba.co.il.
 name: Pages
-run-name: ${{ inputs.ref && format('Rollback to {0}', inputs.ref) || github.event.head_commit.message || 'Publish' }}
+run-name: ${{ inputs.ref && format('Rollback to {0}', inputs.ref) || github.event_name == 'schedule' && 'Weekly refresh' || github.event.head_commit.message || 'Publish' }}
 on:
   push:
     branches: [main]
+  # every Thursday morning: this week's Shabbat times and the home page's line of the season (scripts/site-pages.mjs)
+  schedule:
+    - cron: '23 3 * * 4'
   workflow_dispatch:
     inputs:
       ref:
@@ -85,6 +88,8 @@ jobs:
           node-version: 22
       - name: Build the language data
         run: node scripts/build-data.mjs
+      - name: Bring the generated pages up to date
+        run: node scripts/site-pages.mjs
       - name: Put the site together
         run: |
           mkdir -p _site/app
@@ -99,7 +104,7 @@ jobs:
           grep -q "${COMMIT::7}" _site/app/js/build-info.js
       - name: Status for the dashboard
         env:
-          COMMIT_MESSAGE: ${{ inputs.ref && format('Rollback to {0}', inputs.ref) || github.event.head_commit.message }}
+          COMMIT_MESSAGE: ${{ inputs.ref && format('Rollback to {0}', inputs.ref) || github.event_name == 'schedule' && 'Weekly refresh' || github.event.head_commit.message }}
           UNIT_PASS: ${{ needs.test.outputs.unit_pass }}
           UNIT_FAIL: ${{ needs.test.outputs.unit_fail }}
           E2E_PASS: ${{ needs.test.outputs.e2e_pass }}

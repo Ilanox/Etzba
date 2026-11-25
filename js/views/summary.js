@@ -19,6 +19,7 @@ import { secIc } from './settings.js';
 import { openSupport } from './support.js';
 import { exportShifts, openExport } from './data.js';
 import { deliver } from '../files.js';
+import { shareMonth } from './month-card.js';
 import { summaryCSV } from '../csv.js';
 
 let heroV = 0;
@@ -74,6 +75,7 @@ function sumMonth(el) {
     <div class="sec"><span>${secIc('share', 'blue')}ייצוא</span></div>
     <div class="card">
       <button class="cell" id="xReport"><span class="cell-ic t-green">${I.receipt}</span><span class="grow">דוח חודשי (PDF)<div class="sub">שעות ושכר של ${MONTHS[viewM]}, לשליחה למעסיק</div></span><span class="chev">${I.chevL}</span></button>
+      ${M.shifts.length ? `<button class="cell" id="xCard"><span class="cell-ic t-violet">${I.share}</span><span class="grow">תמונה של החודש<div class="sub">שעות, משמרות ושכר, לסטורי או לצ׳אט</div></span><span class="chev">${I.chevL}</span></button>` : ''}
       <button class="cell" id="xMonth"><span class="cell-ic t-blue">${I.file}</span><span class="grow">משמרות ${MONTHS[viewM]} (CSV)<div class="sub">נפתח באקסל ובגוגל שיטס</div></span><span class="chev">${I.chevL}</span></button>
       <button class="cell" id="xMore"><span class="cell-ic t-blue">${I.download}</span><span class="grow">עוד אפשרויות ייצוא</span><span class="chev">${I.chevL}</span></button>
     </div>
@@ -86,6 +88,7 @@ function sumMonth(el) {
     mountChart($('#dayChart', el), items); bindMetric(el);
   }
   $('#xMonth', el).onclick = () => exportShifts('month');
+  $('#xCard', el) && ($('#xCard', el).onclick = () => shareMonth(M, { net }));
   $('#xReport', el).onclick = () => openReport();
   $('#netWhy', el) && ($('#netWhy', el).onclick = () => $('#steps', el)?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
   bindLeave(el);

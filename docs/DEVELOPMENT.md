@@ -23,7 +23,7 @@ Vanilla JavaScript ES modules, no framework and no bundler. Android through [Cap
 | `js/native-bridge.js` | everything that talks to Android |
 | `js/file-reader.js`, `js/shift-import.js` | reading .xls/.xlsx/.csv and turning rows into shifts |
 | `native/android/` | Java plugins, the widget (`EtzbaWidget`, `WidgetState`, `WidgetViews`, `WidgetArt`), Android resources |
-| `site/` | the website at etzba.co.il; the guide pages are generated from `scripts/site/` by `npm run site` |
+| `site/` | the website at etzba.co.il; guides, pages per kind of work, Shabbat times per city and the embeddable calculators are generated from `scripts/site/` by `npm run site` (the deploy runs it too, and every Thursday). Switches and the growth plan: [GROWTH.md](GROWTH.md) |
 | `store/` | Google Play listing, screenshots and the generator for them |
 | `tests/` | `unit/` (one file per part: pay engine, net pay, translations, project checks…) and `e2e/` (one file per area of the app, sharing `helpers.mjs`) |
 | `scripts/` | build, Android setup, release, install, logs, data; `lib.mjs` has what they share |

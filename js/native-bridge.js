@@ -33,6 +33,13 @@ export async function saveFile(name, text) {
   return true;
 }
 
+/** The share sheet with a line of text and a link. */
+export async function shareText(title, text, url) {
+  await loaded;
+  try { await P('Share').share({ title, text, url, dialogTitle: title }); return true; }
+  catch (e) { if (/cancel/i.test(e?.message || '')) return false; throw e; }
+}
+
 /* ---- files in: shared from another app, or opened with אצבע ---- */
 const b64ToBuf = b64 => { const s = atob(b64), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u.buffer; };
 
