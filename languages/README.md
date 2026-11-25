@@ -27,7 +27,7 @@ Each line is already in the right format to paste into the pack.
 3. Run `npm run check:translations -- ru` to see what's left.
 
 Notes:
-- The "What am I owed" page has its own full English text in `js/app.js` (`rightsEN`). Other languages show that English page until it gets its own version.
+- The "What am I owed" page has its own full English text in `js/views/rights.js` (`rightsEN`). Other languages show that English page until it gets its own version.
 - CSV exports stay in Hebrew on purpose, so they open the same way for everyone.
 
 ## The four kinds of entries
@@ -39,4 +39,6 @@ words:     { 'שבת': 'Shabbat' }                          // short terms; also
 polish:    [ [/\b1 shifts\b/g, '1 shift'] ]             // regex fixes after translating (plurals, word order)
 ```
 
-In templates the pieces can come back in any order: `['{} ש׳ מתוך {}', '{1} h of {2}']`.
+In templates the pieces can come back in any order: `['{} ש׳ מתוך {}', '{1} h of {2}']`. Always number them: a bare `{}` works in this version, but older app versions that download the pack would show it as is.
+
+When several templates fit a text, the most specific one wins (the one with the most fixed text), so their order in the file doesn't matter. Phrases and templates are grouped by screen with a comment above each group; put new ones under the screen they appear on.

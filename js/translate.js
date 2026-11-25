@@ -1,79 +1,64 @@
+// Translates the Hebrew on screen with a language pack (see languages/README.md).
 const HEB = /[֐-׿]/;
 const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const squash = s => s.replace(/\s+/g, ' ').trim();
+const literal = he => he.replace(/\{\}/g, '').length;
 
-let EXACT = new Map(), TPL = [], RULES = [], POLISH = [], PACK = null;
-
-export function usePack(pack) {
-  PACK = pack; CACHE.clear();
-  EXACT = new Map(); TPL = []; RULES = []; POLISH = [];
-  if (!pack) return;
-  const words = pack.words || {}, phrases = pack.phrases || {};
-  // 1. whole text: phrases first, then single words/terms
-  for (const [he, t] of Object.entries(words)) EXACT.set(squash(he), t);
-  for (const [he, t] of Object.entries(phrases)) EXACT.set(squash(he), t);
-  TPL = (pack.templates || []).map(([he, t]) => [new RegExp('^' + squash(he).split('{}').map(reEsc).join('(.+?)') + '$'), t]);
-  RULES = Object.entries(words).sort((a, b) => b[0].length - a[0].length)
+/**
+ * Builds a translator for a pack. Order of trying: the whole text (phrases, then words),
+ * then templates from the most specific (longest fixed text) down, then word by word.
+ * The pieces a template captures are translated too. Polish rules run last.
+ */
+function compile(pack) {
+  const exact = new Map();
+  for (const [he, t] of Object.entries(pack.words || {})) exact.set(squash(he), t);
+  for (const [he, t] of Object.entries(pack.phrases || {})) exact.set(squash(he), t);
+  const templates = (pack.templates || []).map(([he, t]) => [squash(he), t])
+    .sort((a, b) => literal(b[0]) - literal(a[0]))
+    .map(([he, t]) => [new RegExp('^' + he.split('{}').map(reEsc).join('(.+?)') + '$'), t]);
+  const words = Object.entries(pack.words || {}).sort((a, b) => b[0].length - a[0].length)
     .map(([he, t]) => [new RegExp('(^|[^\\u0590-\\u05FF])' + reEsc(he) + '(?=[^\\u0590-\\u05FF]|$)', 'g'), t]);
-  // 4. language-specific clean-up after the swap
-  POLISH = pack.polish || [];
-}
+  const polish = pack.polish || [];
 
-export function translator(pack) {
-  if (!pack) return s => s;
-  const words = pack.words || {}, phrases = pack.phrases || {}, ex = new Map(), cache = new Map();
-  for (const [he, t] of Object.entries(words)) ex.set(squash(he), t);
-  for (const [he, t] of Object.entries(phrases)) ex.set(squash(he), t);
-  const tpl = (pack.templates || []).map(([he, t]) => [new RegExp('^' + squash(he).split('{}').map(reEsc).join('(.+?)') + '$'), t]);
-  const rules = Object.entries(words).sort((a, b) => b[0].length - a[0].length)
-    .map(([he, t]) => [new RegExp('(^|[^\\u0590-\\u05FF])' + reEsc(he) + '(?=[^\\u0590-\\u05FF]|$)', 'g'), t]);
-  const pol = pack.polish || [];
-  const inner = s => {
+  // {1}, {2}… put back captured piece 1, 2…; a bare {} takes the next piece in order
+  const fill = (t, m) => { let n = 0; return t.replace(/\{(\d*)\}/g, (_, d) => inner(m[d ? +d : ++n])); };
+  function inner(s) {
     if (!s || !HEB.test(s)) return s;
     const k = squash(s);
-    if (ex.has(k)) return ex.get(k);
-    for (const [re, t] of tpl) { const m = re.exec(k); if (m) return t.replace(/\{(\d)\}/g, (_, i) => inner(m[+i])); }
-    let out = k; for (const [re, t] of rules) { out = out.replace(re, (_, pre) => pre + t); if (!HEB.test(out)) break; }
+    if (exact.has(k)) return exact.get(k);
+    for (const [re, t] of templates) { const m = re.exec(k); if (m) return fill(t, m); }
+    let out = k;
+    for (const [re, t] of words) { out = out.replace(re, (_, pre) => pre + t); if (!HEB.test(out)) break; }
     return out;
-  };
-  return s => {
+  }
+  const cache = new Map();
+  const tr = s => {
     if (!s || !HEB.test(s)) return s;
     let v = cache.get(s);
-    if (v === undefined) { try { v = inner(s); for (const [re, to] of pol) v = v.replace(re, to); } catch { v = s; } if (cache.size > 3000) cache.clear(); cache.set(s, v); }
+    if (v === undefined) {
+      try { v = inner(s); for (const [re, to] of polish) v = v.replace(re, to); } catch { v = s; }
+      v = /^\s*/.exec(s)[0] + v + /\s*$/.exec(s)[0];
+      if (cache.size > 4000) cache.clear();
+      cache.set(s, v);
+    }
     return v;
   };
+  /** Which step would translate a text: 'exact', 'template', 'words' or 'none'. For the translation checker. */
+  const how = s => {
+    if (!s || !HEB.test(s)) return 'none';
+    const k = squash(s);
+    return exact.has(k) ? 'exact' : templates.some(([re]) => re.test(k)) ? 'template' : 'words';
+  };
+  return { tr, how };
 }
-const fill = (t, m) => t.replace(/\{(\d)\}/g, (_, k) => trInner(m[+k]));
-function polish(t) { for (const [re, to] of POLISH) t = t.replace(re, to); return t; }
 
-const CACHE = new Map();
-function trInner(s) {
-  if (!PACK || !s || !HEB.test(s)) return s;
-  const k = squash(s);
-  if (EXACT.has(k)) return EXACT.get(k);
-  for (const [re, t] of TPL) { const m = re.exec(k); if (m) return fill(t, m); }
-  let out = k;
-  for (const [re, t] of RULES) { out = out.replace(re, (_, pre) => pre + t); if (!HEB.test(out)) break; }
-  return out;
-}
-export function how(s) {
-  if (!s || !HEB.test(s)) return 'none';
-  const k = squash(s); if (EXACT.has(k)) return 'exact';
-  for (const [re] of TPL) if (re.test(k)) return 'template';
-  return 'words';
-}
-export function tr(s) {
-  if (!PACK || !s || !HEB.test(s)) return s;
-  let v = CACHE.get(s);
-  if (v === undefined) {
-    try { v = polish(trInner(s)); } catch { v = s; }
-    const lead = /^\s*/.exec(s)[0], trail = /\s*$/.exec(s)[0];
-    v = lead + v + trail;
-    if (CACHE.size > 4000) CACHE.clear();
-    CACHE.set(s, v);
-  }
-  return v;
-}
+/** A translator for one pack, separate from the one on screen (spoken text uses this). */
+export const translator = pack => pack ? compile(pack).tr : s => s;
+
+let active = null;
+export function usePack(pack) { active = pack ? compile(pack) : null; }
+export const tr = s => active ? active.tr(s) : s;
+export const how = s => active ? active.how(s) : 'none';
 
 const ORIG = new WeakMap(), ORIG_ATTR = new WeakMap();
 const MINE = new WeakMap(), MINE_ATTR = new WeakMap();
@@ -120,5 +105,3 @@ export function stopTranslating() {
   };
   try { back(document.body); } catch {}
 }
-
-// older names
