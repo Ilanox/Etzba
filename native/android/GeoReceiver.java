@@ -100,13 +100,9 @@ public class GeoReceiver extends BroadcastReceiver {
             NotificationChannel ch = new NotificationChannel(CHANNEL, GeoPlugin.texts(ctx).optString("channel", "הגעה ויציאה מהעבודה"), NotificationManager.IMPORTANCE_DEFAULT);
             ctx.getSystemService(NotificationManager.class).createNotificationChannel(ch);
         }
-        int imm = Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0;
-        Intent open = new Intent(ctx, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            .putExtra("etzba_token", AppActionsPlugin.token(ctx)).putExtra("etzba_action", "ask_" + action).putExtra("etzba_job", jobId);
-        PendingIntent tapOpen = PendingIntent.getActivity(ctx, id * 10, open, PendingIntent.FLAG_UPDATE_CURRENT | imm);
-        Intent act = new Intent(ctx, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            .putExtra("etzba_token", AppActionsPlugin.token(ctx)).putExtra("etzba_action", action).putExtra("etzba_job", jobId);
-        PendingIntent tapAct = PendingIntent.getActivity(ctx, id * 10 + 1, act, PendingIntent.FLAG_UPDATE_CURRENT | imm);
+        // tapping the notification asks first; the button does it straight away
+        PendingIntent tapOpen = PendingIntent.getActivity(ctx, id * 10, Launch.action(ctx, "ask_" + action).putExtra("etzba_job", jobId), Launch.FLAGS);
+        PendingIntent tapAct = PendingIntent.getActivity(ctx, id * 10 + 1, Launch.action(ctx, action).putExtra("etzba_job", jobId), Launch.FLAGS);
         int icon = ctx.getResources().getIdentifier("ic_stat_etzba", "drawable", ctx.getPackageName());
         NotificationCompat.Builder n = new NotificationCompat.Builder(ctx, CHANNEL)
             .setSmallIcon(icon != 0 ? icon : ctx.getApplicationInfo().icon)

@@ -7,34 +7,27 @@ import android.appwidget.AppWidgetProvider;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.content.res.ColorStateList;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.LinearGradient;
-import android.graphics.Paint;
-import android.graphics.Path;
-import android.graphics.Shader;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.util.SizeF;
-import android.view.View;
 import android.widget.RemoteViews;
 
 import org.json.JSONArray;
-import org.json.JSONObject;
 
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 
+import com.edvinstudios.etzba.WidgetViews.Size;
+
+/**
+ * The home screen widget. The app saves what to show (AppActionsPlugin.updateWidget), which calls refresh();
+ * while a shift runs, alarms redraw it every 15 minutes and right when the pay rate changes.
+ * The timer itself is a Chronometer, so it ticks without redrawing.
+ */
 public class EtzbaWidget extends AppWidgetProvider {
     static final String TICK = "com.edvinstudios.etzba.WIDGET_TICK";
+    private static final int REQ_REPEAT = 78, REQ_RATE_CHANGE = 79;
 
     @Override
     public void onUpdate(Context ctx, AppWidgetManager mgr, int[] ids) {
@@ -55,382 +48,64 @@ public class EtzbaWidget extends AppWidgetProvider {
     @Override
     public void onDisabled(Context ctx) { schedule(ctx, false); }
 
+    /** Redraws every widget on the home screen and keeps the alarms in step with the shift. */
     static void refresh(Context ctx) {
         try {
             AppWidgetManager mgr = AppWidgetManager.getInstance(ctx);
             int[] ids = mgr.getAppWidgetIds(new ComponentName(ctx, EtzbaWidget.class));
             boolean any = ids != null && ids.length > 0;
             if (any) for (int id : ids) draw(ctx, mgr, id);
-            schedule(ctx, any && prefs(ctx).getBoolean("active", false));
+            schedule(ctx, any && WidgetState.prefs(ctx).getBoolean("active", false));
         } catch (Exception e) {
             android.util.Log.w("Etzba", "widget refresh failed", e);
         }
     }
 
+    /** Android 12 and up pick the layout by the widget's size themselves; before that, by the size it reports. */
     private static void draw(Context ctx, AppWidgetManager mgr, int id) {
         try {
-            State s = new State(ctx);
+            WidgetState s = new WidgetState(ctx);
             if (Build.VERSION.SDK_INT >= 31) {
                 Map<SizeF, RemoteViews> m = new HashMap<>();
-                m.put(new SizeF(100f, 40f), build(ctx, s, Size.SMALL));
-                m.put(new SizeF(100f, 120f), build(ctx, s, Size.TALL));
-                m.put(new SizeF(100f, 185f), build(ctx, s, Size.TALLER));
-                m.put(new SizeF(230f, 40f), build(ctx, s, Size.WIDE));
-                m.put(new SizeF(230f, 150f), build(ctx, s, Size.LARGE));
+                m.put(new SizeF(100f, 40f), WidgetViews.build(ctx, s, Size.SMALL));
+                m.put(new SizeF(100f, 120f), WidgetViews.build(ctx, s, Size.TALL));
+                m.put(new SizeF(100f, 185f), WidgetViews.build(ctx, s, Size.TALLER));
+                m.put(new SizeF(230f, 40f), WidgetViews.build(ctx, s, Size.WIDE));
+                m.put(new SizeF(230f, 150f), WidgetViews.build(ctx, s, Size.LARGE));
                 mgr.updateAppWidget(id, new RemoteViews(m));
             } else {
                 Bundle o = mgr.getAppWidgetOptions(id);
                 int w = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250), h = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 70);
-                mgr.updateAppWidget(id, build(ctx, s, w < 200 ? (h >= 185 ? Size.TALLER : h >= 120 ? Size.TALL : Size.SMALL) : h >= 150 ? Size.LARGE : Size.WIDE));
+                Size size = w < 200 ? (h >= 185 ? Size.TALLER : h >= 120 ? Size.TALL : Size.SMALL) : h >= 150 ? Size.LARGE : Size.WIDE;
+                mgr.updateAppWidget(id, WidgetViews.build(ctx, s, size));
             }
         } catch (Exception e) {
             android.util.Log.w("Etzba", "widget draw failed", e);
         }
     }
 
-    private enum Size { SMALL, TALL, TALLER, WIDE, LARGE }
-
-    private static final class State {
-        final boolean active, rtl, otOn, running;
-        final long start, now;
-        final String job, phase, style;
-        final double rate, thr, ot1h, hours, earned, frac;
-        final JSONObject l, theme, month;
-        final JSONArray segs;
-
-        State(Context ctx) {
-            SharedPreferences p = prefs(ctx);
-            active = p.getBoolean("active", false);
-            rtl = p.getBoolean("rtl", true);
-            start = p.getLong("start", 0L);
-            now = System.currentTimeMillis();
-            String jn = p.getString("job", "");
-            job = jn.isEmpty() ? "" : "\u2068" + jn + "\u2069";
-            rate = Double.longBitsToDouble(p.getLong("rate", 0L));
-            l = obj(p.getString("labels", "{}"));
-            JSONObject x = obj(p.getString("extra", "{}"));
-            theme = x.optJSONObject("theme") != null ? x.optJSONObject("theme") : new JSONObject();
-            month = x.optJSONObject("month") != null ? x.optJSONObject("month") : new JSONObject();
-            thr = x.optDouble("thr", 8.6);
-            ot1h = x.optDouble("ot1", 2);
-            otOn = x.optBoolean("otOn", true);
-            style = x.optString("wstyle", "classic");
-            JSONArray sg;
-            try { sg = new JSONArray(p.getString("segs", "[]")); } catch (Exception e) { sg = new JSONArray(); }
-            segs = sg;
-            running = active && start <= now;
-            hours = running ? (now - start) / 3.6e6 : 0;
-            earned = running ? earned(p, now) : 0;
-            if (!running) { phase = "idle"; frac = 0; }
-            else if (!otOn || hours < thr) { phase = "reg"; frac = hours / thr; }
-            else if (hours < thr + ot1h) { phase = "ot1"; frac = (hours - thr) / Math.max(ot1h, 0.01); }
-            else { phase = "ot2"; frac = (hours - thr - ot1h) / 2; }
-        }
-
-        int c(String key, int fallback) {
-            try { String v = theme.optString(key, ""); return v.isEmpty() ? fallback : Color.parseColor(v); } catch (Exception e) { return fallback; }
-        }
-        int ink() { return c("ink", 0xFFF2EDE4); }
-        int muted() { return c("ink3", 0xFF9C978E); }
-        int phaseColor() {
-            switch (phase) {
-                case "ot1": return c("ot1a", 0xFFEB6E57);
-                case "ot2": return c("ot2a", 0xFFE04A3A);
-                case "reg": return c("rega", 0xFF6E98E0);
-                default: return muted();
-            }
-        }
-        int phaseText() {
-            switch (phase) {
-                case "ot1": return c("ot1b", 0xFFF06A50);
-                case "ot2": return c("ot2b", 0xFFE04A3A);
-                case "reg": return c("regb", 0xFF6E98E0);
-                default: return muted();
-            }
-        }
-        String nowLabel() {
-            String out = "";
-            try {
-                for (int i = 0; i < segs.length(); i++) { JSONArray sg = segs.getJSONArray(i); if (sg.getLong(0) <= now) out = sg.optString(2, out); }
-            } catch (Exception ignored) { }
-            return out;
-        }
-    }
-
-    private static RemoteViews build(Context ctx, State s, Size size) {
-        String pkg = ctx.getPackageName();
-        String layout = size == Size.SMALL ? "etzba_widget_small" : size == Size.TALL || size == Size.TALLER ? "etzba_widget_tall" : size == Size.LARGE ? "etzba_widget_large" : "etzba_widget";
-        final boolean compact = size == Size.SMALL || size == Size.TALL || size == Size.TALLER;
-        final boolean tall = size == Size.TALL || size == Size.TALLER;
-        RemoteViews v = new RemoteViews(pkg, res(ctx, layout, "layout"));
-        int root = id(ctx, "w_root"), dial = id(ctx, "w_dial"), timer = id(ctx, "w_timer"), title = id(ctx, "w_title"),
-            amt = id(ctx, "w_amt"), line = id(ctx, "w_line"), bar = id(ctx, "w_bar"), top1 = id(ctx, "w_top1"), top2 = id(ctx, "w_top2"),
-            nums = id(ctx, "w_nums"), idle = id(ctx, "w_idle"), sub = id(ctx, "w_sub");
-        JSONObject l = s.l;
-        float dp = ctx.getResources().getDisplayMetrics().density;
-
-        // direction and colours follow the app
-        v.setInt(root, "setLayoutDirection", s.rtl ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
-        int bg = s.c("surface", 0xFF1D1F23);
-        if (s.style.equals("glass")) bg = (bg & 0x00FFFFFF) | 0x8C000000;
-        if (s.style.equals("accent")) bg = s.c("accent", bg);
-        if (Build.VERSION.SDK_INT >= 31) v.setColorStateList(root, "setBackgroundTintList", ColorStateList.valueOf(bg));
-        int ink = s.ink(), muted = s.muted(), pc = s.phaseText();
-        if (s.style.equals("accent")) { ink = s.c("bg", 0xFF141518); muted = (ink & 0x00FFFFFF) | 0xB3000000; pc = ink; }
-        if (s.style.equals("bold")) {
-            v.setTextViewTextSize(timer, android.util.TypedValue.COMPLEX_UNIT_SP, size == Size.SMALL ? 24 : tall ? 30 : size == Size.LARGE ? 54 : 36);
-            if (!compact) v.setTextViewTextSize(amt, android.util.TypedValue.COMPLEX_UNIT_SP, size == Size.LARGE ? 28 : 21);
-        }
-        v.setTextColor(timer, ink);
-        v.setTextColor(title, ink);
-        v.setTextColor(line, s.running ? pc : muted);
-        if (!compact) v.setTextColor(amt, ink);
-        if (size == Size.LARGE) { v.setTextColor(top1, muted); v.setTextColor(top2, muted); v.setTextColor(sub, muted); }
-
-        int dialDp = size == Size.SMALL ? 56 : size == Size.TALLER ? 92 : size == Size.TALL ? 76 : size == Size.LARGE ? 100 : 64;
-        v.setImageViewBitmap(dial, dialBitmap(s, Math.round(dialDp * dp)));
-
-        String hhmm = new SimpleDateFormat("HH:mm", Locale.US).format(new Date(s.start));
-        String money = "₪" + String.format(Locale.US, "%,.0f", s.earned);
-        String rateTxt = s.rate > 0 ? "₪" + String.format(Locale.US, s.rate % 1 == 0 ? "%.0f" : "%.2f", s.rate) + " " + l.optString("perHour", "לשעה") : "";
-        String status;
-        if (!s.running) status = "";
-        else if (s.phase.equals("reg") && s.otOn) {
-            double left = Math.max(0, s.thr - s.hours); int m = (int) Math.round(left * 60);
-            status = l.optString("toOt", "עוד {t} לשעות נוספות").replace("{t}", (m / 60) + ":" + String.format(Locale.US, "%02d", m % 60));
-        } else status = l.optString("now", "עכשיו ") + s.nowLabel();
-
-        if (s.running) {
-            v.setViewVisibility(timer, View.VISIBLE);
-            v.setChronometer(timer, SystemClock.elapsedRealtime() - (s.now - s.start), null, true);
-            v.setViewVisibility(title, View.GONE);
-            switch (size) {
-                case SMALL: case TALL: case TALLER:
-                    v.setTextViewText(line, money + " · " + l.optString(s.phase.equals("reg") ? "shortReg" : "shortOt", ""));
-                    break;
-                case WIDE:
-                    v.setViewVisibility(amt, View.VISIBLE);
-                    v.setTextViewText(amt, money);
-                    v.setTextViewText(line, (s.job.isEmpty() ? "" : s.job + " · ") + status);
-                    break;
-                case LARGE:
-                    v.setViewVisibility(nums, View.VISIBLE); v.setViewVisibility(idle, View.GONE);
-                    v.setTextViewText(amt, money);
-                    v.setTextViewText(top1, s.job);
-                    v.setTextViewText(top2, l.optString("since", "מ־") + hhmm);
-                    v.setTextViewText(line, status);
-                    break;
-            }
-        } else {
-            v.setChronometer(timer, SystemClock.elapsedRealtime(), null, false);
-            boolean later = s.active;
-            String head = later ? l.optString("starts", "מתחילה ב־") + hhmm : l.optString("idle", "לא במשמרת");
-            switch (size) {
-                case SMALL: case TALL: case TALLER:
-                    v.setViewVisibility(timer, View.GONE); v.setViewVisibility(title, View.VISIBLE);
-                    v.setTextViewText(title, head);
-                    v.setTextViewText(line, l.optString("tapShort", "נגיעה להתחלה"));
-                    break;
-                case WIDE:
-                    v.setViewVisibility(timer, View.GONE); v.setViewVisibility(title, View.VISIBLE);
-                    v.setTextViewText(title, head);
-                    v.setViewVisibility(amt, View.GONE);
-                    v.setTextViewText(line, (s.job.isEmpty() ? "" : s.job + " · ") + (rateTxt.isEmpty() ? l.optString("tapShort", "נגיעה להתחלה") : rateTxt));
-                    break;
-                case LARGE:
-                    v.setViewVisibility(nums, View.GONE); v.setViewVisibility(idle, View.VISIBLE);
-                    v.setTextViewText(title, head);
-                    v.setTextViewText(sub, l.optString("tapStart", "נגיעה בחוגה כדי להתחיל"));
-                    v.setTextViewText(top1, s.job);
-                    v.setTextViewText(top2, rateTxt);
-                    // the month so far, like the home screen's month tile
-                    String mName = s.month.optString("name", ""), mGross = s.month.optString("gross", "");
-                    v.setTextViewText(line, mName.isEmpty() ? "" : mName + " · " + mGross + " " + l.optString("gross", "ברוטו")
-                        + " · " + s.month.optInt("count", 0) + " " + l.optString("shifts", "משמרות"));
-                    break;
-            }
-        }
-
-        if (tall) {
-            int month = id(ctx, "w_month");
-            if (size == Size.TALLER) {
-                String mName = s.month.optString("name", ""), mGross = s.month.optString("gross", "");
-                String txt = s.running ? (s.job.isEmpty() ? "" : s.job + "\n") + l.optString("since", "מ־") + hhmm
-                    : (s.job.isEmpty() ? "" : s.job + (rateTxt.isEmpty() ? "" : " · " + rateTxt) + "\n")
-                      + (mName.isEmpty() ? "" : mName + " · " + mGross + " " + l.optString("gross", "ברוטו"));
-                v.setTextViewText(month, txt.trim());
-                v.setTextColor(month, muted);
-                v.setViewVisibility(month, txt.trim().isEmpty() ? View.GONE : View.VISIBLE);
-            } else v.setViewVisibility(month, View.GONE);
-        }
-
-        if (!compact) {
-            if (s.running && s.otOn) {
-                double f = s.phase.equals("reg") ? Math.min(1, s.frac) : 1;
-                v.setViewVisibility(bar, View.VISIBLE);
-                v.setImageViewBitmap(bar, barBitmap(f, pc, s.c("line", 0xFF2A2D33), s.rtl));
-            } else v.setViewVisibility(bar, View.GONE);
-        }
-
-        // the dial clocks in or out; anywhere else opens the app
-        int flags = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0);
-        Intent toggle = new Intent(ctx, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP).putExtra("etzba_token", AppActionsPlugin.token(ctx)).putExtra("etzba_action", "toggle");
-        Intent open = new Intent(ctx, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        v.setOnClickPendingIntent(dial, PendingIntent.getActivity(ctx, 77, toggle, flags));
-        v.setOnClickPendingIntent(root, PendingIntent.getActivity(ctx, 79, open, flags));
-        return v;
-    }
-
-    private static Bitmap dialBitmap(State s, int px) {
-        Bitmap b = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888);
-        Canvas c = new Canvas(b);
-        float k = px / 200f;
-        c.scale(k, k);
-        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-
-        // outer ring (phase colour while on shift), then the face
-        p.setStyle(Paint.Style.FILL); p.setColor(s.c("bg", 0xFF141518)); c.drawCircle(100, 100, 99, p);
-        p.setStyle(Paint.Style.STROKE);
-        boolean on = s.running;
-        boolean gold = s.theme.has("ring");
-        p.setStrokeWidth(on ? 4f : gold ? 3f : 1.5f); p.setColor(on ? s.phaseColor() : gold ? s.c("ring", 0xFFD9A93F) : s.c("line", 0xFF2E3036));
-        c.drawCircle(100, 100, on ? 97.5f : gold ? 98f : 98.5f, p);
-        p.setStyle(Paint.Style.FILL); p.setColor(s.c("surface", 0xFF1D1F23)); c.drawCircle(100, 100, 90, p);
-
-        // ridges: base, then the part that has filled
-        c.save(); c.translate(30, 36); c.scale(1.4f, 1.4f);
-        p.setStyle(Paint.Style.STROKE); p.setStrokeCap(Paint.Cap.ROUND); p.setStrokeWidth(2.6f);
-        float[][] arcs = ridgeArcs();
-        p.setShader(null); p.setColor(s.c("line", 0xFF2E3036));
-        for (float[] a : arcs) c.drawPath(arcPath(a, 1f), p);
-        if (on) {
-            String under = s.phase.equals("ot1") ? "reg" : s.phase.equals("ot2") ? "ot1" : null;
-            if (under != null) { p.setShader(grad(s, under)); for (float[] a : arcs) c.drawPath(arcPath(a, 1f), p); }
-            p.setShader(grad(s, s.phase));
-            double total = 0; double[] len = new double[arcs.length];
-            for (int i = 0; i < arcs.length; i++) { len[i] = arcLength(arcs[i]); total += len[i]; }
-            double target = Math.max(0, Math.min(1, s.frac)) * total;
-            for (int i = 0; i < arcs.length && target > 0; i++) {
-                float f = (float) Math.min(1, target / len[i]); target -= len[i];
-                c.drawPath(arcPath(arcs[i], f), p);
-            }
-            p.setShader(null);
-        }
-
-        // clock hands at the core, showing the time now
-        Calendar cal = Calendar.getInstance();
-        double m = cal.get(Calendar.MINUTE) + cal.get(Calendar.SECOND) / 60.0, h = (cal.get(Calendar.HOUR) % 12) + m / 60;
-        p.setColor(s.ink());
-        hand(c, p, m * 6, 21, 3.6f);
-        hand(c, p, h * 30, 12, 4.2f);
-        p.setStyle(Paint.Style.FILL); p.setColor(s.c("hub", 0xFFEB6E57)); c.drawCircle(50, 52, 3.4f, p);
-        c.restore();
-        return b;
-    }
-
-    private static void hand(Canvas c, Paint p, double deg, float len, float w) {
-        double r = Math.toRadians(deg);
-        p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(w);
-        c.drawLine(50, 52, (float) (50 + len * Math.sin(r)), (float) (52 - len * Math.cos(r)), p);
-    }
-
-    private static Shader grad(State s, String phase) {
-        String a = phase.equals("ot1") ? "ot1" : phase.equals("ot2") ? "ot2" : "reg";
-        int ca = s.c(a + "a", 0xFF6E98E0), cb = s.c(a + "b", ca);
-        return new LinearGradient(0, 100, 100, 0, ca, cb, Shader.TileMode.CLAMP);
-    }
-
-    private static float[][] ridgeArcs() {
-        java.util.List<float[]> out = new java.util.ArrayList<>();
-        float cx = 50, cy = 52, step = 6.2f, start = 6.5f;
-        for (int i = 0; i < 7; i++) {
-            float rx = start + i * step, ry = rx * 1.17f, g = 28 + i * 2.5f, a0 = 90 + g, a1 = 450 - g;
-            if (i % 2 == 1) {
-                float br = 200 + ((i * 47) % 130), bw = 9;
-                out.add(new float[]{cx, cy, rx, ry, a0, br});
-                out.add(new float[]{cx, cy, rx, ry, br + bw, a1});
-            } else out.add(new float[]{cx, cy, rx, ry, a0, a1});
-        }
-        return out.toArray(new float[0][]);
-    }
-
-    private static Path arcPath(float[] a, float f) {
-        Path path = new Path();
-        float a0 = a[4], a1 = a0 + (a[5] - a[4]) * f;
-        int n = Math.max(2, (int) Math.ceil((a1 - a0) / 2));
-        for (int i = 0; i <= n; i++) {
-            double t = Math.toRadians(a0 + (a1 - a0) * i / n);
-            float x = (float) (a[0] + a[2] * Math.cos(t)), y = (float) (a[1] + a[3] * Math.sin(t));
-            if (i == 0) path.moveTo(x, y); else path.lineTo(x, y);
-        }
-        return path;
-    }
-
-    private static double arcLength(float[] a) {
-        double sum = 0, px = 0, py = 0;
-        int n = 120;
-        for (int i = 0; i <= n; i++) {
-            double t = Math.toRadians(a[4] + (a[5] - a[4]) * i / (double) n);
-            double x = a[0] + a[2] * Math.cos(t), y = a[1] + a[3] * Math.sin(t);
-            if (i > 0) sum += Math.hypot(x - px, y - py);
-            px = x; py = y;
-        }
-        return sum;
-    }
-
-    private static Bitmap barBitmap(double f, int color, int track, boolean rtl) {
-        int w = 400, h = 4;
-        Bitmap b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-        Canvas c = new Canvas(b);
-        Paint p = new Paint();
-        p.setColor(track); c.drawRect(0, 0, w, h, p);
-        p.setColor(color);
-        float fw = (float) (w * Math.max(0, Math.min(1, f)));
-        if (rtl) c.drawRect(w - fw, 0, w, h, p); else c.drawRect(0, 0, fw, h, p);
-        return b;
-    }
-
-    static double earned(SharedPreferences p, long now) {
-        try {
-            JSONArray segs = new JSONArray(p.getString("segs", "[]"));
-            double sum = 0;
-            for (int i = 0; i < segs.length(); i++) {
-                JSONArray s = segs.getJSONArray(i);
-                long from = s.getLong(0), to = i + 1 < segs.length() ? segs.getJSONArray(i + 1).getLong(0) : Long.MAX_VALUE;
-                long b = Math.min(to, now);
-                if (b > from) sum += (b - from) / 3.6e6 * s.getDouble(1);
-            }
-            return sum;
-        } catch (Exception e) {
-            return 0;
-        }
-    }
-
+    /** While on shift: a redraw every 15 minutes, and one just after the next rate change. Off shift: none. */
     private static void schedule(Context ctx, boolean on) {
         AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
         if (am == null) return;
-        Intent i = new Intent(ctx, EtzbaWidget.class).setAction(TICK);
-        int flags = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0);
-        PendingIntent pi = PendingIntent.getBroadcast(ctx, 78, i, flags);
-        if (on) am.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + AlarmManager.INTERVAL_FIFTEEN_MINUTES,
-            AlarmManager.INTERVAL_FIFTEEN_MINUTES, pi);
-        else am.cancel(pi);
-        PendingIntent at = PendingIntent.getBroadcast(ctx, 79, new Intent(ctx, EtzbaWidget.class).setAction(TICK), flags);
-        am.cancel(at);
-        if (!on) return;
-        long now = System.currentTimeMillis(), next = 0;
-        try {
-            JSONArray segs = new JSONArray(prefs(ctx).getString("segs", "[]"));
-            for (int k = 0; k < segs.length(); k++) { long t = segs.getJSONArray(k).getLong(0); if (t > now) { next = t; break; } }
-        } catch (Exception ignored) { }
-        if (next > 0) {
-            if (Build.VERSION.SDK_INT >= 23) am.setAndAllowWhileIdle(AlarmManager.RTC, next + 1000, at);
-            else am.set(AlarmManager.RTC, next + 1000, at);
-        }
+        PendingIntent repeat = tick(ctx, REQ_REPEAT), rateChange = tick(ctx, REQ_RATE_CHANGE);
+        am.cancel(rateChange);
+        if (!on) { am.cancel(repeat); return; }
+        am.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + AlarmManager.INTERVAL_FIFTEEN_MINUTES,
+            AlarmManager.INTERVAL_FIFTEEN_MINUTES, repeat);
+        long next = nextRateChange(WidgetState.segments(WidgetState.prefs(ctx)), System.currentTimeMillis());
+        if (next > 0) am.setAndAllowWhileIdle(AlarmManager.RTC, next + 1000, rateChange);
     }
 
-    private static SharedPreferences prefs(Context ctx) { return ctx.getSharedPreferences(AppActionsPlugin.PREFS, Context.MODE_PRIVATE); }
-    private static JSONObject obj(String s) { try { return new JSONObject(s); } catch (Exception e) { return new JSONObject(); } }
-    private static int id(Context ctx, String name) { return res(ctx, name, "id"); }
-    private static int res(Context ctx, String name, String type) { return ctx.getResources().getIdentifier(name, type, ctx.getPackageName()); }
+    private static PendingIntent tick(Context ctx, int req) {
+        return PendingIntent.getBroadcast(ctx, req, new Intent(ctx, EtzbaWidget.class).setAction(TICK), Launch.FLAGS);
+    }
+
+    /** When the next rate segment starts, or 0 if none is left. */
+    private static long nextRateChange(JSONArray segs, long now) {
+        try {
+            for (int k = 0; k < segs.length(); k++) { long t = segs.getJSONArray(k).getLong(0); if (t > now) return t; }
+        } catch (Exception ignored) { }
+        return 0;
+    }
 }

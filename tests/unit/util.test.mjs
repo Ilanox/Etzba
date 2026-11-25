@@ -56,3 +56,9 @@ test('translation skip markers come in pairs, start before end', () => {
     assert.equal(marks.length % 2, 0, `js/${f}: a skip-start without its skip-end`);
   }
 });
+
+test('the Android setup copies every Java file in native/android', () => {
+  const setup = readFileSync(new URL('../../scripts/native-setup.mjs', import.meta.url), 'utf8');
+  for (const f of readdirSync(new URL('../../native/android/', import.meta.url)).filter(f => f.endsWith('.java')))
+    assert.ok(setup.includes(`'${f}'`), `${f} missing from scripts/native-setup.mjs`);
+});

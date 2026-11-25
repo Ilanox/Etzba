@@ -1,14 +1,25 @@
 package com.edvinstudios.etzba;
 
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.provider.Settings;
 
+import androidx.core.app.NotificationManagerCompat;
+
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import java.util.UUID;
+
+/**
+ * Requests that reach the app from outside it (the widget, arrival notifications, the developer unlock link),
+ * the device id for the developer unlock, and the data the widget shows.
+ */
 @CapacitorPlugin(name = "AppActions")
 public class AppActionsPlugin extends Plugin {
     static final String PREFS = "etzba_widget";
@@ -25,33 +36,39 @@ public class AppActionsPlugin extends Plugin {
         if (read(intent)) notifyListeners("action", pending, true);
     }
 
-    static String token(android.content.Context ctx) {
-        android.content.SharedPreferences p = ctx.getSharedPreferences("etzba_actions", android.content.Context.MODE_PRIVATE);
+    /** A random secret made once per install. Our own intents carry it, so other apps can't send actions. */
+    static String token(Context ctx) {
+        SharedPreferences p = ctx.getSharedPreferences("etzba_actions", Context.MODE_PRIVATE);
         String t = p.getString("token", null);
-        if (t == null) { t = java.util.UUID.randomUUID().toString(); p.edit().putString("token", t).apply(); }
+        if (t == null) { t = UUID.randomUUID().toString(); p.edit().putString("token", t).apply(); }
         return t;
     }
 
+    /** Takes the action out of the intent (once) and keeps it for the app to collect. */
     private boolean read(Intent intent) {
-        if (intent == null || intent.getStringExtra("etzba_action") == null) return false;
-        String act = intent.getStringExtra("etzba_action");
+        String act = intent != null ? intent.getStringExtra("etzba_action") : null;
+        if (act == null) return false;
+        // the developer unlock link is checked by its own signature in the app instead
         if (!"dev_unlock".equals(act) && !token(getContext()).equals(intent.getStringExtra("etzba_token"))) {
             intent.removeExtra("etzba_action"); return false;
         }
         JSObject a = new JSObject();
-        a.put("action", intent.getStringExtra("etzba_action"));
-        a.put("jobId", intent.getStringExtra("etzba_job") != null ? intent.getStringExtra("etzba_job") : "");
-        a.put("sig", intent.getStringExtra("etzba_sig") != null ? intent.getStringExtra("etzba_sig") : "");
+        a.put("action", act);
+        a.put("jobId", orEmpty(intent.getStringExtra("etzba_job")));
+        a.put("sig", orEmpty(intent.getStringExtra("etzba_sig")));
         pending = a;
         intent.removeExtra("etzba_action"); intent.removeExtra("etzba_sig"); intent.removeExtra("etzba_token");
-        try { androidx.core.app.NotificationManagerCompat nm = androidx.core.app.NotificationManagerCompat.from(getContext()); nm.cancel(1); nm.cancel(2); } catch (Exception ignored) { }
+        // the arrival notifications are done with once acted on
+        try { NotificationManagerCompat nm = NotificationManagerCompat.from(getContext()); nm.cancel(1); nm.cancel(2); } catch (Exception ignored) { }
         return true;
     }
+
+    private static String orEmpty(String s) { return s != null ? s : ""; }
 
     @PluginMethod
     public void deviceId(PluginCall call) {
         JSObject r = new JSObject();
-        r.put("id", android.provider.Settings.Secure.getString(getContext().getContentResolver(), android.provider.Settings.Secure.ANDROID_ID));
+        r.put("id", Settings.Secure.getString(getContext().getContentResolver(), Settings.Secure.ANDROID_ID));
         call.resolve(r);
     }
 
@@ -64,24 +81,25 @@ public class AppActionsPlugin extends Plugin {
 
     @PluginMethod
     public void openNotificationSettings(PluginCall call) {
-        Intent i = new Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-            .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, getContext().getPackageName())
+        Intent i = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, getContext().getPackageName())
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         getContext().startActivity(i);
         call.resolve();
     }
 
+    /** Saves what the widget shows (see WidgetState) and redraws it. */
     @PluginMethod
     public void updateWidget(PluginCall call) {
         try {
-            SharedPreferences.Editor e = getContext().getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit();
+            SharedPreferences.Editor e = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit();
             e.putBoolean("active", Boolean.TRUE.equals(call.getBoolean("active", false)));
             e.putLong("start", call.getLong("start", 0L));
             e.putString("job", call.getString("job", ""));
             Double rate = call.getDouble("rate", 0.0);
             e.putLong("rate", Double.doubleToLongBits(rate != null ? rate : 0.0));
             e.putBoolean("rtl", Boolean.TRUE.equals(call.getBoolean("rtl", true)));
-            com.getcapacitor.JSArray segs = call.getArray("segs", new com.getcapacitor.JSArray());
+            JSArray segs = call.getArray("segs", new JSArray());
             e.putString("segs", segs != null ? segs.toString() : "[]");
             JSObject x = call.getObject("extra", new JSObject());
             e.putString("extra", x != null ? x.toString() : "{}");

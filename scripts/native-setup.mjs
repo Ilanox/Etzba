@@ -17,7 +17,12 @@ function android() {
   const app = join(root, 'android/app');
   if (!existsSync(app)) return console.log('android/ not found, run: npx cap add android');
   const pkgDir = join(app, 'src/main/java/com/edvinstudios/etzba'); mkdirSync(pkgDir, { recursive: true });
-  const files = { 'ShareInPlugin.java': true, 'AppActionsPlugin.java': true, 'EtzbaWidget.java': WIDGET, 'GeoPlugin.java': GEO, 'GeoReceiver.java': GEO, 'BillingPlugin.java': SUPPORT, 'NotifyPlugin.java': true, 'NotifyReceiver.java': true, 'BootReceiver.java': true };
+  const files = {
+    'ShareInPlugin.java': true, 'AppActionsPlugin.java': true, 'Launch.java': true,
+    'EtzbaWidget.java': WIDGET, 'WidgetState.java': WIDGET, 'WidgetViews.java': WIDGET, 'WidgetArt.java': WIDGET,
+    'GeoPlugin.java': GEO, 'GeoReceiver.java': GEO, 'BillingPlugin.java': SUPPORT,
+    'NotifyPlugin.java': true, 'NotifyReceiver.java': true, 'BootReceiver.java': true,
+  };
   for (const [f, on] of Object.entries(files)) {
     if (on) copyFileSync(join(root, 'native/android', f), join(pkgDir, f));
     else rmSync(join(pkgDir, f), { force: true });
