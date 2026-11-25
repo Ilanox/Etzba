@@ -36,7 +36,7 @@ test('dashboard verdict: every state says the right thing', () => {
 
 test('the status file has what the dashboard reads', () => {
   const out = '/tmp/etzba-status-test.json';
-  execFileSync(process.execPath, ['scripts/status.mjs', out], { env: { ...process.env, GITHUB_SHA: 'abcdef1234', UNIT_PASS: '84', UNIT_FAIL: '0', TR_TEXTS: '753', TR_MISSING: '0' } });
+  execFileSync(process.execPath, ['scripts/status.mjs', out], { env: { ...process.env, COMMIT: 'abcdef1234', GITHUB_SHA: 'abcdef1234', UNIT_PASS: '84', UNIT_FAIL: '0', TR_TEXTS: '753', TR_MISSING: '0' } });
   const s = JSON.parse(readFileSync(out, 'utf8'));
   assert.equal(s.commit, 'abcdef1'); assert.equal(s.tests.unit.pass, 84); assert.equal(s.tests.translations.texts, 753);
   assert.ok(Number.isInteger(s.data.rules)); assert.ok(Number.isInteger(s.data.packs.en));
