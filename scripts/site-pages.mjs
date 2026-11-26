@@ -53,18 +53,13 @@ const fill = (html, name, inner) => {
   if (!re.test(html)) throw new Error(`site/index.html has no <!-- ${name} --> marker`);
   return html.replace(re, (_, a, b) => `${a}${inner}${b}`);
 };
-const card = (href, b, span) => `<a class="guide" dir="rtl" lang="he" href="${href}"><b>${b}</b><span>${span}</span></a>`;
-const TIMES_CITIES = ['ירושלים', 'תל אביב', 'חיפה', 'באר שבע', 'אשדוד', 'נתניה'];
+const TIMES_CITIES = ['ירושלים', 'תל אביב', 'חיפה', 'באר שבע'];
 const week = upcoming(cal, 'תל אביב', NOW, 12).find(w => w.name.includes('שבת'));
 let home = homeBefore;
-home = fill(home, 'guides', `\n    ${PAGES.map(p => card(`${p.slug}/`, p.nav, p.title)).join('\n    ')}\n    `);
-home = fill(home, 'audiences', `\n    ${AUDIENCES.map(p => card(`${p.slug}/`, p.nav, p.title)).join('\n    ')}\n    `);
-home = fill(home, 'times', `\n  <table class="times" dir="rtl" lang="he" data-cities><caption>שבת ${dm(week.end)}: כניסה ביום ${dayName(week.start)}, יציאה במוצאי שבת</caption><thead><tr><th>עיר</th><th>כניסה</th><th>יציאה</th></tr></thead><tbody>
-  ${TIMES_CITIES.map(c => { const w = upcoming(cal, c, NOW, 12).find(x => x.name.includes('שבת')); return `<tr data-c="${c}"><td><a href="zmanei-shabbat/${SLUGS[c]}/">${c}</a></td><td>${hm(w.start)}</td><td>${hm(w.end)}</td></tr>`; }).join('\n  ')}
-  </tbody></table>
-  <ul class="cities" dir="rtl" lang="he">${Object.keys(SLUGS).filter(c => !TIMES_CITIES.includes(c)).map(c => `<li><a href="zmanei-shabbat/${SLUGS[c]}/">${c}</a></li>`).join('')}<li><a href="zmanei-shabbat/">כל הערים</a></li></ul>
-  <script type="module" src="shabbat-times.js"></script>
-  `);
+const li = (href, text) => `<li><a href="${href}">${text}</a></li>`;
+home = fill(home, 'guides', PAGES.map(p => li(`${p.slug}/`, p.nav)).join(''));
+home = fill(home, 'audiences', AUDIENCES.map(p => li(`${p.slug}/`, p.nav)).join(''));
+home = fill(home, 'times', `<p>שבת ${dm(week.end)} בתל אביב: כניסה ${hm(week.start)}, יציאה ${hm(week.end)}</p><ul>${TIMES_CITIES.map(c => li(`zmanei-shabbat/${SLUGS[c]}/`, c)).join('')}${li('zmanei-shabbat/', 'כל הערים')}</ul>`);
 home = fill(home, 'season', seasonal(NOW).join(''));
 home = fill(home, 'qr', `<div class="hqr" aria-hidden="true">${qrSvg(GET)}<span><span data-l="he">סורקים ופותחים בטלפון</span><span data-l="en">Scan to open on your phone</span></span></div>`);
 const playIcon = /<svg[\s\S]*?<\/svg>/.exec(home.slice(home.indexOf('<!-- play -->')))[0];

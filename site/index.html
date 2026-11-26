@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-qcDDBozCc2f2xRTXicO1ldd1NL6djE3B/gEPt6rHQ3A='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-TXrFM1tLGMMxlCEMZryDH/9Z0e7/hWeYd9AZIuhisd4='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>אצבע · שעון נוכחות ומחשבון שכר לעובדים לפי שעה</title>
 <meta name="description" content="שעון נוכחות בטלפון ומחשבון שכר לפי החוק בישראל: שמים אצבע בכניסה וביציאה מהמשמרת, ורואים את השכר עם שעות נוספות 125% ו־150%, שבת, חג, לילה ונטו אחרי מס. חינם, בלי חשבון, עובד גם בלי אינטרנט.">
@@ -77,10 +77,6 @@ header{position:sticky;top:0;z-index:5;background:rgba(20,21,24,.86);backdrop-fi
 .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;padding-block:72px 40px}
 h1{font-size:clamp(44px,7vw,84px);line-height:1;font-weight:900;letter-spacing:-1px;margin:0}
 h1 small{display:block;font-size:clamp(17px,2vw,20px);font-weight:600;letter-spacing:0;color:var(--ink3);margin-top:14px}
-.guides{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
-.guide{display:block;padding:18px 20px;border:1px solid var(--line);border-radius:16px;background:var(--surface);text-decoration:none}
-.guide:hover{background:var(--surface2)}
-.guide b{display:block;font-size:18px}.guide span{color:var(--ink2);font-size:15px}
 .tag{font-size:clamp(21px,2.6vw,28px);font-weight:500;color:var(--ink);margin:18px 0 10px;line-height:1.3}
 .lead{color:var(--ink2);max-width:30em;margin:0}
 .ctas{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
@@ -108,28 +104,9 @@ h2{font-size:clamp(28px,3.6vw,40px);font-weight:800;letter-spacing:-.4px;margin:
 .item .k{direction:ltr;unicode-bidi:isolate;color:var(--blue);font-weight:800;font-size:15px;display:block;margin-bottom:10px;font-variant-numeric:tabular-nums}
 .item.coral .k{color:var(--coral)}
 html[dir=rtl] .item .k{text-align:right}
-/* gallery */
 
-.slider{position:relative}
-.gallery{display:flex;gap:22px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;padding:4px 44px 8px;scroll-padding-inline:44px;-webkit-mask:linear-gradient(90deg,transparent,#000 40px,#000 calc(100% - 40px),transparent);mask:linear-gradient(90deg,transparent,#000 40px,#000 calc(100% - 40px),transparent)}
-.gallery::-webkit-scrollbar{display:none}
-.sl-btn{position:absolute;top:calc(50% - 40px);width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:rgba(29,31,35,.92);color:var(--ink);font-size:22px;line-height:1;cursor:pointer;display:grid;place-items:center;z-index:2;transition:opacity .2s}
-.sl-btn:hover{background:var(--surface2)}
-.sl-btn[disabled]{opacity:0;pointer-events:none}
-.sl-prev{inset-inline-start:-8px}.sl-next{inset-inline-end:-8px}
-.sl-dots{display:flex;justify-content:center;gap:8px;margin-top:18px}
-.sl-dots i{width:7px;height:7px;border-radius:50%;background:var(--line);transition:background .2s,width .2s}
-.sl-dots i.on{background:var(--ink2);width:20px;border-radius:4px}
 
-.shot{flex:0 0 calc((100% - 66px) / 4);scroll-snap-align:start}
-@media (max-width:1000px){.shot{flex-basis:calc((100% - 44px) / 3)}}
-.shot img{width:100%;height:auto;border-radius:28px;border:6px solid #26282D;display:block}
-.shot>span{display:block;margin-top:12px;font-size:15px;color:var(--ink2)}
 /* privacy */
-.private{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}
-.private ul{margin:0;padding:0;list-style:none}
-.private li{padding:14px 0;border-bottom:1px solid var(--line);color:var(--ink2)}
-.private li b{color:var(--ink);font-weight:700}
 .fine{font-size:14px;color:var(--ink3);margin-top:22px}
 .faq details{border-bottom:1px solid var(--line);padding:16px 0}
 .faq summary{cursor:pointer;font-weight:700;font-size:18px;list-style:none}
@@ -145,12 +122,11 @@ footer .by{margin-inline-start:auto}
 /* language */
 [data-l]{display:none}
 html[lang=he] [data-l=he],html[lang=en] [data-l=en]{display:revert}
+.links{display:grid;grid-template-columns:2fr 1fr 1fr;gap:28px}.links h2{font-size:20px;margin:0 0 12px}.links ul{list-style:none;margin:0;padding:0;columns:2;column-gap:24px}.links #who ul,.links #times ul{columns:1}.links li{margin:0 0 7px;break-inside:avoid}.links a{color:var(--ink2);text-decoration:none}.links a:hover{color:var(--ink)}.links p{color:var(--ink3);margin:0 0 10px;font-size:15px}
+@media (max-width:860px){.links{grid-template-columns:1fr}.links #who ul{columns:2}}
 .season{display:block;text-align:center;padding:11px 20px;background:var(--surface2);border-bottom:1px solid var(--line);color:var(--ink);text-decoration:none;font-size:15px}
 .season:hover{background:var(--surface)}.season b{color:var(--blue);font-weight:700;margin-inline-start:8px}
 .hqr{display:flex;align-items:center;gap:14px;margin-top:22px;color:var(--ink3);font-size:14px}.hqr .qr{width:92px;height:92px;border-radius:8px}
-.cities{display:flex;flex-wrap:wrap;gap:8px 18px;margin:18px 0 0;padding:0;list-style:none}.cities a{color:var(--ink2)}
-.times{width:100%;max-width:640px;border-collapse:collapse;font-variant-numeric:tabular-nums}.times th,.times td{text-align:start;padding:10px 8px;border-bottom:1px solid var(--line)}.times td{color:var(--ink2)}.times th{color:var(--ink)}.times td a{color:var(--ink)}
-.times caption{text-align:start;color:var(--ink3);font-size:15px;padding-bottom:8px}
 .quotes{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.quotes blockquote{margin:0;padding:20px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}.quotes p{margin:0 0 10px;color:var(--ink)}.quotes cite{color:var(--ink3);font-style:normal;font-size:15px}
 .rating{color:var(--ink2);margin:0 0 24px}
 @media (max-width:860px){
@@ -161,12 +137,7 @@ html[lang=he] [data-l=he],html[lang=en] [data-l=en]{display:revert}
   .phone{width:220px;border-radius:30px;border-width:6px}
   .phone.a{position:relative;inset:auto;margin:0 auto}
   .phone.b{display:none}
-  .grid,.private,.guides{grid-template-columns:1fr;gap:24px}
-  .gallery{margin-inline:-24px;padding-inline:24px;-webkit-mask:none;mask:none}
-  .shot{flex:0 0 100%;display:flex;flex-direction:column;align-items:center;scroll-snap-align:center}
-  .shot img{max-width:270px}
-  .shot>span{text-align:center}
-  .sl-btn{display:none}
+  .grid{grid-template-columns:1fr 1fr;gap:22px 16px}
   .bar nav .hide-m{display:none}
 }
 </style>
@@ -182,7 +153,7 @@ html[lang=he] [data-l=he],html[lang=en] [data-l=en]{display:revert}
   <nav>
     <a class="hide-m" href="#features"><span data-l="he">מה יש בה</span><span data-l="en">Features</span></a>
     <a class="hide-m" href="#guides"><span data-l="he">מדריכים</span><span data-l="en">Guides</span></a>
-    <a class="hide-m" href="#privacy"><span data-l="he">פרטיות</span><span data-l="en">Privacy</span></a>
+    <a class="hide-m" href="zmanei-shabbat/"><span data-l="he">זמני שבת</span><span data-l="en">Shabbat times</span></a>
     <button class="lang" id="lang" type="button"><span data-l="he">English</span><span data-l="en">עברית</span></button>
   </nav>
 </div></header>
@@ -211,40 +182,16 @@ html[lang=he] [data-l=he],html[lang=en] [data-l=en]{display:revert}
 </div>
 
 <section id="features"><div class="wrap">
-  <h2><span data-l="he">חישוב שכר ושעות נוספות, כל דקה בתעריף הנכון</span><span data-l="en">Every minute at the right rate</span></h2>
+  <h2><span data-l="he">כל דקה בתעריף הנכון</span><span data-l="en">Every minute at the right rate</span></h2>
   <p class="sub"><span data-l="he">אצבע יודעת מתי נכנסת שבת בעיר שלך, מתי מתחילות שעות נוספות, ומה מגיע לך ביום הבחירות.</span><span data-l="en">Etzba knows when Shabbat starts in your city, when overtime begins, and what you're owed on election day.</span></p>
   <div class="grid">
-    <div class="item"><span class="k">100% · 125% · 150%</span><h3><span data-l="he">שעות נוספות</span><span data-l="en">Overtime</span></h3><p><span data-l="he">ביום ובשבוע, עם יום מקוצר ומשמרות לילה. המכסה השבועית של 42 שעות נספרת לבד.</span><span data-l="en">By the day and the week, with the short day and night shifts. The 42-hour week is counted for you.</span></p></div>
-    <div class="item coral"><span class="k">150% · 175% · 200%</span><h3><span data-l="he">שבת וחגים</span><span data-l="en">Shabbat and holidays</span></h3><p><span data-l="he">לפי זמני השבת בעיר שלך, או לפי שעות קבועות של המעסיק. דמי חג ויום הבחירות.</span><span data-l="en">By Shabbat times in your city, or your employer's fixed hours. Holiday pay and election day.</span></p></div>
-    <div class="item"><span class="k">₪5,614 → ₪5,357</span><h3><span data-l="he">מחשבון שכר נטו</span><span data-l="en">Gross and net</span></h3><p><span data-l="he">מס הכנסה, נקודות זיכוי, ביטוח לאומי, בריאות ופנסיה. אפשר גם להציג רק ברוטו.</span><span data-l="en">Income tax, credit points, National Insurance, health and pension. Or show gross only.</span></p></div>
-    <div class="item"><span class="k">06:24:18</span><h3><span data-l="he">שעון נוכחות בטלפון</span><span data-l="en">Shift clock</span></h3><p><span data-l="he">נגיעה אחת כדי להתחיל, מהאפליקציה, מהווידג׳ט או מההתראה. הסכום עולה לנגד העיניים.</span><span data-l="en">One tap to start, from the app, the widget or the notification. Watch the pay add up.</span></p></div>
-    <div class="item"><h3><span data-l="he">משמרות עתידיות</span><span data-l="en">Planned shifts</span></h3><p><span data-l="he">מוסיפים משמרת מראש, גם בלי שעת סיום, ומקבלים תזכורת שעה לפני.</span><span data-l="en">Add a shift ahead of time, even without an end time, and get a reminder an hour before.</span></p></div>
-    <div class="item coral"><span class="k">+13% · −15%</span><h3><span data-l="he">סיכום שבוע, חודש ושנה</span><span data-l="en">Weeks, months, years</span></h3><p><span data-l="he">גרפים לפי ימים, והשוואה לחודש ולשנה הקודמים. יעד חודשי ודוח להורדה.</span><span data-l="en">Charts by day, and how you compare with last month and last year. A monthly goal and a report to share.</span></p></div>
-    <div class="item"><h3><span data-l="he">מחלה, חופשה והבראה</span><span data-l="en">Sick days, vacation, recuperation</span></h3><p><span data-l="he">ימי מחלה וחופשה נצברים לבד, ודמי ההבראה מחושבים לפי הוותק.</span><span data-l="en">Sick and vacation days build up on their own; recuperation pay by seniority.</span></p></div>
-    <div class="item"><span class="k">16 · 17 · 18</span><h3><span data-l="he">נוער עובד</span><span data-l="en">Under 18</span></h3><p><span data-l="he">תאריך לידה (לא חובה) מפעיל את הכללים לנוער: שכר מינימום לפי גיל, בלי ביטוח לאומי, 40 שעות בשבוע.</span><span data-l="en">An optional date of birth applies youth rules: minimum wage by age, no National Insurance, a 40-hour week.</span></p></div>
-    <div class="item"><h3><span data-l="he">כמה מקומות עבודה</span><span data-l="en">Several jobs</span></h3><p><span data-l="he">לכל מקום עבודה תעריף, נסיעות, הפסקה וכללים משלו. טיפים ובונוסים בצד.</span><span data-l="en">Each job has its own rate, travel, break and rules. Tips and bonuses on the side.</span></p></div>
-    <div class="item"><span class="k">.xlsx · .csv</span><h3><span data-l="he">ייבוא וייצוא</span><span data-l="en">Import and export</span></h3><p><span data-l="he">משמרות מאקסל ו־CSV, גם מאפליקציות אחרות. ייצוא לאקסל וגיבוי מלא.</span><span data-l="en">Shifts from Excel and CSV, even from other apps. Export to Excel and full backups.</span></p></div>
-    <div class="item"><h3><span data-l="he">מה מגיע לי</span><span data-l="en">Know your rights</span></h3><p><span data-l="he">חוק שעות עבודה ומנוחה בשפה פשוטה, וכל שקל במשמרת מוסבר: למה כאן נוספות ולמה כאן שבת.</span><span data-l="en">Israeli labour law in plain words, and every shekel of a shift explained.</span></p></div>
-    <div class="item coral"><span class="k">Aa · TalkBack</span><h3><span data-l="he">לכולם</span><span data-l="en">For everyone</span></h3><p><span data-l="he">עברית ואנגלית, טקסט גדול עד 200%, קורא מסך, ערכות צבע, ווידג׳ט בכמה גדלים.</span><span data-l="en">Hebrew and English, text up to 200%, screen readers, colour themes, a widget in several sizes.</span></p></div>
+    <div class="item"><span class="k">125% · 150%</span><h3><span data-l="he">שעות נוספות</span><span data-l="en">Overtime</span></h3><p><span data-l="he">ביום ובשבוע, כולל משמרות לילה.</span><span data-l="en">By the day and the week, night shifts too.</span></p></div>
+    <div class="item coral"><span class="k">150% · 175%</span><h3><span data-l="he">שבת וחגים</span><span data-l="en">Shabbat and holidays</span></h3><p><span data-l="he">לפי זמני השבת בעיר שלך.</span><span data-l="en">By Shabbat times in your city.</span></p></div>
+    <div class="item"><span class="k">₪5,614 → ₪5,357</span><h3><span data-l="he">ברוטו ונטו</span><span data-l="en">Gross and net</span></h3><p><span data-l="he">מס, ביטוח לאומי ופנסיה.</span><span data-l="en">Tax, National Insurance and pension.</span></p></div>
+    <div class="item"><span class="k">06:24:18</span><h3><span data-l="he">שעון נוכחות</span><span data-l="en">Shift clock</span></h3><p><span data-l="he">נגיעה אחת, מהאפליקציה או מהווידג׳ט.</span><span data-l="en">One tap, from the app or the widget.</span></p></div>
+    <div class="item"><h3><span data-l="he">מחלה, חופשה והבראה</span><span data-l="en">Sick days, vacation, recuperation</span></h3><p><span data-l="he">נצברים ומחושבים לבד.</span><span data-l="en">Counted for you.</span></p></div>
+    <div class="item coral"><h3><span data-l="he">הכל נשאר אצלך</span><span data-l="en">Everything stays with you</span></h3><p><span data-l="he">בלי חשבון, בלי פרסומות, עובד בלי אינטרנט.</span><span data-l="en">No account, no ads, works offline.</span></p></div>
   </div>
-</div></section>
-<section><div class="wrap">
-  <h2><span data-l="he">ככה זה נראה</span><span data-l="en">What it looks like</span></h2>
-  <p class="sub"><span data-l="he">נקי, ובעברית מימין לשמאל. יש גם אנגלית, ערכת צבעים בהירה וכהה.</span><span data-l="en">Clean, and right-to-left in Hebrew. In English too, light or dark.</span></p>
-  <div class="slider">
-  <button class="sl-btn sl-prev" type="button" aria-label="הקודם">‹</button><button class="sl-btn sl-next" type="button" aria-label="הבא">›</button>
-  <div class="gallery" id="gallery">
-    <div class="shot"><img data-src="home" src="img/he/home.jpg" alt="שעון הנוכחות: משמרת פעילה עם השכר עד עכשיו" loading="lazy" width="280" height="606"><span><span data-l="he">המשמרת שרצה עכשיו</span><span data-l="en">The shift running now</span></span></div>
-    <div class="shot"><img data-src="sum" src="img/he/sum.jpg" alt="סיכום חודשי: ברוטו, נטו וניכויים" loading="lazy" width="280" height="606"><span><span data-l="he">סיכום החודש, ברוטו ונטו</span><span data-l="en">The month, gross and net</span></span></div>
-    <div class="shot"><img data-src="year" src="img/he/year.jpg" alt="סיכום שנתי: ברוטו, נטו, שעות וממוצעים" loading="lazy" width="280" height="606"><span><span data-l="he">השנה במספרים</span><span data-l="en">The year in numbers</span></span></div>
-    <div class="shot"><img data-src="shifts" src="img/he/shifts.jpg" alt="רשימת המשמרות לפי שבועות עם שעות נוספות ושבת" loading="lazy" width="280" height="606"><span><span data-l="he">כל המשמרות, לפי שבועות</span><span data-l="en">Every shift, by week</span></span></div>
-    <div class="shot"><img data-src="detail" src="img/he/detail.jpg" alt="פירוט שכר של משמרת: שעות רגילות, נוספות ושבת" loading="lazy" width="280" height="606"><span><span data-l="he">למה כל שקל</span><span data-l="en">Why every shekel</span></span></div>
-    <div class="shot"><img data-src="rights" src="img/he/rights.jpg" alt="הזכויות של עובדים לפי שעה בשפה פשוטה" loading="lazy" width="280" height="606"><span><span data-l="he">מה מגיע לך</span><span data-l="en">Your rights</span></span></div>
-    <div class="shot"><img data-src="job" src="img/he/job.jpg" alt="הגדרות מקום עבודה: שכר לשעה, הפסקה ונסיעות" loading="lazy" width="280" height="606"><span><span data-l="he">ההגדרות של העבודה</span><span data-l="en">Your job's settings</span></span></div>
-    <div class="shot"><img data-src="settings" src="img/he/settings.jpg" alt="הגדרות: מקומות עבודה, מראה, נטו ותאריך לידה" loading="lazy" width="280" height="606"><span><span data-l="he">ההגדרות</span><span data-l="en">Settings</span></span></div>
-  </div>
-  </div>
-  <div class="sl-dots" id="dots" aria-hidden="true"></div>
 </div></section>
 <section id="faq"><div class="wrap">
   <h2><span data-l="he">שאלות נפוצות</span><span data-l="en">Questions</span></h2>
@@ -252,74 +199,12 @@ html[lang=he] [data-l=he],html[lang=en] [data-l=en]{display:revert}
   <div class="faq" data-l="en"><details><summary>How is overtime calculated?</summary><p>In a 5-day week, after 8.6 hours a day the first two extra hours are paid at 125% and the rest at 150%. Hours beyond 42 a week are overtime too. Etzba works this out for you, including short days and night shifts.</p></details><details><summary>What's the rate for Shabbat and holidays?</summary><p>At least 150%, and Shabbat overtime at 175% and 200%. Etzba knows when Shabbat starts and ends in your city, and every holiday.</p></details><details><summary>Can I use Etzba as a time clock?</summary><p>Yes. Tap in at the start of the shift and out at the end; hours and pay for each shift are saved on your phone. You can fix times, add past shifts and export to Excel.</p></details><details><summary>How do I know my net pay?</summary><p>Etzba estimates net pay: income tax with credit points, National Insurance, health tax and pension. It's an estimate, not an official payslip.</p></details><details><summary>Does it cost anything? Do I need an account?</summary><p>No. Etzba is free, with no account and no ads, and everything stays on your phone. It works offline too.</p></details></div>
 </div></section>
 
-<section id="guides"><div class="wrap">
-  <h2><span data-l="he">מדריכים: מה מגיע לך</span><span data-l="en">Guides (in Hebrew)</span></h2>
-  <p class="sub"><span data-l="he">החוק בשפה פשוטה, עם המספרים של 2026.</span><span data-l="en">Israeli labour law in plain Hebrew, with 2026 figures.</span></p>
-  <div class="guides">
-    <!-- guides -->
-    <a class="guide" dir="rtl" lang="he" href="shaon-nochechut/"><b>שעון נוכחות</b><span>שעון נוכחות בטלפון, חינם, לעובדים לפי שעה</span></a>
-    <a class="guide" dir="rtl" lang="he" href="shaot-nosafot/"><b>שעות נוספות</b><span>מחשבון שעות נוספות 2026: 125% ו־150%</span></a>
-    <a class="guide" dir="rtl" lang="he" href="shabbat/"><b>שבת וחג</b><span>מחשבון שכר לשבת וחג: 150%, 175% ו־200%</span></a>
-    <a class="guide" dir="rtl" lang="he" href="neto/"><b>מחשבון נטו</b><span>מחשבון ברוטו נטו 2026: מס הכנסה, נקודות זיכוי וביטוח לאומי</span></a>
-    <a class="guide" dir="rtl" lang="he" href="sachar-minimum/"><b>שכר מינימום</b><span>שכר מינימום 2026: ₪35.40 לשעה, ולנוער לפי גיל</span></a>
-    <a class="guide" dir="rtl" lang="he" href="noar-oved/"><b>נוער עובד</b><span>נוער עובד: שכר מינימום, שעות, ביטוח לאומי וחופשה</span></a>
-    <a class="guide" dir="rtl" lang="he" href="nesiot/"><b>דמי נסיעות</b><span>מחשבון דמי נסיעות 2026: עד ₪22.60 ליום</span></a>
-    <a class="guide" dir="rtl" lang="he" href="dmei-havraa/"><b>דמי הבראה</b><span>דמי הבראה 2026: ₪451.50 ליום, ומחשבון לפי ותק</span></a>
-    <a class="guide" dir="rtl" lang="he" href="yemei-machala/"><b>ימי מחלה</b><span>ימי מחלה ודמי מחלה: כמה משלמים ואיך צוברים</span></a>
-    <a class="guide" dir="rtl" lang="he" href="chufsha-shnatit/"><b>חופשה שנתית</b><span>כמה ימי חופשה מגיעים לי? חופשה שנתית לפי ותק</span></a>
-    <a class="guide" dir="rtl" lang="he" href="pitzuim/"><b>פיצויי פיטורים</b><span>פיצויי פיטורים לעובד לפי שעה: מחשבון ומי זכאי</span></a>
-    <a class="guide" dir="rtl" lang="he" href="hafsakot/"><b>הפסקות</b><span>הפסקה בעבודה: כמה מגיע, ומתי היא בתשלום</span></a>
-    <a class="guide" dir="rtl" lang="he" href="tlush-sachar/"><b>תלוש שכר</b><span>איך קוראים תלוש שכר: כל שורה מוסברת</span></a>
-    <a class="guide" dir="rtl" lang="he" href="bdikat-tlush/"><b>בדיקת תלוש</b><span>בדיקת תלוש שכר: האם הברוטו מתאים לשעות שלך?</span></a>
-    <a class="guide" dir="rtl" lang="he" href="pensia/"><b>פנסיה</b><span>פנסיה חובה לעובד לפי שעה: 6%, 6.5% ו־6%</span></a>
-    <a class="guide" dir="rtl" lang="he" href="dmei-chagim/"><b>דמי חגים</b><span>דמי חגים לעובד לפי שעה: מי זכאי וכמה</span></a>
-    <!-- /guides -->
-  </div>
-</div></section>
-<section id="who"><div class="wrap">
-  <h2><span data-l="he">לפי סוג העבודה</span><span data-l="en">By kind of work (in Hebrew)</span></h2>
-  <p class="sub"><span data-l="he">מה חשוב לדעת בעבודה שלך, בקצרה.</span><span data-l="en">What matters in each kind of job, in short.</span></p>
-  <div class="guides">
-    <!-- audiences -->
-    <a class="guide" dir="rtl" lang="he" href="avoda-bakayitz/"><b>עבודה בקיץ</b><span>עבודה בקיץ לנוער: כמה משלמים ומה מותר</span></a>
-    <a class="guide" dir="rtl" lang="he" href="studentim/"><b>סטודנטים</b><span>עבודה לסטודנטים: משמרות, מס ושתי עבודות</span></a>
-    <a class="guide" dir="rtl" lang="he" href="chayalim-meshuchrarim/"><b>חיילים משוחררים</b><span>עבודה אחרי השחרור: נקודות זיכוי ועבודה מועדפת</span></a>
-    <a class="guide" dir="rtl" lang="he" href="meltzarim/"><b>מלצרים</b><span>מלצרים וטיפים: מה מגיע לך לפי החוק</span></a>
-    <a class="guide" dir="rtl" lang="he" href="maavtichim/"><b>מאבטחים</b><span>מאבטחים ושומרים: שכר מינימום ענפי ושעות נוספות</span></a>
-    <a class="guide" dir="rtl" lang="he" href="kupaim/"><b>קופאים</b><span>קופאים ועובדי סופר: זכויות במשמרות</span></a>
-    <a class="guide" dir="rtl" lang="he" href="shlichim/"><b>שליחים</b><span>שליחים: שכר לפי משלוח, טיפים וזכויות</span></a>
-    <!-- /audiences -->
-  </div>
-</div></section>
-<section id="times"><div class="wrap">
-  <h2><span data-l="he">זמני שבת השבוע</span><span data-l="en">Shabbat times this week</span></h2>
-  <p class="sub"><span data-l="he">אצבע מחשבת שבת לפי השקיעה בעיר שלך. הנה הזמנים של השבוע.</span><span data-l="en">Etzba counts Shabbat by sunset in your city. This week's times:</span></p>
-  <!-- times -->
-  <table class="times" dir="rtl" lang="he" data-cities><caption>שבת 28.11: כניסה ביום שישי, יציאה במוצאי שבת</caption><thead><tr><th>עיר</th><th>כניסה</th><th>יציאה</th></tr></thead><tbody>
-  <tr data-c="ירושלים"><td><a href="zmanei-shabbat/jerusalem/">ירושלים</a></td><td>15:55</td><td>17:15</td></tr>
-  <tr data-c="תל אביב"><td><a href="zmanei-shabbat/tel-aviv/">תל אביב</a></td><td>16:16</td><td>17:16</td></tr>
-  <tr data-c="חיפה"><td><a href="zmanei-shabbat/haifa/">חיפה</a></td><td>16:04</td><td>17:14</td></tr>
-  <tr data-c="באר שבע"><td><a href="zmanei-shabbat/beer-sheva/">באר שבע</a></td><td>16:18</td><td>17:18</td></tr>
-  <tr data-c="אשדוד"><td><a href="zmanei-shabbat/ashdod/">אשדוד</a></td><td>16:17</td><td>17:17</td></tr>
-  <tr data-c="נתניה"><td><a href="zmanei-shabbat/netanya/">נתניה</a></td><td>16:15</td><td>17:15</td></tr>
-  </tbody></table>
-  <ul class="cities" dir="rtl" lang="he"><li><a href="zmanei-shabbat/rishon-lezion/">ראשון לציון</a></li><li><a href="zmanei-shabbat/petah-tikva/">פתח תקווה</a></li><li><a href="zmanei-shabbat/bnei-brak/">בני ברק</a></li><li><a href="zmanei-shabbat/holon/">חולון</a></li><li><a href="zmanei-shabbat/ramat-gan/">רמת גן</a></li><li><a href="zmanei-shabbat/rehovot/">רחובות</a></li><li><a href="zmanei-shabbat/herzliya/">הרצליה</a></li><li><a href="zmanei-shabbat/kfar-saba/">כפר סבא</a></li><li><a href="zmanei-shabbat/modiin/">מודיעין</a></li><li><a href="zmanei-shabbat/ashkelon/">אשקלון</a></li><li><a href="zmanei-shabbat/tiberias/">טבריה</a></li><li><a href="zmanei-shabbat/tzfat/">צפת</a></li><li><a href="zmanei-shabbat/nazareth/">נצרת</a></li><li><a href="zmanei-shabbat/afula/">עפולה</a></li><li><a href="zmanei-shabbat/kiryat-shmona/">קריית שמונה</a></li><li><a href="zmanei-shabbat/eilat/">אילת</a></li><li><a href="zmanei-shabbat/">כל הערים</a></li></ul>
-  <script type="module" src="shabbat-times.js"></script>
-  <!-- /times -->
+<section id="more"><div class="wrap links" dir="rtl" lang="he">
+  <div id="guides"><h2><span data-l="he">מדריכים</span><span data-l="en">Guides (in Hebrew)</span></h2><ul><!-- guides --><li><a href="shaon-nochechut/">שעון נוכחות</a></li><li><a href="shaot-nosafot/">שעות נוספות</a></li><li><a href="shabbat/">שבת וחג</a></li><li><a href="neto/">מחשבון נטו</a></li><li><a href="sachar-minimum/">שכר מינימום</a></li><li><a href="noar-oved/">נוער עובד</a></li><li><a href="nesiot/">דמי נסיעות</a></li><li><a href="dmei-havraa/">דמי הבראה</a></li><li><a href="yemei-machala/">ימי מחלה</a></li><li><a href="chufsha-shnatit/">חופשה שנתית</a></li><li><a href="pitzuim/">פיצויי פיטורים</a></li><li><a href="hafsakot/">הפסקות</a></li><li><a href="tlush-sachar/">תלוש שכר</a></li><li><a href="bdikat-tlush/">בדיקת תלוש</a></li><li><a href="pensia/">פנסיה</a></li><li><a href="dmei-chagim/">דמי חגים</a></li><!-- /guides --></ul></div>
+  <div id="who"><h2><span data-l="he">לפי סוג העבודה</span><span data-l="en">By kind of work</span></h2><ul><!-- audiences --><li><a href="avoda-bakayitz/">עבודה בקיץ</a></li><li><a href="studentim/">סטודנטים</a></li><li><a href="chayalim-meshuchrarim/">חיילים משוחררים</a></li><li><a href="meltzarim/">מלצרים</a></li><li><a href="maavtichim/">מאבטחים</a></li><li><a href="kupaim/">קופאים</a></li><li><a href="shlichim/">שליחים</a></li><!-- /audiences --></ul></div>
+  <div id="times"><h2><span data-l="he">זמני שבת</span><span data-l="en">Shabbat times</span></h2><!-- times --><p>שבת 28.11 בתל אביב: כניסה 16:16, יציאה 17:16</p><ul><li><a href="zmanei-shabbat/jerusalem/">ירושלים</a></li><li><a href="zmanei-shabbat/tel-aviv/">תל אביב</a></li><li><a href="zmanei-shabbat/haifa/">חיפה</a></li><li><a href="zmanei-shabbat/beer-sheva/">באר שבע</a></li><li><a href="zmanei-shabbat/">כל הערים</a></li></ul><!-- /times --></div>
 </div></section>
 <!-- proof --><!-- /proof -->
-<section id="privacy"><div class="wrap private">
-  <div>
-    <h2><span data-l="he">הכל נשאר אצלך</span><span data-l="en">Everything stays with you</span></h2>
-    <p class="sub" style="margin:0"><span data-l="he">אין חשבון ואין שרת. המשמרות והשכר שלך נשמרים רק בטלפון, ואנחנו לא רואים אותם.</span><span data-l="en">No account and no server. Your shifts and pay stay on your phone, and we never see them.</span></p>
-  </div>
-  <ul>
-    <li><b><span data-l="he">בלי פרסומות ובלי מעקב.</span><span data-l="en">No ads, no tracking.</span></b> <span data-l="he">אין אנליטיקס ואין צד שלישי.</span><span data-l="en">No analytics, no third parties.</span></li>
-    <li><b><span data-l="he">עובד בלי אינטרנט.</span><span data-l="en">Works offline.</span></b> <span data-l="he">מהפעם הראשונה שפותחים.</span><span data-l="en">From the very first launch.</span></li>
-    <li><b><span data-l="he">גיבוי בידיים שלך.</span><span data-l="en">Backups are yours.</span></b> <span data-l="he">קובץ גיבוי מלא וייצוא לאקסל.</span><span data-l="en">A full backup file, and export to Excel.</span></li>
-    <li><b><span data-l="he">החישובים הם הערכה.</span><span data-l="en">Pay is an estimate.</span></b> <span data-l="he">לפי החוק וההגדרות שלך, לא תלוש שכר רשמי.</span><span data-l="en">By the law and your settings, not an official payslip.</span></li>
-  </ul>
-</div></section>
 </main>
 
 <footer><div class="wrap row">
@@ -342,20 +227,6 @@ html[lang=he] [data-l=he],html[lang=en] [data-l=en]{display:revert}
   try { saved = localStorage.getItem(KEY); var s = JSON.parse(localStorage.getItem('etzba.v1') || 'null'); appLang = s && s.settings && s.settings.lang; if (s && (s.shifts && s.shifts.length || s.active)) document.getElementById('back').style.display = 'block'; } catch (e) {}
   set(saved || appLang || (/^he|^iw/.test(navigator.language || '') ? 'he' : (navigator.language ? 'en' : 'he')));
   document.getElementById('lang').onclick = function () { set(h.lang === 'he' ? 'en' : 'he'); };
-  var g = document.getElementById('gallery'), dots = document.getElementById('dots'), shots = g.querySelectorAll('.shot');
-  var prev = document.querySelector('.sl-prev'), next = document.querySelector('.sl-next');
-  shots.forEach(function (_, i) { var d = document.createElement('i'); dots.appendChild(d); });
-  function step() { return shots[0].getBoundingClientRect().width + 22; }
-  function sign() { return getComputedStyle(g).direction === 'rtl' ? -1 : 1; }
-  function upd() {
-    var x = Math.abs(g.scrollLeft), max = g.scrollWidth - g.clientWidth;
-    prev.disabled = x < 4; next.disabled = x > max - 4;
-    var k = Math.round(x / step()); dots.querySelectorAll('i').forEach(function (d, i) { d.className = i === k ? 'on' : ''; });
-  }
-  function page() { return Math.max(1, Math.round((g.clientWidth - 88) / step())) * step(); }
-  prev.onclick = function () { g.scrollBy({ left: -sign() * page() }); };
-  next.onclick = function () { g.scrollBy({ left: sign() * page() }); };
-  g.addEventListener('scroll', upd, { passive: true }); window.addEventListener('resize', upd); upd();
 })();
 </script>
 </body>
