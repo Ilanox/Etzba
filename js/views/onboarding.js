@@ -16,7 +16,7 @@ import { setLang } from '../switch-language.js';
 
 export function openOnboarding() {
   const job = S.jobs[0];
-  const d = { lang: LANG, name: job.name === 'העבודה שלי' ? '' : job.name, rate: job.rate, travel: job.travel || 0,
+  const d = { lang: LANG, name: job.name === 'העבודה שלי' ? '' : job.name, rate: job.name === 'העבודה שלי' ? '' : job.rate,   // untouched defaults show as empty, not as your data travel: job.travel || 0,
     weekDays: job.weekDays, otOn: job.otOn !== false, shabbatOn: job.shabbatOn !== false, city: S.settings.city,
     startDate: job.startDate || '', tipsOn: !!job.tipsOn, tipsMode: job.tipsMode || 'own', goal: +S.settings.goal?.amount || '' };
   const LAST = 4;
@@ -43,7 +43,7 @@ export function openOnboarding() {
     () => `<h1 id="ob-title">איפה את/ה עובד/ת?</h1>
       <p class="ob-sub">אפשר להוסיף עוד מקומות עבודה אחר כך בהגדרות.</p>
       <label class="field"><span>שם מקום העבודה</span><input class="input" id="ob-name" type="text" autocomplete="organization" placeholder="למשל: קפה רחביה" value="${esc(d.name)}"></label>
-      <label class="field"><span>שכר לשעה (₪)</span><input class="input num" id="ob-rate" type="number" step="0.01" inputmode="decimal" value="${d.rate}"><p class="hint" id="ob-minw"></p></label>
+      <label class="field"><span>שכר לשעה (₪)</span><input class="input num" id="ob-rate" type="number" step="0.01" inputmode="decimal" value="${d.rate}" placeholder="${minWage()}"><p class="hint" id="ob-minw"></p></label>
       <label class="field"><span>נסיעות ליום עבודה (₪)</span><input class="input num" id="ob-travel" type="number" step="0.5" inputmode="decimal" value="${d.travel || ''}" placeholder="0"><p class="hint">לפי החוק נסיעות משולמות פעם אחת על כל יום עבודה, עד ₪${rules().travelMaxDaily} ליום. אם לא מחזירים לך, אפשר להשאיר ריק.</p></label>
       <label class="field"><span>תאריך לידה (לא חובה)</span><input class="input num" id="ob-birth" type="date" value="${esc(S.settings.birth || '')}" max="${dateKey(new Date())}"><p class="hint">מתחת לגיל 21 זה משנה: שכר מינימום לנוער, ביטוח לאומי ופנסיה. נשמר רק בטלפון.</p></label>`,
     () => `<h1 id="ob-title">איך נראה שבוע העבודה?</h1>
@@ -61,7 +61,7 @@ export function openOnboarding() {
         <p class="hint">${d.tipsMode === 'wage' ? 'הטיפים נכנסים לקופה ונחשבים לשכר. אם במשמרת הם פחות מהשכר לשעות, המעסיק משלים את ההפרש.' : 'הטיפים שלך במזומן או מהלקוחות, מעבר לשכר לשעה. הם לא חלק מהברוטו.'}</p></div>` : ''}`,
     () => `<div class="ob-hero">${mark({ ink: 'var(--ink)', accent: 'var(--accent)' })}</div>
       <h1 id="ob-title">הכל מוכן</h1>
-      <p class="ob-sub">${esc(d.name || 'העבודה שלי')} · ₪${d.rate} לשעה${d.travel ? ` · נסיעות ₪${d.travel}` : ''} · שבוע של ${d.weekDays} ימים</p>
+      <p class="ob-sub">${esc(d.name || 'העבודה שלי')} · ${d.rate ? `₪${d.rate} לשעה` : `שכר מינימום, ₪${minWage()} לשעה`}${d.travel ? ` · נסיעות ₪${d.travel}` : ''} · שבוע של ${d.weekDays} ימים</p>
       <label class="field" style="margin-top:18px"><span>יעד נטו לחודש (₪, לא חובה)</span><input class="input num" id="ob-goal" type="number" step="50" inputmode="numeric" value="${d.goal || ''}" placeholder="למשל 5000"><p class="hint">נראה לך כמה משמרות נשארו כדי להגיע אליו.</p></label>
       <div class="card" style="margin-top:6px">
         <button class="cell" id="ob-import"><span class="cell-ic t-blue">${I.file}</span><span class="grow">יש לי משמרות מאפליקציה אחרת<div class="sub">ייבוא מקובץ Excel או CSV</div></span><span class="chev">${I.chevL}</span></button>
@@ -77,7 +77,7 @@ export function openOnboarding() {
   };
   const finish = (andImport = false) => {
     read();
-    Object.assign(job, { name: d.name || 'העבודה שלי', rate: d.rate || job.rate, travel: d.travel, travelMode: 'day', weekDays: d.weekDays, otOn: d.otOn, shabbatOn: d.shabbatOn, chag: d.shabbatOn,
+    Object.assign(job, { name: d.name || 'העבודה שלי', rate: d.rate || minWage(), travel: d.travel, travelMode: 'day', weekDays: d.weekDays, otOn: d.otOn, shabbatOn: d.shabbatOn, chag: d.shabbatOn,
       startDate: d.startDate, tipsOn: d.tipsOn, tipsMode: d.tipsMode, rateOk: true });
     if (d.goal > 0) S.settings.goal = { amount: d.goal, kind: 'net' };
     if (d.weekDays === 6) Object.assign(job, { regHours: 8, shortHours: 7, shortDay: 5 });
@@ -110,7 +110,7 @@ export function openOnboarding() {
     }));
     if ($o('#ob-import')) $o('#ob-import').onclick = () => finish(true);
     const rate = $o('#ob-rate');
-    if (rate) { const mw = () => { const r = +rate.value; $o('#ob-minw').innerHTML = r && r < minWage() ? `<span>נמוך משכר המינימום (₪${minWage()} לשעה)</span> ${!S.settings.birth ? '<span>מתחת לגיל 18? הוסיפו תאריך לידה למטה, ואז השכר והניכויים יחושבו לפי הגיל.</span>' : ''}` : ''; $o('#ob-minw').className = 'hint' + (r && r < minWage() ? ' bad' : ''); }; rate.oninput = mw; mw();
+    if (rate) { const mw = () => { const r = +rate.value; $o('#ob-minw').innerHTML = r && r < minWage() ? `<span>נמוך משכר המינימום (₪${minWage()} לשעה)</span> ${!S.settings.birth ? '<span>מתחת לגיל 18? הוסיפו תאריך לידה למטה, ואז השכר והניכויים יחושבו לפי הגיל.</span>' : ''}` : r ? '' : `ריק = שכר המינימום, ₪${minWage()}. אפשר לשנות בכל זמן.`; $o('#ob-minw').className = 'hint' + (r && r < minWage() ? ' bad' : ''); }; rate.oninput = mw; mw();
       $o('#ob-birth').onchange = e => { const v = e.target.value; S.settings.birth = /^(19|20)\d\d-\d\d-\d\d$/.test(v) && v <= dateKey(new Date()) ? v : ''; refreshAge(); mw(); }; }
     const first = $o('#ob-name'); if (first && !d.name) setTimeout(() => first.focus(), 250);
   };

@@ -50,7 +50,8 @@ export function recapBanner() {
   const el = $('#rcBanner'); if (!el) return;
   const now = new Date(), y = RECAP_YEAR;
   const d = (isSup() && earlyDate('recap', 'supporters')) || earlyDate('recap'), justOpened = d && d < '2090' && (now - new Date(d + 'T00:00:00')) / 864e5 < 60 && recapOpen();
-  const show = recapOpen() && (now.getMonth() >= 10 || now.getMonth() === 0 || justOpened) && S.ui?.rcBanner !== y
+  // November to March: people who join in the new year still get last year's story
+  const show = recapOpen() && (now.getMonth() >= 10 || now.getMonth() <= 2 || justOpened) && S.ui?.rcBanner !== y
     && S.shifts.some(s => new Date(s.start).getFullYear() === y);
   if (!show) { el.hidden = true; el.innerHTML = ''; return; }
   if (el.dataset.y === String(y) && !el.hidden) return;

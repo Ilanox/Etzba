@@ -78,3 +78,20 @@ test('back button: closes a sheet, then asks before leaving', async () => {
   assert.equal(await page.locator('#x-exit').count(), 1, 'asks');
   assert.deepEqual(errors, []); await ctx.close();
 });
+
+test('first launch: the pay field starts empty, not with a made-up number, and empty means the minimum wage', async () => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Asia/Jerusalem', serviceWorkers: 'block' });
+  await ctx.route(/^https?:\/\/(?!localhost)/, r => r.abort());
+  const page = await ctx.newPage(), errors = []; page.on('pageerror', e => errors.push(String(e)));
+  await page.goto(URL_); await wait(page, 800);
+  await page.click('#ob-next');
+  assert.equal(await page.inputValue('#ob-rate'), '');
+  assert.equal(await page.inputValue('#ob-name'), '');
+  assert.match(await page.locator('#ob-minw').innerText(), /ריק = שכר המינימום/);
+  for (let i = 0; i < 3; i++) await page.click('#ob-next');
+  assert.match(await page.locator('.ob-sub').first().innerText(), /שכר מינימום/);
+  await page.click('#ob-next'); await wait(page, 500);
+  const st = await page.evaluate(() => JSON.parse(localStorage.getItem('etzba.v1')));
+  assert.ok(+st.jobs[0].rate > 30, 'the minimum wage was saved');
+  assert.deepEqual(errors, []); await ctx.close();
+});

@@ -729,6 +729,9 @@ export default {
     // First launch
     ['נמוך משכר המינימום (₪{} לשעה)', 'Below minimum wage (₪{1} an hour)'],
     ['· ₪{} לשעה{} · שבוע של {} ימים', '· ₪{1} an hour{2} · {3}-day week'],
+    ['· {}{} · שבוע של {} ימים', '· {1}{2} · {3}-day week'],
+    ['שכר מינימום, ₪{} לשעה', 'minimum wage, ₪{1} an hour'],
+    ['ריק = שכר המינימום, ₪{}. אפשר לשנות בכל זמן.', 'Empty = minimum wage, ₪{1}. You can change it any time.'],
     ['לפי החוק נסיעות משולמות פעם אחת על כל יום עבודה, עד ₪{} ליום. אם לא מחזירים לך, אפשר להשאיר ריק.', 'By law, travel is paid once per work day, up to ₪{1} a day. Leave it empty if it is not paid.'],
 
     // Notifications, widget and arrival
