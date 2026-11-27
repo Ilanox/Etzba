@@ -238,11 +238,13 @@ export function planAction(id, act) {
 }
 
 export function planReminders() {
-  const lead = 60 * 6e4, out = [];
+  // an hour before, asked for 10 minutes earlier: Android delivers these a few minutes late (no exact alarms, by
+  // Play's rules), so this way it lands around the hour mark instead of after it. The title names the time, so it's right either way.
+  const lead = 70 * 6e4, out = [];
   for (const x of S.plans) {
     const at = +new Date(x.start) - lead; if (at < Date.now() + 5000) continue;
     const j = jobById(x.jobId);
-    out.push({ at: new Date(at), title: 'משמרת בעוד שעה', body: `${x.end ? `${tm(x.start)}–${tm(x.end)}` : `מ־${tm(x.start)}`}${S.jobs.length > 1 ? ' · ' + j.name : ''}` });
+    out.push({ at: new Date(at), title: `משמרת ב־${tm(x.start)}`, body: `${x.end ? `${tm(x.start)}–${tm(x.end)}` : `מ־${tm(x.start)}`}${S.jobs.length > 1 ? ' · ' + j.name : ''}` });
   }
   return out;
 }

@@ -57,3 +57,13 @@ test('the website names the offline cache after each commit, so it never has to 
   assert.match(sw, /^const VERSION = '[^']*';$/m, 'the line the deploy rewrites');
   assert.match(wf, /sed -i "s\/\^const VERSION = '\[\^'\]\*';\//, 'pages.yml rewrites it');
 });
+
+test('alarms: none needs the exact-alarm permission, and the widget redraws every minute while on shift', () => {
+  const dir = new URL('../../native/android/', import.meta.url);
+  for (const f of readdirSync(dir).filter(f => f.endsWith('.java'))) {
+    const src = readFileSync(new URL(f, dir), 'utf8');
+    assert.doesNotMatch(src, /setExact|setAlarmClock/, `${f}: exact alarms need a permission Play doesn't give this app`);
+  }
+  const w = readFileSync(new URL('EtzbaWidget.java', dir), 'utf8');
+  assert.match(w, /am\.set\(AlarmManager\.ELAPSED_REALTIME, SystemClock\.elapsedRealtime\(\) \+ 60_000, minute\)/);
+});

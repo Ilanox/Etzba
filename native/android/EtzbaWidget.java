@@ -22,12 +22,14 @@ import com.edvinstudios.etzba.WidgetViews.Size;
 
 /**
  * The home screen widget. The app saves what to show (AppActionsPlugin.updateWidget), which calls refresh();
- * while a shift runs, alarms redraw it every 15 minutes and right when the pay rate changes.
+ * while a shift runs, an alarm redraws it every minute (a non-waking one: if the phone sleeps, it comes due the moment
+ * the screen turns on, so the amount and the dial are current whenever anyone looks), and right when the pay rate changes.
+ * A 15-minute alarm backs the minute one up in case Android drops it.
  * The timer itself is a Chronometer, so it ticks without redrawing.
  */
 public class EtzbaWidget extends AppWidgetProvider {
     static final String TICK = "com.edvinstudios.etzba.WIDGET_TICK";
-    private static final int REQ_REPEAT = 78, REQ_RATE_CHANGE = 79;
+    private static final int REQ_REPEAT = 78, REQ_RATE_CHANGE = 79, REQ_MINUTE = 80;
 
     @Override
     public void onUpdate(Context ctx, AppWidgetManager mgr, int[] ids) {
@@ -84,13 +86,14 @@ public class EtzbaWidget extends AppWidgetProvider {
         }
     }
 
-    /** While on shift: a redraw every 15 minutes, and one just after the next rate change. Off shift: none. */
+    /** While on shift: a redraw every minute, a backup every 15, and one just after the next rate change. Off shift: none. */
     private static void schedule(Context ctx, boolean on) {
         AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
         if (am == null) return;
-        PendingIntent repeat = tick(ctx, REQ_REPEAT), rateChange = tick(ctx, REQ_RATE_CHANGE);
-        am.cancel(rateChange);
+        PendingIntent repeat = tick(ctx, REQ_REPEAT), rateChange = tick(ctx, REQ_RATE_CHANGE), minute = tick(ctx, REQ_MINUTE);
+        am.cancel(rateChange); am.cancel(minute);
         if (!on) { am.cancel(repeat); return; }
+        am.set(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + 60_000, minute);
         am.setInexactRepeating(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + AlarmManager.INTERVAL_FIFTEEN_MINUTES,
             AlarmManager.INTERVAL_FIFTEEN_MINUTES, repeat);
         long next = nextRateChange(WidgetState.segments(WidgetState.prefs(ctx)), System.currentTimeMillis());

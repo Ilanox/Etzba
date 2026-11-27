@@ -96,7 +96,6 @@ export default {
     'המשמרת נוספה': 'Shift added',
     'הוסרה': 'Removed',
     'כשנכנסים למשמרת סביב השעה הזו, היא נרשמת כרגיל.': "Clock in around this time and it's recorded as usual.",
-    'משמרת בעוד שעה': 'Shift in an hour',
     'מתוכננת': 'Planned',
     'תגיע תזכורת שעה לפני.': "You'll get a reminder an hour before.",
     'ההתראות כבויות, אז לא תגיע תזכורת.': 'Notifications are off, so no reminder.',
@@ -356,6 +355,7 @@ export default {
     'למי שעובד במשמרות ורוצה לדעת כמה הוא מרוויח': 'For anyone who works shifts and wants to know what they earn',
     'אצבע: שעון נוכחות ומחשבון שכר לעובדים לפי שעה. חינם, בלי חשבון ובלי פרסומות.': 'Etzba: a time clock and pay calculator for hourly workers. Free, no account and no ads.',
     'החודש שלי באצבע': 'My month on Etzba',
+    'משמרת ב־': 'Shift at ',
     'תמונה של החודש': 'The month as a picture',
     'שעות, משמרות ושכר, לסטורי או לצ׳אט': 'Hours, shifts and pay, for a story or a chat',
     'Google Play לא זמין כרגע. כדאי לבדוק את החיבור ולנסות שוב.': 'Google Play isn’t available right now. Check your connection and try again.',
@@ -731,6 +731,7 @@ export default {
     ['· ₪{} לשעה{} · שבוע של {} ימים', '· ₪{1} an hour{2} · {3}-day week'],
     ['· {}{} · שבוע של {} ימים', '· {1}{2} · {3}-day week'],
     ['שכר מינימום, ₪{} לשעה', 'minimum wage, ₪{1} an hour'],
+    ['משמרת ב־{}', 'Shift at {1}'],
     ['ריק = שכר המינימום, ₪{}. אפשר לשנות בכל זמן.', 'Empty = minimum wage, ₪{1}. You can change it any time.'],
     ['לפי החוק נסיעות משולמות פעם אחת על כל יום עבודה, עד ₪{} ליום. אם לא מחזירים לך, אפשר להשאיר ריק.', 'By law, travel is paid once per work day, up to ₪{1} a day. Leave it empty if it is not paid.'],
 
